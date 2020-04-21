@@ -10,8 +10,6 @@ type Client struct {
 	opts clientOptions
 }
 
-type UnaryInterceptor func(ctx context.Context, msg interface{}) error
-
 type clientOptions struct {
 	// ... some options
 	endpoint   Endpoint
@@ -119,6 +117,8 @@ type Failer interface {
 // 		return interceptors[curr+1](ctx, req, info, getChainUnaryHandler(interceptors, curr+1, info, finalHandler))
 // 	}
 // }
+
+// =========================================================================
 
 // Dial make a way to send msg to MQ
 func Dial(ctx context.Context, target string, opts ...ClientOption) (client *Client, err error) {
