@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+// Client use to manage the send conn to the MQ
 // from GRPC: https://github.com/grpc/grpc-go/blob/master/server.go
 type Client struct {
 	opts clientOptions
@@ -17,6 +18,7 @@ type clientOptions struct {
 	ack        bool
 }
 
+// ClientOption supply the setup of Client
 type ClientOption interface {
 	apply(*clientOptions)
 }
@@ -33,6 +35,7 @@ func newFuncClientOption(f func(*clientOptions)) *funcClientOption {
 	return &funcClientOption{f: f}
 }
 
+// ACKsend config if need ack
 func ACKsend(b bool) ClientOption {
 	return newFuncClientOption(func(o *clientOptions) {
 		o.ack = b
@@ -40,6 +43,7 @@ func ACKsend(b bool) ClientOption {
 }
 
 // from go-kit: https://github.com/go-kit/kit/blob/master/endpoint/endpoint.go
+
 // Endpoint is the fundamental building block of servers and clients.
 // It represents a single RPC method.
 type Endpoint func(ctx context.Context, request interface{}) error
@@ -142,6 +146,7 @@ func Dial(ctx context.Context, target string, opts ...ClientOption) (client *Cli
 	return c, nil
 }
 
+// Send send msg to target topic
 func (c *Client) Send(ctx context.Context, msg interface{}) error {
 	if err := c.opts.endpoint(ctx, msg); err != nil {
 		fmt.Println(err)
