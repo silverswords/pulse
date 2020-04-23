@@ -15,8 +15,13 @@ import (
 // 1. dial to target MQ and sub a topic
 // 2. get msg, and return ack to MQ
 
+
 // todo: required
 // = use database/sql to suit various MQ
+// design in client
+// every client have its own options, like its own middleware.
+// subscription is derived from a client. and use a client could directly send msg.
+// so in client, there is a queue to keep unconfirmed msg
 // = use grpc client option to configure this eventbus
 // = use go-kit endpoint to handle and process msg lifecycle
 // = use ctx to control retry, timeout, ratelimit, trcaing etc.
