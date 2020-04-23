@@ -19,8 +19,13 @@ import (
 // = use database/sql to suit various MQ
 // = use grpc client option to configure this eventbus
 // = use go-kit endpoint to handle and process msg lifecycle
-// = use ctx to control retry, timeout, etc.
-
+// = use ctx to control retry, timeout, ratelimit, trcaing etc.
+// how to metric?
+// design in msg
+// ack or seq imitate tcp to ensure message arrived.
+// imitate http, codec and application/json in msg.Header(key[value]).
+// design in topic
+// topic imitate URL to manage
 
 // Client use to manage the send conn to the MQ
 // from GRPC: https://github.com/grpc/grpc-go/blob/master/server.go
