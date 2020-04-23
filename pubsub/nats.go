@@ -1,7 +1,7 @@
 package pubsub
 
 import (
-	"context"
+	"fmt"
 	nats "github.com/nats-io/nats.go"
 	"log"
 	"time"
@@ -30,7 +30,19 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 }
 
 // Send send msg to nc
-func Send(ctx context.Context, msg interface{}) error {
-	nc.Publish(ctx.Value("subject").(string),msg.([]byte))
+func Send(subject string, msg []byte) error {
+	err:= nc.Publish(subject,msg)
+	if err != nil {
+		fmt.Println(err)
+	}
+	nc.Flush()
 	return nil
+}
+
+func Sub(subject string) {
+	nc.Subscribe(subject,func(m *nats.Msg) {
+		fmt.Printf("Received a message: %s\n", string(m.Data))
+	})
+
+
 }
