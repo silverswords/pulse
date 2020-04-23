@@ -124,7 +124,7 @@ type Failer interface {
 
 // =========================================================================
 
-// Dial make a way to send msg to MQ
+// Dial make a way to send msg to MQ todo
 func Dial(ctx context.Context, target string, opts ...ClientOption) (client *Client, err error) {
 	c := &Client{
 		opts: defaultOptions(),
