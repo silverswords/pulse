@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/silverswords/whisper/pubsub"
+	"github.com/silverswords/whisper/pubsub/nats"
 )
 
 func main(){
-	pubsub.Send("msg.test", []byte("hello"))
+	nats.Send("msg.test", []byte("hello"))
 
 }

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/silverswords/whisper/pubsub"
+	"github.com/silverswords/whisper/pubsub/nats"
 	"runtime"
 )
 
 func main(){
-	pubsub.Sub("msg.test")
+	nats.Sub("msg.test")
 	runtime.Goexit()
 }

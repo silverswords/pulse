@@ -1,15 +1,23 @@
-package pubsub
+package nats
 
 import (
+	"context"
 	"fmt"
 	nats "github.com/nats-io/nats.go"
+	"github.com/silverswords/whisper/pubsub"
 	"log"
 	"time"
 )
 
 const DefaultURL =  "nats://39.105.141.168:4222"
 
-var nc,_ = nats.Connect(DefaultURL,setupConnOptions([]nats.Option{})...)
+type NatsDriver struct {}
+
+var nc,_ = nats.Connect(DefaultURL, setupConnOptions([]nats.Option{})...)
+
+func init(){
+	pubsub.Register("nats", NatsDriver{})
+}
 
 func setupConnOptions(opts []nats.Option) []nats.Option {
 	totalWait := 10 * time.Minute
@@ -29,6 +37,10 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 	return opts
 }
 
+func (d NatsDriver) Send(ctx context.Context, msg []byte) error{
+	return Send(ctx.Value("subject").(string), msg)
+}
+
 // Send send msg to nc
 func Send(subject string, msg []byte) error {
 	err:= nc.Publish(subject,msg)
@@ -43,6 +55,4 @@ func Sub(subject string) {
 	nc.Subscribe(subject,func(m *nats.Msg) {
 		fmt.Printf("Received a message: %s\n", string(m.Data))
 	})
-
-
 }
