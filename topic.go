@@ -1,6 +1,9 @@
 package whisper
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 type Message struct {
 	Header map[string]string
@@ -94,6 +97,17 @@ func Chain(outer Middleware, others ...Middleware) Middleware {
 // should be used by a complete application.
 type Failer interface {
 	Failed() error
+}
+
+// example
+func annotate(s string) Middleware {
+	return func(next Endpoint) Endpoint {
+		return func(ctx context.Context, request Message) error {
+			fmt.Println(s, "pre")
+			defer fmt.Println(s, "post")
+			return next(ctx, request)
+		}
+	}
 }
 
 

@@ -21,7 +21,6 @@ import (
 // 1. dial to target MQ and sub a topic
 // 2. get msg, and return ack to MQ
 
-
 // todo: required
 // = use database/sql to suit various MQ
 // design in client
@@ -63,9 +62,9 @@ type Client struct {
 // Dial make a way to send msg to MQ
 func Dial(driverName string, opts ...ClientOption) (client *Client, err error) {
 	c := &Client{
-		opts: defaultOptions(),
-		ackch: make(chan uint64,1),
-		ackmap: make(map[uint64]bool),
+		opts:    defaultOptions(),
+		ackch:   make(chan uint64, 1),
+		ackmap:  make(map[uint64]bool),
 		closeCh: make(chan struct{}),
 	}
 
@@ -77,7 +76,7 @@ func Dial(driverName string, opts ...ClientOption) (client *Client, err error) {
 	// topic Middlewares in one endpoint
 	chainEndpoint(c)
 
-	c.conn, err = pubsub.Open(driverName,c.opts.url,c.opts.pubsubOptions)
+	c.conn, err = pubsub.Open(driverName, c.opts.url, c.opts.pubsubOptions)
 	defer func() {
 		if err != nil {
 			c.Close()
@@ -95,9 +94,9 @@ func Dial(driverName string, opts ...ClientOption) (client *Client, err error) {
 					//	do ack and drop arrived msg
 					c.Lock()
 					c.ackmap[ack] = false
-					for i,x := range c.queue {
+					for i, x := range c.queue {
 						if x.ACK == ack {
-							c.queue = append(c.queue[0:i-1],c.queue[i:]...)
+							c.queue = append(c.queue[0:i-1], c.queue[i:]...)
 							c.Unlock()
 							break
 						}
@@ -109,33 +108,14 @@ func Dial(driverName string, opts ...ClientOption) (client *Client, err error) {
 			}
 		}()
 	}
+
+
 	return c, nil
 }
-func  (c *Client) ACKH(ctx context.Context, msg Message) error {
-	// ack
-	if !c.opts.ack {
-		return nil
-	}
-	c.ackmap[msg.ACK] = true
-	c.queue = append(c.queue,msg)
 
-	return nil
-}
-
-func (c *Client) SendH(ctx context.Context, msg Message) error {
-	topic,ok := ctx.Value("topic").(string)
-	if !ok {return errors.New("don't have topic to send to")}
-
-	raw, err := Encode(msg)
-	if err!= nil {return err}
-
-	// all in endpoint
-	c.conn.Pub(topic,raw)
-	return nil
-}
 // Send send msg to target topic
 func (c *Client) Send(topic string, msg Message) error {
-	ctx := context.WithValue(context.Background(),"topic",topic)
+	ctx := context.WithValue(context.Background(), "topic", topic)
 	if err := c.opts.endpoint(ctx, msg); err != nil {
 		fmt.Println(err)
 		return err
@@ -148,12 +128,47 @@ func (c *Client) Close() {
 	c.closeCh <- struct{}{}
 }
 
-func chainEndpoint(c *Client) {
-	c.opts.endpoint = Chain(NopM, c.opts.middleware...)(Nop)
-}
-
 func defaultOptions() clientOptions {
 	return clientOptions{}
+}
+
+func chainEndpoint(c *Client) {
+	c.opts.endpoint = Chain(c.ACKM(), c.opts.middleware...)(c.SendH)
+}
+
+func (c *Client) ACKM() Middleware {
+	return func(next Endpoint) Endpoint {
+		return func(ctx context.Context, msg Message) error {
+			// ack
+			defer func() {
+				if !c.opts.ack {
+					return
+				}
+				c.ackmap[msg.ACK] = true
+				c.queue = append(c.queue, msg)
+			}()
+			next(ctx, msg)
+			return nil
+		}
+	}
+
+}
+
+func (c *Client) SendH(ctx context.Context, msg Message) error {
+	topic, ok := ctx.Value("topic").(string)
+	if !ok {
+		return errors.New("don't have topic to send to")
+	}
+
+	raw, err := Encode(msg)
+	if err != nil {
+		return err
+	}
+
+	// all in endpoint
+	c.conn.Pub(topic, raw)
+	return nil
+
 }
 
 func Encode(data interface{}) ([]byte, error) {
