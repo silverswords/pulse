@@ -1,7 +1,6 @@
 package nats
 
 import (
-	"context"
 	"fmt"
 	nats "github.com/nats-io/nats.go"
 	"github.com/silverswords/whisper/pubsub"
@@ -13,13 +12,13 @@ const DefaultURL =  "nats://39.105.141.168:4222"
 
 type NatsDriver struct {}
 
-var nc,_ = nats.Connect(DefaultURL, setupConnOptions([]nats.Option{})...)
+var nc,_ = nats.Connect(DefaultURL, SetupConnOptions([]nats.Option{})...)
 
 func init(){
 	pubsub.Register("nats", NatsDriver{})
 }
 
-func setupConnOptions(opts []nats.Option) []nats.Option {
+func SetupConnOptions(opts []nats.Option) []nats.Option {
 	totalWait := 10 * time.Minute
 	reconnectDelay := time.Second
 
@@ -37,13 +36,21 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 	return opts
 }
 
-func (d NatsDriver) Send(ctx context.Context, msg []byte) error{
-	return Send(ctx.Value("subject").(string), msg)
+func (d NatsDriver) Dial(target string, options interface{}) (pubsub.Conn, error) {
+	conn , err := nats.Connect(target, options.([]nats.Option)...)
+	if err != nil {
+		return nil, err
+	}
+	return Conn{conn},err
+}
+
+type Conn struct {
+	 *nats.Conn
 }
 
 // Send send msg to nc
-func Send(subject string, msg []byte) error {
-	err:= nc.Publish(subject,msg)
+func (c Conn) Pub(topic string, msg []byte) error {
+	err:= c.Publish(topic,msg)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -51,8 +58,16 @@ func Send(subject string, msg []byte) error {
 	return nil
 }
 
-func Sub(subject string) {
-	nc.Subscribe(subject,func(m *nats.Msg) {
+type Subscription struct {
+	*nats.Subscription
+}
+func (s Subscription) Nothing() bool{return true}
+
+func (c Conn) Sub(subject string) pubsub.Subscription {
+	subs, err := c.Subscribe(subject,func(m *nats.Msg) {
 		fmt.Printf("Received a message: %s\n", string(m.Data))
 	})
+
+	if err != nil { fmt.Println(err);return nil}
+	return Subscription{subs}
 }
