@@ -104,5 +104,7 @@ type Connector interface {
 }
 
 type Subscription interface {
+	// Receive is a blocked method until get a message
+	// todo : add a timeout avoid blocked forever
 	Receive() []byte
 }

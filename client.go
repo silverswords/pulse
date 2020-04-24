@@ -92,7 +92,7 @@ func Dial(driverName string, opts ...ClientOption) (client *Client, err error) {
 	// ack goroutine
 	if c.opts.ack {
 		go func() {
-			subs,err := c.conn.Sub(ACKchannel)
+			subs, err := c.conn.Sub(ACKchannel)
 			if err != nil {
 				fmt.Println("ACK Subscribe error")
 			}
@@ -103,16 +103,22 @@ func Dial(driverName string, opts ...ClientOption) (client *Client, err error) {
 				if err != nil {
 					fmt.Println("[Error] In Decode Message: ", err)
 				}
-				fmt.Println("Debug: ", "receive the msg ack: ", msg.ACK)
 				c.Lock()
+				if !c.ackmap[msg.ACK] {
+					c.Unlock()
+					continue
+				}
 				for i, x := range c.queue {
 					if x.ACK == msg.ACK {
-						if len(c.queue) ==1 {
+						if len(c.queue) == 1 {
 							c.queue = c.queue[0:0]
-						}else {
+						} else {
 							c.queue = append(c.queue[0:i-1], c.queue[i:]...)
 						}
 						c.ackmap[msg.ACK] = false
+
+						fmt.Println("Debug: ", "receive the msg ack: ", msg.ACK)
+						fmt.Println("Current: ",c.queue)
 						c.Unlock()
 						break
 					}
@@ -139,18 +145,52 @@ func (c *Client) Send(topic string, msg Message) error {
 	return nil
 }
 
-func(c *Client) Receive(topic string) (*Message, error) {
-	if c.closed {return nil,errors.New("client closed")}
+// Receive is a blocked method until get a message
+func (c *Client) Receive(topic string) (*Message, error) {
+	if c.closed {
+		return nil, errors.New("client closed")
+	}
 
-	subs,err := c.conn.Sub(topic)
-	if err != nil {return nil, err}
+	subs, err := c.conn.Sub(topic)
+	if err != nil {
+		return nil, err
+	}
 	raw := subs.Receive()
 	var msg Message
-	Decode(raw,&msg)
+	Decode(raw, &msg)
 
 	ctx := context.WithValue(context.Background(), "topic", topic)
-	if err := c.opts.subE(ctx, &msg); err != nil {return nil, err}
-	return &msg,nil
+	if err := c.opts.subE(ctx, &msg); err != nil {
+		return nil, err
+	}
+	return &msg, nil
+}
+
+// ReceiveChan open a goroutine to process message with endpoint. it may cause error and just fmt.Println(err)
+// notice to handle the hidden errors
+func (c *Client) ReceiveChan(topic string) (chan *Message, error) {
+	if c.closed {
+		return nil, errors.New("client closed")
+	}
+	subs, err := c.conn.Sub(topic)
+	if err != nil {
+		return nil, err
+	}
+
+	var ch  = make(chan *Message,64)
+	go func() {
+		raw := subs.Receive()
+		var msg Message
+		Decode(raw, &msg)
+
+		ch <- &msg
+
+		ctx := context.WithValue(context.Background(), "topic", topic)
+		if err := c.opts.subE(ctx, &msg); err != nil {
+			fmt.Println(err)
+		}
+	}()
+	return ch,nil
 }
 
 // Close graceful all the conn
@@ -165,7 +205,7 @@ func defaultOptions() clientOptions {
 
 func chainEndpoint(c *Client) {
 	c.opts.endpoint = Chain(c.waitACKM(), c.opts.middleware...)(c.sendH)
-	c.opts.subE = Chain(c.ACKM(),c.opts.subM...)(Nop)
+	c.opts.subE = Chain(c.ACKM(), c.opts.subM...)(Nop)
 }
 
 func (c *Client) ACKM() Middleware {
@@ -213,14 +253,18 @@ func (c *Client) sendH(ctx context.Context, msg *Message) error {
 
 	// all in endpoint
 	err = c.conn.Pub(topic, raw)
-	if err != nil {return err}
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func( c *Client) sendACK(ack uint64) error {
+func (c *Client) sendACK(ack uint64) error {
 	raw, err := Encode(Message{ACK: ack})
-	if err != nil { return err}
-	return c.conn.Pub(ACKchannel,raw)
+	if err != nil {
+		return err
+	}
+	return c.conn.Pub(ACKchannel, raw)
 }
 
 func Encode(data interface{}) ([]byte, error) {
