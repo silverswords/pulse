@@ -37,7 +37,21 @@ func SetupConnOptions(opts []nats.Option) []nats.Option {
 }
 
 func (d NatsDriver) Dial(target string, options interface{}) (pubsub.Conn, error) {
-	conn , err := nats.Connect(target, options.([]nats.Option)...)
+	var (
+		err error
+		conn *nats.Conn
+	)
+
+	// if not set, use default target and options
+	if target == "" {
+		target = DefaultURL
+	}
+	options, ok := options.([]nats.Option)
+	if !ok {
+		conn, err = nats.Connect(target, SetupConnOptions([]nats.Option{})...)
+	}else {
+		conn , err = nats.Connect(target, options.([]nats.Option)...)
+	}
 	if err != nil {
 		return nil, err
 	}

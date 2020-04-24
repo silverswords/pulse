@@ -2,19 +2,22 @@ package whisper
 
 import "context"
 
-type message struct {
+type Message struct {
 	Header map[string]string
 	Body []byte
 	ACK uint64
 }
 
-type ackmap map[uint64]bool
-
-
 type clientOptions struct {
+	// pubsub mq set
+	url string
+	pubsubOptions interface{}
+
 	// ... some options
 	endpoint   Endpoint
 	middleware []Middleware
+
+	// ack means if have ack to drop the msg in client
 	ack        bool
 }
 
@@ -42,15 +45,21 @@ func ACKsend(b bool) ClientOption {
 	})
 }
 
+func WithURL(url string) ClientOption{
+	return newFuncClientOption(func(o *clientOptions){
+		o.url = url
+	})
+}
+
 // from go-kit: https://github.com/go-kit/kit/blob/master/endpoint/endpoint.go
 
 // Endpoint is the fundamental building block of servers and clients.
 // It represents a single RPC method.
-type Endpoint func(ctx context.Context, request interface{}) error
+type Endpoint func(ctx context.Context, request Message) error
 
 // Nop is an endpoint that does nothing and returns a nil error.
 // Useful for tests.
-func Nop(context.Context, interface{}) error { return nil }
+func Nop(context.Context, Message) error { return nil }
 
 // Middleware is a chainable behavior modifier for endpoints.
 type Middleware func(Endpoint) Endpoint
@@ -58,7 +67,7 @@ type Middleware func(Endpoint) Endpoint
 // NopM is an Middleware that does nothing and returns a nil error.
 // Useful for tests.
 func NopM(next Endpoint) Endpoint {
-	return func(ctx context.Context, req interface{}) error {
+	return func(ctx context.Context, req Message) error {
 		return next(ctx, req)
 	}
 }
@@ -86,6 +95,7 @@ func Chain(outer Middleware, others ...Middleware) Middleware {
 type Failer interface {
 	Failed() error
 }
+
 
 // grpc chain call:
 // // chainUnaryServerInterceptors chains all unary server interceptors into one.

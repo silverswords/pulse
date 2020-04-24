@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"sync"
-	"time"
 )
 
 //from database/sql
@@ -14,58 +13,8 @@ var (
 	drivers   = make(map[string]Driver)
 )
 
-// todo: haven't done with connector
-// DB is a database handle representing a pool of zero or more
-// underlying connections. It's safe for concurrent use by multiple
-// goroutines.
-//
-// The sql package creates and frees connections automatically; it
-// also maintains a free pool of idle connections. If the database has
-// a concept of per-connection state, such state can be reliably observed
-// within a transaction (Tx) or connection (Conn). Once DB.Begin is called, the
-// returned Tx is bound to a single connection. Once Commit or
-// Rollback is called on the transaction, that transaction's
-// connection is returned to DB's idle connection pool. The pool size
-// can be controlled with SetMaxIdleConns.
-type MQ struct {
-	conn Conn
-	// Atomic access only. At top of struct to prevent mis-alignment
-	// on 32-bit platforms. Of type time.Duration.
-	waitDuration int64 // Total time waited for new connections.
-
-	connector Connector
-	// numClosed is an atomic counter which represents a total number of
-	// closed connections. Stmt.openStmt checks it before cleaning closed
-	// connections in Stmt.css.
-	numClosed uint64
-
-	mu           sync.Mutex // protects following fields
-	//freeConn     []*driverConn
-	//connRequests map[uint64]chan connRequest
-	nextRequest  uint64 // Next key to use in connRequests.
-	numOpen      int    // number of opened and pending open connections
-	// Used to signal the need for new connections
-	// a goroutine running connectionOpener() reads on this chan and
-	// maybeOpenNewConnections sends on the chan (one send per needed connection)
-	// It is closed during db.Close(). The close tells the connectionOpener
-	// goroutine to exit.
-	openerCh          chan struct{}
-	//resetterCh        chan *driverConn
-	closed            bool
-	//dep               map[finalCloser]depSet
-	//lastPut           map[*driverConn]string // stacktrace of last conn's put; debug only
-	maxIdle           int                    // zero means defaultMaxIdleConns; negative means 0
-	maxOpen           int                    // <= 0 means unlimited
-	maxLifetime       time.Duration          // maximum amount of time a connection may be reused
-	cleanerCh         chan struct{}
-	waitCount         int64 // Total number of connections waited for.
-	maxIdleClosed     int64 // Total number of connections closed due to idle.
-	maxLifetimeClosed int64 // Total number of connections closed due to max free limit.
-
-	stop func() // stop cancels the connection opener and the session resetter.
-}
-
-func Open(driverName string , driverOptions context.Context) (*MQ, error){
+// Open give a conn to MQ to send and receive msg.
+func Open(driverName ,driverSource string, options interface{}) (Conn, error){
 	driversMu.RLock()
 	driveri, ok := drivers[driverName]
 	driversMu.RUnlock()
@@ -73,14 +22,12 @@ func Open(driverName string , driverOptions context.Context) (*MQ, error){
 		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
 	}
 
-	conn, err := driveri.Dial((driverOptions.Value("URL")).(string),driverOptions.Value("options"))
+	conn, err := driveri.Dial(driverSource,options)
 	if err != nil {
 		return nil, err
 	}
 
-	return &MQ{
-		conn:conn,
-	},nil
+	return conn,nil
 }
 
 type Driver interface {
