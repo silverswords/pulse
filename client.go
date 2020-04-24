@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"github.com/silverswords/whisper/pubsub"
 	"sync"
-	"time"
 )
+
+const ACKchannel = "sys/ack"
 
 // send logic
 // 1. dial to target MQ
@@ -49,11 +50,12 @@ type Client struct {
 	ackmap map[uint64]bool
 
 	// queue to make send msg
-	queue []Message
+	queue []*Message
 
 	sync.RWMutex
 
 	closeCh chan struct{}
+	closed  bool
 }
 
 // =========================================================================
@@ -77,6 +79,10 @@ func Dial(driverName string, opts ...ClientOption) (client *Client, err error) {
 	chainEndpoint(c)
 
 	c.conn, err = pubsub.Open(driverName, c.opts.url, c.opts.pubsubOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	defer func() {
 		if err != nil {
 			c.Close()
@@ -86,46 +92,71 @@ func Dial(driverName string, opts ...ClientOption) (client *Client, err error) {
 	// ack goroutine
 	if c.opts.ack {
 		go func() {
-			for {
-				select {
-				case <-c.closeCh:
-					return
-				case ack := <-c.ackch:
-					//	do ack and drop arrived msg
-					c.Lock()
-					c.ackmap[ack] = false
-					for i, x := range c.queue {
-						if x.ACK == ack {
+			subs,err := c.conn.Sub(ACKchannel)
+			if err != nil {
+				fmt.Println("ACK Subscribe error")
+			}
+			for !c.closed {
+				rawMsg := subs.Receive()
+				var msg Message
+				err := Decode(rawMsg, &msg)
+				if err != nil {
+					fmt.Println("[Error] In Decode Message: ", err)
+				}
+				fmt.Println("Debug: ", "receive the msg ack: ", msg.ACK)
+				c.Lock()
+				for i, x := range c.queue {
+					if x.ACK == msg.ACK {
+						if len(c.queue) ==1 {
+							c.queue = c.queue[0:0]
+						}else {
 							c.queue = append(c.queue[0:i-1], c.queue[i:]...)
-							c.Unlock()
-							break
 						}
+						c.ackmap[msg.ACK] = false
+						c.Unlock()
+						break
 					}
-					continue
-				default:
-					time.Sleep(100 * time.Microsecond)
+					// ensure unlock
+					c.Unlock()
 				}
 			}
+			fmt.Println("These msg not ack: ", c.queue)
 		}()
 	}
-
 
 	return c, nil
 }
 
 // Send send msg to target topic
 func (c *Client) Send(topic string, msg Message) error {
+	if c.closed {
+		return errors.New("client closed")
+	}
 	ctx := context.WithValue(context.Background(), "topic", topic)
-	if err := c.opts.endpoint(ctx, msg); err != nil {
-		fmt.Println(err)
+	if err := c.opts.endpoint(ctx, &msg); err != nil {
 		return err
 	}
 	return nil
 }
 
+func(c *Client) Receive(topic string) (*Message, error) {
+	if c.closed {return nil,errors.New("client closed")}
+
+	subs,err := c.conn.Sub(topic)
+	if err != nil {return nil, err}
+	raw := subs.Receive()
+	var msg Message
+	Decode(raw,&msg)
+
+	ctx := context.WithValue(context.Background(), "topic", topic)
+	if err := c.opts.subE(ctx, &msg); err != nil {return nil, err}
+	return &msg,nil
+}
+
 // Close graceful all the conn
 func (c *Client) Close() {
 	c.closeCh <- struct{}{}
+	c.closed = true
 }
 
 func defaultOptions() clientOptions {
@@ -133,28 +164,43 @@ func defaultOptions() clientOptions {
 }
 
 func chainEndpoint(c *Client) {
-	c.opts.endpoint = Chain(c.ACKM(), c.opts.middleware...)(c.SendH)
+	c.opts.endpoint = Chain(c.waitACKM(), c.opts.middleware...)(c.sendH)
+	c.opts.subE = Chain(c.ACKM(),c.opts.subM...)(Nop)
 }
 
 func (c *Client) ACKM() Middleware {
 	return func(next Endpoint) Endpoint {
-		return func(ctx context.Context, msg Message) error {
+		return func(ctx context.Context, msg *Message) error {
 			// ack
 			defer func() {
-				if !c.opts.ack {
-					return
-				}
-				c.ackmap[msg.ACK] = true
-				c.queue = append(c.queue, msg)
+				c.sendACK(msg.ACK)
 			}()
 			next(ctx, msg)
 			return nil
 		}
 	}
-
+}
+func (c *Client) waitACKM() Middleware {
+	return func(next Endpoint) Endpoint {
+		return func(ctx context.Context, msg *Message) error {
+			// ack
+			defer func() {
+				if !c.opts.ack {
+					return
+				}
+				c.Lock()
+				c.ackmap[msg.ACK] = true
+				c.queue = append(c.queue, msg)
+				c.Unlock()
+				fmt.Println("Debug: current wait ack msg: ", c.queue)
+			}()
+			next(ctx, msg)
+			return nil
+		}
+	}
 }
 
-func (c *Client) SendH(ctx context.Context, msg Message) error {
+func (c *Client) sendH(ctx context.Context, msg *Message) error {
 	topic, ok := ctx.Value("topic").(string)
 	if !ok {
 		return errors.New("don't have topic to send to")
@@ -166,9 +212,15 @@ func (c *Client) SendH(ctx context.Context, msg Message) error {
 	}
 
 	// all in endpoint
-	c.conn.Pub(topic, raw)
+	err = c.conn.Pub(topic, raw)
+	if err != nil {return err}
 	return nil
+}
 
+func( c *Client) sendACK(ack uint64) error {
+	raw, err := Encode(Message{ACK: ack})
+	if err != nil { return err}
+	return c.conn.Pub(ACKchannel,raw)
 }
 
 func Encode(data interface{}) ([]byte, error) {

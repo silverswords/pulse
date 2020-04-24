@@ -67,21 +67,31 @@ func (c Conn) Pub(topic string, msg []byte) error {
 	err:= c.Publish(topic,msg)
 	if err != nil {
 		fmt.Println(err)
+		return err
 	}
 	nc.Flush()
 	return nil
 }
 
 type Subscription struct {
-	*nats.Subscription
+	conn *nats.Subscription
+	ch chan *nats.Msg
 }
-func (s Subscription) Nothing() bool{return true}
 
-func (c Conn) Sub(subject string) pubsub.Subscription {
-	subs, err := c.Subscribe(subject,func(m *nats.Msg) {
-		fmt.Printf("Received a message: %s\n", string(m.Data))
-	})
+// Receive is a blocked method
+func (s Subscription) Receive() []byte {
+	msg := <- s.ch
+	return msg.Data
+}
 
-	if err != nil { fmt.Println(err);return nil}
-	return Subscription{subs}
+func (c Conn) Sub(subject string) (pubsub.Subscription,error) {
+	//subs, err := c.Subscribe(subject,func(m *nats.Msg) {
+	//	fmt.Printf("Received a message: %s\n", string(m.Data))
+	//})
+	// Channel Subscriber
+	ch := make(chan *nats.Msg, 64)
+	sub, err := c.ChanSubscribe(subject, ch)
+	if err != nil { fmt.Println(err);return nil,err}
+
+	return Subscription{sub,ch},nil
 }

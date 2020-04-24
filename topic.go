@@ -3,6 +3,7 @@ package whisper
 import (
 	"context"
 	"fmt"
+	"log"
 )
 
 type Message struct {
@@ -16,9 +17,13 @@ type clientOptions struct {
 	url string
 	pubsubOptions interface{}
 
-	// ... some options
+	// send topic options
 	endpoint   Endpoint
 	middleware []Middleware
+
+	// receive topic options
+	subE Endpoint
+	subM []Middleware
 
 	// ack means if have ack to drop the msg in client
 	ack        bool
@@ -54,15 +59,31 @@ func WithURL(url string) ClientOption{
 	})
 }
 
+// Middleware supply
+func WithPrintMsg()ClientOption {
+	return newFuncClientOption(func (o *clientOptions) {
+		o.middleware = append(o.middleware, func(next Endpoint) Endpoint {
+			return func(ctx context.Context, msg *Message) error {
+				// ack
+				defer func() {
+					log.Println("Send: " , msg)
+				}()
+				next(ctx, msg)
+				return nil
+			}
+		})
+	})
+}
+
 // from go-kit: https://github.com/go-kit/kit/blob/master/endpoint/endpoint.go
 
 // Endpoint is the fundamental building block of servers and clients.
 // It represents a single RPC method.
-type Endpoint func(ctx context.Context, request Message) error
+type Endpoint func(ctx context.Context, request *Message) error
 
 // Nop is an endpoint that does nothing and returns a nil error.
 // Useful for tests.
-func Nop(context.Context, Message) error { return nil }
+func Nop(context.Context, *Message) error { return nil }
 
 // Middleware is a chainable behavior modifier for endpoints.
 type Middleware func(Endpoint) Endpoint
@@ -70,7 +91,7 @@ type Middleware func(Endpoint) Endpoint
 // NopM is an Middleware that does nothing and returns a nil error.
 // Useful for tests.
 func NopM(next Endpoint) Endpoint {
-	return func(ctx context.Context, req Message) error {
+	return func(ctx context.Context, req *Message) error {
 		return next(ctx, req)
 	}
 }
@@ -102,7 +123,7 @@ type Failer interface {
 // example
 func annotate(s string) Middleware {
 	return func(next Endpoint) Endpoint {
-		return func(ctx context.Context, request Message) error {
+		return func(ctx context.Context, request *Message) error {
 			fmt.Println(s, "pre")
 			defer fmt.Println(s, "post")
 			return next(ctx, request)
