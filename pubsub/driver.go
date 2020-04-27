@@ -13,6 +13,17 @@ var (
 	drivers   = make(map[string]Driver)
 )
 
+type Conn interface {
+	Pub(topic string, msg []byte) error
+	Sub(topic string) (Subscription, error)
+}
+
+type Subscription interface {
+	// Receive is a blocked method until get a message
+	// todo : add a timeout avoid blocked forever
+	Receive() []byte
+}
+
 // Open give a conn to MQ to send and receive msg.
 func Open(driverName ,driverSource string, options interface{}) (Conn, error){
 	driversMu.RLock()
@@ -32,7 +43,6 @@ func Open(driverName ,driverSource string, options interface{}) (Conn, error){
 type Driver interface {
 	Dial(target string, options interface{}) (Conn,error)
 }
-
 
 // Register makes a database driver available by the provided name.
 // If Register is called twice with the same name or if driver is nil,
@@ -69,10 +79,6 @@ func Drivers() []string {
 }
 
 
-type Conn interface {
-	Pub(topic string, msg []byte) error
-	Sub(topic string) (Subscription, error)
-}
 
 // A Connector represents a driver in a fixed configuration
 // and can create any number of equivalent Conns for use
@@ -103,8 +109,3 @@ type Connector interface {
 	Driver() Driver
 }
 
-type Subscription interface {
-	// Receive is a blocked method until get a message
-	// todo : add a timeout avoid blocked forever
-	Receive() []byte
-}
