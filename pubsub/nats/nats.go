@@ -3,7 +3,7 @@ package nats
 import (
 	"fmt"
 	nats "github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper/pubsub"
+	"github.com/silverswords/whisper"
 	"log"
 	"time"
 )
@@ -15,7 +15,7 @@ type NatsDriver struct {}
 var nc,_ = nats.Connect(DefaultURL, SetupConnOptions([]nats.Option{})...)
 
 func init(){
-	pubsub.Register("nats", NatsDriver{})
+
 }
 
 func SetupConnOptions(opts []nats.Option) []nats.Option {
@@ -36,7 +36,7 @@ func SetupConnOptions(opts []nats.Option) []nats.Option {
 	return opts
 }
 
-func (d NatsDriver) Dial(target string, options interface{}) (pubsub.Conn, error) {
+func (d NatsDriver) Dial(target string, options interface{}) (whisper.Conn, error) {
 	var (
 		err error
 		conn *nats.Conn
@@ -63,8 +63,10 @@ type Conn struct {
 }
 
 // Send send msg to nc
-func (c Conn) Pub(topic string, msg []byte) error {
-	err:= c.Publish(topic,msg)
+func (c Conn) Pub(topic string, msg whisper.Message) error {
+	raw, err :=whisper.Encode(msg)
+	if err != nil { return err}
+	err = c.Publish(topic,raw)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -73,25 +75,25 @@ func (c Conn) Pub(topic string, msg []byte) error {
 	return nil
 }
 
-type Subscription struct {
+type Suber struct {
 	conn *nats.Subscription
-	ch chan *nats.Msg
 }
 
 // Receive is a blocked method
-func (s Subscription) Receive() []byte {
-	msg := <- s.ch
-	return msg.Data
+func (s Suber) Receive(timeout time.Duration) (*whisper.Message,error) {
+	m,err := s.conn.NextMsg(timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := whisper.Message{}
+	if err := whisper.Decode(m.Data,&msg); err != nil {return nil, err}
+	return &msg, nil
 }
 
-func (c Conn) Sub(subject string) (pubsub.Subscription,error) {
-	//subs, err := c.Subscribe(subject,func(m *nats.Msg) {
-	//	fmt.Printf("Received a message: %s\n", string(m.Data))
-	//})
-	// Channel Subscriber
-	ch := make(chan *nats.Msg, 64)
-	sub, err := c.ChanSubscribe(subject, ch)
+func (c Conn) Sub(subject string) (whisper.Suber,error) {
+	subs, err := c.SubscribeSync(subject)
 	if err != nil { fmt.Println(err);return nil,err}
 
-	return Subscription{sub,ch},nil
+	return Suber{subs},nil
 }
