@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"sync"
 )
 // be functionally
@@ -24,53 +25,59 @@ func Desc(h ...Handler) Handler {
 
 }
 
-func Retry(handler Handler) Handler{
-	// do own thing
-	return func (){
-		handler.Do()
-	}}
-}
-
 type Handler interface{
-	Do(interface{}) error
-}
-
-type Actions []Handler
-
-// Pop only for one goroutine
-func (a *Actions) Pop() Handler{
-	for len(*a) == 0 {}
-	handler := (*a)[0]
-	*a = (*a)[1:]
-	return handler
-}
-
-func (a *Actions) Push(handler Handler) {
-	*a = append(*a, handler)
+	Do(Driver) error
 }
 
 type Topic struct {
 	Driver
-	Queue Actions
+	Queue []Handler
 	opts topicOptions
 }
 
+func (t *Topic) Send(message Handler) error {
+	t.Queue = append(t.Queue,message)
+	return nil
+}
+
 func (t *Topic) sendRoutine() error {
-	handler := t.Queue.Pop()
+	handler := t.Queue[0]
 
 	if err := handler.Do(t.Driver); err != nil {
-		if err ==RetryError {
-		//	retryThrottler(retry())
-		}
 		return err
-		// Retry or not
+	}
+
+	t.Queue = t.Queue[1:]
+	return nil
+}
+
+type RetryHandler struct {
+	retrytime int
+	origin Handler
+}
+
+func (h *RetryHandler) Do(driver Driver) error {
+	for {
+		if err := h.origin.Do(driver); err != nil {
+			if err == RetryError {
+				h.retrytime -= 1
+				if h.retrytime > 0 {
+					continue
+				}
+			}else {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
+func Retry(handler Handler) Handler{
+	return &RetryHandler{retrytime: 3, origin: handler}
+}
 // Message has imply Handler interface.
 type Message struct {
-	Header Header
+	Header map[string][]string
 	Body []byte
 	ACK uint64
 }
