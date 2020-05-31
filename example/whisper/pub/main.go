@@ -13,17 +13,15 @@ func main(){
 	if err != nil {fmt.Println("===============================", err)}
 
 	go func (){
-		for i:= 0;i<10;i++{
+		for i:= 10;i<20;i++{
 			var Msg = whisper.Message{Header: nil, Body: []byte("hello"), ACK: uint64(i)}
 			c.Send("msg/test", Msg)
-			time.Sleep(2* time.Second)
+			time.Sleep(3* time.Second)
 		}
 	}()
 
 	for {
 		c.Receive("msg/test")
-		time.Sleep(1*time.Second)
 	}
-
 	runtime.Goexit()
 }
