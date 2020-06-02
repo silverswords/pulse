@@ -1,11 +1,10 @@
 package whisper
-
+// subscription hajack messages Do() to handle message with own thing instead of send by driver.
 import "fmt"
 
 type Subscription struct {
-	subDriver
-	*Executor
-	retry bool
+	*Executor  // use to handle message
+	refused bool
 }
 
 func NewSubscription() *Subscription {
@@ -14,22 +13,27 @@ func NewSubscription() *Subscription {
 	}
 }
 
-func (s *Subscription) append(message Handler) error {
-	// customization subscription like this.
-	if s.retry {
-		s.Executor.Append(Retry(message))
+func (s *Subscription) Sub(topic string) error {
+	d, ok:= s.Executor.Driver.(Driver)
+	if !ok {
+		return DriverError
 	}
+
+	return d.Sub(topic, func(message *Message) {
+		s.receive(Receive(message))
+	})
+}
+
+func (s *Subscription) receive(message Handler) error {
+	// customization subscription like this.
+	if s.refused {
+		return nil
+	}
+	s.Executor.Append(message)
 	return nil
 }
 
-func (s *Subscription) Sub(topic string) error {
-	return s.subDriver.Sub(topic, Receive)
-}
-
-type subDriver interface {
-	Sub(topic string, handler func(message *Message) Handler)error
-}
-
+// receiveMessage hajack messages Do() to and Do() selves.
 type receiveMessage struct {
 	*Message
 }

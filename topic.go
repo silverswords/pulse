@@ -1,5 +1,5 @@
 package whisper
-
+// how to use, new a Executor with MQ driver. and append new message to executor queue.
 import "errors"
 
 var (
@@ -14,7 +14,7 @@ type Handler interface {
 
 type Executor struct {
 	*Queue
-	Driver interface{}
+	Driver interface{} // use for every handler to do the thing.
 }
 
 func NewExecutor(driver interface{}) *Executor {
@@ -47,7 +47,7 @@ type Message struct {
 }
 
 func (m *Message) Do(driver interface{}) error {
-	d, ok := driver.(pubDriver)
+	d, ok := driver.(Driver)
 	if !ok {
 		return DriverError
 	}
@@ -57,8 +57,9 @@ func (m *Message) Do(driver interface{}) error {
 	return nil
 }
 
-type pubDriver interface {
+type Driver interface {
 	Pub(topic string, msg *Message) error
+	Sub(topic string, handler func(*Message) ) error
 }
 
 type simpleDriver struct {
@@ -68,7 +69,7 @@ func (d *simpleDriver) Pub(topic string, msg *Message) error {
 	return nil
 }
 
-func (d *simpleDriver) Sub(topic string, Handler func()) error {
+func (d *simpleDriver) Sub(topic string, handler func(*Message) ) error {
 	return nil
 }
 
@@ -82,7 +83,7 @@ type RetryHandler struct {
 }
 
 func (h *RetryHandler) Do(driver interface{}) error {
-	d, ok := driver.(pubDriver)
+	d, ok := driver.(Driver)
 	if !ok {
 		return DriverError
 	}
