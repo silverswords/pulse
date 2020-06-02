@@ -4,6 +4,8 @@ import "errors"
 
 var (
 	RetryError = errors.New("please retry")
+	DriverError = errors.New("interface{] isn't driver")
+	HandlerError = errors.New("interface{} isn't handler")
 )
 
 type Handler interface {
@@ -12,22 +14,26 @@ type Handler interface {
 
 type Executor struct {
 	*Queue
-	Driver
+	Driver interface{}
 }
 
-func NewExecutor() *Executor {
+func NewExecutor(driver interface{}) *Executor {
 	return &Executor{
 		Queue:  NewQueue(),
-		Driver: &simpleDriver{},
+		Driver: driver,
 	}
 }
 
 // by binding channel to send message. binding channel is for  queue.
 // use action to send message handler enhanced logic.
+// block fifo queue  so:
+// go func(){
+//		for e.execution() == nil {}
+//		}
 func (e *Executor) execution() error {
 	action, ok := e.Queue.Pop().(Handler)
 	if !ok {
-		return errors.New("Not Handler!")
+		return HandlerError
 	}
 
 	return action.Do(e.Driver)
@@ -41,9 +47,9 @@ type Message struct {
 }
 
 func (m *Message) Do(driver interface{}) error {
-	d, ok := driver.(Driver)
+	d, ok := driver.(pubDriver)
 	if !ok {
-		return errors.New("error driver ing")
+		return DriverError
 	}
 	if err := d.Pub(m.Header.Get("topic"), m); err != nil {
 		return err
@@ -51,9 +57,8 @@ func (m *Message) Do(driver interface{}) error {
 	return nil
 }
 
-type Driver interface {
+type pubDriver interface {
 	Pub(topic string, msg *Message) error
-	Sub(topic string, Handler func()) error
 }
 
 type simpleDriver struct {
@@ -77,9 +82,9 @@ type RetryHandler struct {
 }
 
 func (h *RetryHandler) Do(driver interface{}) error {
-	d, ok := driver.(Driver)
+	d, ok := driver.(pubDriver)
 	if !ok {
-		return errors.New("error driver ing")
+		return DriverError
 	}
 	for {
 		if err := h.origin.Do(d); err != nil {
