@@ -73,6 +73,8 @@ func (d *simpleDriver) Sub(topic string, handler func(*Message) ) error {
 	return nil
 }
 
+
+// example for retry, ratelimit, ACK and store
 func Retry(handler Handler) Handler {
 	return &RetryHandler{retrytime: 3, origin: handler}
 }
