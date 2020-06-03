@@ -6,9 +6,11 @@ import (
 	"github.com/silverswords/whisper"
 )
 
-type simpleDriver struct{}
+var Loopback = simpleDriver{}
 var subscribers = make(map[string][]chan *whisper.Message)
 var rm sync.RWMutex
+
+type simpleDriver struct{}
 
 func (d *simpleDriver) Pub(topic string, msg *whisper.Message) error {
 	rm.RLock()

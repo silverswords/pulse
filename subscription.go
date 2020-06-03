@@ -1,51 +1,69 @@
 package whisper
-// subscription hajack messages Do() to handle message with own thing instead of send by driver.
-import "fmt"
+
+import "log"
 
 type Subscription struct {
-	*Executor  // use to handle message
-	refused bool
+	*Queue // use to store messages
+	handlers []SubHandler // use to handle messages
+	Driver
 }
 
-func NewSubscription() *Subscription {
+type SubHandler interface{
+	Do(*Message) error
+}
+
+type SubHandlerFunc func(*Message) error
+func (h SubHandlerFunc) Do(m *Message) error{return h.Do(m)}
+
+func NewSubscription(driver Driver) *Subscription {
 	return &Subscription{
-		Executor: NewExecutor(simpleDriver{}),
+		Queue: NewQueue(),
+		Driver:driver,
 	}
 }
 
-func (s *Subscription) Sub(topic string) error {
-	d, ok:= s.Executor.Driver.(Driver)
-	if !ok {
-		return DriverError
-	}
+func (s *Subscription)AddHandler(handler func(*Message) error) {
+	s.handlers = append([]SubHandler{SubHandlerFunc(handler)}, s.handlers...)
+}
 
-	return d.Sub(topic, func(message *Message) {
-		s.receive(Receive(message))
+func LogMessage(m *Message) error {
+	log.Println(m)
+	return nil
+}
+
+func (s *Subscription) Sub(topic string)(UnSubscriber, error) {
+	unsub, err := s.Driver.Sub(topic, func(message *Message) {
+		s.Append(message)
 	})
-}
-
-func (s *Subscription) receive(message Handler) error {
-	// customization subscription like this.
-	if s.refused {
-		return nil
+	if err != nil {
+		return nil, err
 	}
-	s.Executor.Append(message)
-	return nil
+
+	go func() {
+		for unsub != nil {
+			msg := s.Pop().(*Message)
+			for _,v := range s.handlers {
+				err := v.Do(msg)
+				log.Println("err in handle message: ", err)
+			}
+		}
+	}()
+	return unsub,nil
 }
 
-// receiveMessage hajack messages Do() to and Do() selves.
-type receiveMessage struct {
-	*Message
-}
-
-func Receive(message *Message) Handler {
-	return &receiveMessage{
-		message,
-	}
-}
-
-func (r *receiveMessage) Do(driver interface{}) error {
-	fmt.Println("Get message and handle message with driver or do something.")
-	return nil
-}
+//// receiveMessage hajack messages Do() to and Do() selves.
+//type receiveMessage struct {
+//	*Message
+//}
+//
+//func Receive(message *Message) Handler {
+//	return &receiveMessage{
+//		message,
+//	}
+//}
+//
+//func (r *receiveMessage) Do(driver interface{}) error {
+//	fmt.Println("Get message and handle message with driver or do something.")
+//	return nil
+//}
 

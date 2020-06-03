@@ -1,21 +1,60 @@
 package whisper
+
 // how to use, new a Executor with MQ driver. and append new message to executor queue.
 import (
 	"errors"
+	"github.com/silverswords/whisper/pubsub/loopback"
 	"io"
 	"io/ioutil"
+	"log"
 )
 
 var (
-	RetryError = errors.New("please retry")
-	DriverError = errors.New("interface{] isn't driver")
+	RetryError   = errors.New("please retry")
+	DriverError  = errors.New("interface{] isn't driver")
 	HandlerError = errors.New("interface{} isn't handler")
 )
 
-type Handler interface {
-	Do(driver interface{}) error
+var Loopback = NewExecutor(loopback.Loopback)
+
+type Sender struct {
+	*Executor
 }
 
+func NewSender(driver Driver) *Sender {
+	s := &Sender{
+		Executor: NewExecutor(driver),
+	}
+	go func() {
+		for {
+			err := s.Executor.sendroutine()
+			if err != nil {
+				if err == RetryError {
+					// do retry thing or just drop
+					continue
+				}
+			} else {
+				//	other error handle.
+
+				//pretend to stop this sender here
+				log.Println("because of the ", err, " stop the sender")
+				// notify the Sender gracefully stop
+				s.GracefulStop()
+				return
+			}
+		}
+	}()
+	return s
+}
+
+func (s *Sender) GracefulStop() {
+
+}
+
+func LoopPublish(m *Message) { Loopback.Append(m) }
+
+// Executor just send messages from Executor queue to driver or receive from driver to queue.
+// Only one thing can do.
 type Executor struct {
 	*Queue
 	Driver interface{} // use for every handler to do the thing.
@@ -34,7 +73,7 @@ func NewExecutor(driver interface{}) *Executor {
 // go func(){
 //		for e.execution() == nil {}
 //		}
-func (e *Executor) execution() error {
+func (e *Executor) sendroutine() error {
 	action, ok := e.Queue.Pop().(Handler)
 	if !ok {
 		return HandlerError
@@ -43,8 +82,13 @@ func (e *Executor) execution() error {
 	return action.Do(e.Driver)
 }
 
+type Handler interface {
+	Do(driver interface{}) error
+}
+
 // Message has imply Handler interface.
 type Message struct {
+	MsgID  uint64
 	Header Header
 	Body   []byte
 	//ACK    uint64
@@ -58,11 +102,11 @@ func NewMessage(topic string, body io.Reader) (*Message, error) {
 
 	message := &Message{
 		Header: make(Header),
-		Body: make([]byte,256),
+		Body:   make([]byte, 256),
 	}
 
 	rc.Read(message.Body)
-	return message,nil
+	return message, nil
 }
 
 func (m *Message) Do(driver interface{}) error {
@@ -75,7 +119,6 @@ func (m *Message) Do(driver interface{}) error {
 	}
 	return nil
 }
-
 
 // example for retry, ratelimit, ACK and store
 func Retry(handler Handler) Handler {
