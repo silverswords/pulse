@@ -1,6 +1,10 @@
 package whisper
 // how to use, new a Executor with MQ driver. and append new message to executor queue.
-import "errors"
+import (
+	"errors"
+	"io"
+	"io/ioutil"
+)
 
 var (
 	RetryError = errors.New("please retry")
@@ -43,33 +47,32 @@ func (e *Executor) execution() error {
 type Message struct {
 	Header Header
 	Body   []byte
-	ACK    uint64
+	//ACK    uint64
+}
+
+func NewMessage(topic string, body io.Reader) (*Message, error) {
+	rc, ok := body.(io.ReadCloser)
+	if !ok && body != nil {
+		rc = ioutil.NopCloser(body)
+	}
+
+	message := &Message{
+		Header: make(Header),
+		Body: make([]byte,256),
+	}
+
+	rc.Read(message.Body)
+	return message,nil
 }
 
 func (m *Message) Do(driver interface{}) error {
 	d, ok := driver.(Driver)
 	if !ok {
-		return DriverError
+		panic("MQ: unknown driver (forgotten import?) ")
 	}
-	if err := d.Pub(m.Header.Get("topic"), m); err != nil {
+	if err := d.Pub(m.Header.GetTopic(), m); err != nil {
 		return err
 	}
-	return nil
-}
-
-type Driver interface {
-	Pub(topic string, msg *Message) error
-	Sub(topic string, handler func(*Message) ) error
-}
-
-type simpleDriver struct {
-}
-
-func (d *simpleDriver) Pub(topic string, msg *Message) error {
-	return nil
-}
-
-func (d *simpleDriver) Sub(topic string, handler func(*Message) ) error {
 	return nil
 }
 

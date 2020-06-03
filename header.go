@@ -10,6 +10,13 @@ import (
 // CanonicalHeaderKey.
 type Header map[string][]string
 
+func (h Header) SetTopic(topic string) {
+	h.Set("topic", topic)
+}
+func (h Header) GetTopic() string {
+	return h.Get("topic")
+}
+
 // Add adds the key, value pair to the header.
 // It appends to any existing values associated with key.
 // The key is case insensitive; it is canonicalized by
