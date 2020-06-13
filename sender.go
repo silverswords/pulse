@@ -6,7 +6,6 @@ import (
 	"github.com/silverswords/whisper/pubsub/loopback"
 	"io"
 	"io/ioutil"
-	"log"
 )
 
 var (
@@ -15,71 +14,49 @@ var (
 	HandlerError = errors.New("interface{} isn't handler")
 )
 
-var Loopback = NewExecutor(loopback.Loopback)
+var Loopback = NewSender(&loopback.Loopback)
 
+func LoopPublish(m *Message) { Loopback.Send(m) }
+
+// Sender only to send every message with the driver.
 type Sender struct {
-	*Executor
+	q chan *Message
+	driver interface{} // use for every handler to do the thing.
+
+	closed chan struct{}
 }
 
 func NewSender(driver Driver) *Sender {
 	s := &Sender{
-		Executor: NewExecutor(driver),
+		q: make(chan *Message,100),
+		driver: driver,
+		closed: make(chan struct{}),
 	}
-	go func() {
-		for {
-			err := s.Executor.sendroutine()
-			if err != nil {
-				if err == RetryError {
-					// do retry thing or just drop
-					continue
-				}
-			} else {
-				//	other error handle.
-
-				//pretend to stop this sender here
-				log.Println("because of the ", err, " stop the sender")
-				// notify the Sender gracefully stop
-				s.GracefulStop()
-				return
-			}
-		}
-	}()
+	go s.execution()
 	return s
 }
 
-func (s *Sender) GracefulStop() {
-
-}
-
-func LoopPublish(m *Message) { Loopback.Append(m) }
-
-// Executor just send messages from Executor queue to driver or receive from driver to queue.
-// Only one thing can do.
-type Executor struct {
-	*Queue
-	Driver interface{} // use for every handler to do the thing.
-}
-
-func NewExecutor(driver interface{}) *Executor {
-	return &Executor{
-		Queue:  NewQueue(),
-		Driver: driver,
+// send message in Sender until colsed.
+func (s *Sender) execution() {
+	for {
+		select {
+		case msg := <-s.q:
+			{
+				msg.Do(s.driver)
+			}
+		case _ = <-s.closed:
+			return
+		}
 	}
 }
 
-// by binding channel to send message. binding channel is for  queue.
-// use action to send message handler enhanced logic.
-// block fifo queue  so:
-// go func(){
-//		for e.execution() == nil {}
-//		}
-func (e *Executor) sendroutine() error {
-	action, ok := e.Queue.Pop().(Handler)
-	if !ok {
-		return HandlerError
-	}
+// Send Would Block when channel full of Message
+func(s *Sender) Send(msg *Message) {
+	s.q <- msg
+}
 
-	return action.Do(e.Driver)
+func (s *Sender) Stop() {
+	s.closed <- struct{}{}
 }
 
 type Handler interface {
