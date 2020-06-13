@@ -3,9 +3,9 @@ package whisper
 // how to use, new a Executor with MQ driver. and append new message to executor queue.
 import (
 	"errors"
-	"github.com/silverswords/whisper/pubsub/loopback"
 	"io"
 	"io/ioutil"
+	"log"
 )
 
 var (
@@ -14,7 +14,7 @@ var (
 	HandlerError = errors.New("interface{} isn't handler")
 )
 
-var Loopback = NewSender(&loopback.Loopback)
+var Loopback = NewSender(LoopbackDriver)
 
 func LoopPublish(m *Message) { Loopback.Send(m) }
 
@@ -30,7 +30,7 @@ func NewSender(driver Driver) *Sender {
 	s := &Sender{
 		q: make(chan *Message,100),
 		driver: driver,
-		closed: make(chan struct{}),
+		closed: make(chan struct{},1),
 	}
 	go s.execution()
 	return s
@@ -42,6 +42,7 @@ func (s *Sender) execution() {
 		select {
 		case msg := <-s.q:
 			{
+				log.Println("sender get and send: ",msg)
 				msg.Do(s.driver)
 			}
 		case _ = <-s.closed:

@@ -1,6 +1,8 @@
 package whisper
 
-import "log"
+import (
+	"log"
+)
 
 type Subscription struct {
 	*Queue // use to store messages
@@ -26,11 +28,17 @@ func (s *Subscription)AddHandler(handler func(*Message) error) {
 	s.handlers = append([]SubHandler{SubHandlerFunc(handler)}, s.handlers...)
 }
 
+func NewLocalSub() *Subscription {
+	sub := NewSubscription(LoopbackDriver)
+	sub.AddHandler(LogMessage)
+	return sub
+}
 func LogMessage(m *Message) error {
-	log.Println(m)
+	log.Println("receive: ", m)
 	return nil
 }
 
+// Sub would sub multiple topic and do the same action with SubHandlers.
 func (s *Subscription) Sub(topic string)(UnSubscriber, error) {
 	unsub, err := s.Driver.Sub(topic, func(message *Message) {
 		s.Append(message)
@@ -46,6 +54,10 @@ func (s *Subscription) Sub(topic string)(UnSubscriber, error) {
 				err := v.Do(msg)
 				log.Println("err in handle message: ", err)
 			}
+		}
+		// below for debug
+		if unsub == nil {
+			log.Println("suber already closed")
 		}
 	}()
 	return unsub,nil
