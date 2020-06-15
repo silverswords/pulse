@@ -38,7 +38,7 @@ func NewLocalTopic() *Topic{
 
 func LogOption(next func(msg *Message)) func(msg *Message) {
 	return func(msg *Message) {
-		log.Println("send: ",msg)
+		log.Println("This is Test for Send Handler --- send: ",msg)
 		next(msg)
 	}
 }

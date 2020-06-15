@@ -35,7 +35,7 @@ func NewLocalSub() *Subscription {
 	return sub
 }
 func LogMessage(m *Message) error {
-	log.Println("receive: ", m)
+	log.Println("This is test for SubHandler: receive: ", m)
 	return nil
 }
 
