@@ -42,7 +42,7 @@ func (s *Sender) execution() {
 		select {
 		case msg := <-s.q:
 			{
-				log.Println("sender get and send: ",msg)
+				log.Println("sender send: ",msg)
 				msg.Do(s.driver)
 			}
 		case _ = <-s.closed:

@@ -15,7 +15,8 @@ type SubHandler interface{
 }
 
 type SubHandlerFunc func(*Message) error
-func (h SubHandlerFunc) Do(m *Message) error{return h.Do(m)}
+
+func (h SubHandlerFunc) Do(m *Message) error{return h(m)}
 
 func NewSubscription(driver Driver) *Subscription {
 	return &Subscription{
@@ -41,6 +42,7 @@ func LogMessage(m *Message) error {
 // Sub would sub multiple topic and do the same action with SubHandlers.
 func (s *Subscription) Sub(topic string)(UnSubscriber, error) {
 	unsub, err := s.Driver.Sub(topic, func(message *Message) {
+		log.Println("get a message and append in subscription: ",message)
 		s.Append(message)
 	})
 	if err != nil {
@@ -52,7 +54,9 @@ func (s *Subscription) Sub(topic string)(UnSubscriber, error) {
 			msg := s.Pop().(*Message)
 			for _,v := range s.handlers {
 				err := v.Do(msg)
-				log.Println("err in handle message: ", err)
+				if err != nil {
+					log.Println("err in handle message: ", err)
+				}
 			}
 		}
 		// below for debug

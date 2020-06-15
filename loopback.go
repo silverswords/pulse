@@ -56,20 +56,20 @@ func (d *simpleDriver) Sub(topic string, handler func(*Message) ) (UnSubscriber,
 	if prev, found := subscribers[topic]; found {
 		suber.serial = len(prev)
 		subscribers[topic] = append(prev, suber.channel)
-		log.Println("hehe")
+		//log.Println("already have a subscriber")
 	} else {
 		suber.serial = 0
 		subscribers[topic] = append([]chan *Message{}, suber.channel)
-		log.Println("new a subscriber")
+		//log.Println("new a subscriber")
 	}
 	rm.Unlock()
 
 	go func (){
-		log.Println("start sub goroutine")
+		log.Println("start sub : ", topic)
 		for suber.channel != nil {
 			msg := <- suber.channel
 			handler(msg)
-			log.Println("dispatch message: ",msg)
+			//log.Println("dispatch message: ",msg)
 		}
 	}()
 
