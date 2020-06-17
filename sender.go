@@ -63,10 +63,20 @@ func (s *Sender) execution() {
 	}
 }
 
-func Decorator(f func(interface{})) (func(interface{}) func(interface{})) {
-	wrapper := func(interface{}) func(interface{}){
-		retrytime := 3
-		return f
+func Decorator(f func(interface{})error) (func(interface{}) error) {
+	retryTimes := 3
+	wrapper := func (driver interface{}) error{
+		if err := f(driver); err != nil {
+			if err == RetryError {
+				retryTimes --
+				if retryTimes < 0 {
+					return RetryTimeRunOutError
+				}
+				
+			}
+			return err
+		}
+		return nil
 	}
 
 	return wrapper
