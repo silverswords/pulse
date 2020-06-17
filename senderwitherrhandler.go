@@ -36,7 +36,7 @@ func (s *Errorsender) execution()  {
 				log.Println("[err]: an error is not Handler, can't handle. \n [content]: ", err)
 				continue
 			}
-			if
+			
 			err.Do(s.s.driver)
 		}
 	}()
