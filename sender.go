@@ -10,6 +10,7 @@ import (
 
 var (
 	RetryError   = errors.New("please retry")
+	RetryTimeRunOutError = errors.New("message has already been retry")
 	DriverError  = errors.New("interface{] isn't driver")
 	HandlerError = errors.New("interface{} isn't handler")
 )
@@ -36,6 +37,9 @@ func NewSender(driver Driver) *Sender {
 	return s
 }
 
+//Should Retry from grpc-go/stream.go
+//https://sourcegraph.com/github.com/grpc/grpc-go@9a465503579e4f97b81d4e2ddafdd1daef80aa93/-/blob/stream.go#L466:25
+
 // send message in Sender until colsed.
 func (s *Sender) execution() {
 	for {
@@ -43,7 +47,15 @@ func (s *Sender) execution() {
 		case msg := <-s.q:
 			{
 				log.Println("sender send: ",msg)
-				msg.Do(s.driver)
+				//_ = msg.Do(s.driver)
+
+				if err := msg.Do(s.driver); err != nil {
+					if err:= msg.ShouldRetry(err); err != nil {
+						//	handle error
+						continue
+					}
+					s.Send(msg)
+				}
 			}
 		case _ = <-s.closed:
 			return
@@ -56,7 +68,7 @@ func(s *Sender) Send(msg *Message) {
 	s.q <- msg
 }
 
-func (s *Sender) Stop() {
+func (s *Sender) Close() {
 	s.closed <- struct{}{}
 }
 
@@ -69,6 +81,8 @@ type Message struct {
 	MsgID  uint64
 	Header Header
 	Body   []byte
+
+	retrytime int
 	//ACK    uint64
 }
 
@@ -98,6 +112,22 @@ func (m *Message) Do(driver interface{}) error {
 	return nil
 }
 
+// Below are two ways to realize retry logic
+
+// if should retry return nil.
+func (m *Message) ShouldRetry(lasterr error) error {
+	//if lasterr != RetryError {
+	//	return NotRetryError
+	//}
+	//if !throttle.GetToken() {
+	//	return OverTokenError
+	//}
+	if m.retrytime <= 0 {
+		return RetryTimeRunOutError
+	}
+	m.retrytime--
+	return nil
+}
 // example for retry, ratelimit, ACK and store
 func Retry(handler Handler) Handler {
 	return &RetryHandler{retrytime: 3, origin: handler}

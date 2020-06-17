@@ -16,8 +16,8 @@ func (t *Topic)Send(msg *Message) {
 	t.sendFunc(msg)
 }
 
-func (t *Topic)Stop() {
-	t.sender.Stop()
+func (t *Topic)Close() {
+	t.sender.Close()
 }
 
 func NewTopic(driver Driver) *Topic {
