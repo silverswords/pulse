@@ -4,7 +4,7 @@ import (
 	"github.com/silverswords/whisper/pubsub/nats"
 )
 
-func main(){
+func main() {
 	nats.Send("msg.test", []byte("hello"))
 
 }

@@ -1,7 +1,7 @@
 package whisper
 
 import (
-"net/textproto"
+	"net/textproto"
 )
 
 // A Header represents the key-value pairs in an HTTP header.

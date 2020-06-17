@@ -2,13 +2,15 @@ package main
 
 import "context"
 
-func main(){
+func main() {
 	var f foo
 	Chain(NopM)(f.nothing)
 }
-type foo struct {}
 
-func (f foo) nothing(ctx context.Context, msg interface{}) error{return nil}
+type foo struct{}
+
+func (f foo) nothing(ctx context.Context, msg interface{}) error { return nil }
+
 // Endpoint is the fundamental building block of servers and clients.
 // It represents a single RPC method.
 type Endpoint func(ctx context.Context, request interface{}) error

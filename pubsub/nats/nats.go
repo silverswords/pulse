@@ -8,13 +8,13 @@ import (
 	"time"
 )
 
-const DefaultURL =  "nats://39.105.141.168:4222"
+const DefaultURL = "nats://39.105.141.168:4222"
 
-type NatsDriver struct {}
+type NatsDriver struct{}
 
-var nc,_ = nats.Connect(DefaultURL, SetupConnOptions([]nats.Option{})...)
+var nc, _ = nats.Connect(DefaultURL, SetupConnOptions([]nats.Option{})...)
 
-func init(){
+func init() {
 
 }
 
@@ -38,7 +38,7 @@ func SetupConnOptions(opts []nats.Option) []nats.Option {
 
 func (d NatsDriver) Dial(target string, options interface{}) (whisper.Conn, error) {
 	var (
-		err error
+		err  error
 		conn *nats.Conn
 	)
 
@@ -49,24 +49,26 @@ func (d NatsDriver) Dial(target string, options interface{}) (whisper.Conn, erro
 	options, ok := options.([]nats.Option)
 	if !ok {
 		conn, err = nats.Connect(target, SetupConnOptions([]nats.Option{})...)
-	}else {
-		conn , err = nats.Connect(target, options.([]nats.Option)...)
+	} else {
+		conn, err = nats.Connect(target, options.([]nats.Option)...)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return Conn{conn},err
+	return Conn{conn}, err
 }
 
 type Conn struct {
-	 *nats.Conn
+	*nats.Conn
 }
 
 // Send send msg to nc
 func (c Conn) Pub(topic string, msg whisper.Message) error {
-	raw, err :=whisper.Encode(msg)
-	if err != nil { return err}
-	err = c.Publish(topic,raw)
+	raw, err := whisper.Encode(msg)
+	if err != nil {
+		return err
+	}
+	err = c.Publish(topic, raw)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -80,20 +82,25 @@ type Suber struct {
 }
 
 // Receive is a blocked method
-func (s Suber) Receive(timeout time.Duration) (*whisper.Message,error) {
-	m,err := s.conn.NextMsg(timeout)
+func (s Suber) Receive(timeout time.Duration) (*whisper.Message, error) {
+	m, err := s.conn.NextMsg(timeout)
 	if err != nil {
 		return nil, err
 	}
 
 	msg := whisper.Message{}
-	if err := whisper.Decode(m.Data,&msg); err != nil {return nil, err}
+	if err := whisper.Decode(m.Data, &msg); err != nil {
+		return nil, err
+	}
 	return &msg, nil
 }
 
-func (c Conn) Sub(subject string) (whisper.Suber,error) {
+func (c Conn) Sub(subject string) (whisper.Suber, error) {
 	subs, err := c.SubscribeSync(subject)
-	if err != nil { fmt.Println(err);return nil,err}
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
 
-	return Suber{subs},nil
+	return Suber{subs}, nil
 }

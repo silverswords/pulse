@@ -40,7 +40,7 @@ func showUsageAndExit(exitcode int) {
 
 func printMsg(m *nats.Msg, i int) {
 	var msg whisper.Message
-	whisper.Decode(m.Data,&msg)
+	whisper.Decode(m.Data, &msg)
 	log.Printf("[#%d] Received on [%s]:", i, m.Subject)
 	log.Println(msg)
 }

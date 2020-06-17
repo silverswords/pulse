@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	RetryError   = errors.New("please retry")
+	RetryError           = errors.New("please retry")
 	RetryTimeRunOutError = errors.New("message has already been retry")
-	DriverError  = errors.New("interface{] isn't driver")
-	HandlerError = errors.New("interface{} isn't handler")
+	DriverError          = errors.New("interface{] isn't driver")
+	HandlerError         = errors.New("interface{} isn't handler")
 )
 
 var Loopback = NewSender(LoopbackDriver)
@@ -21,7 +21,7 @@ func LoopPublish(m *Message) { Loopback.Send(m) }
 
 // Sender only to send every message with the driver.
 type Sender struct {
-	q chan *Message
+	q      chan *Message
 	driver interface{} // use for every handler to do the thing.
 
 	closed chan struct{}
@@ -29,9 +29,9 @@ type Sender struct {
 
 func NewSender(driver Driver) *Sender {
 	s := &Sender{
-		q: make(chan *Message,100),
+		q:      make(chan *Message, 100),
 		driver: driver,
-		closed: make(chan struct{},1),
+		closed: make(chan struct{}, 1),
 	}
 	go s.execution()
 	return s
@@ -46,11 +46,11 @@ func (s *Sender) execution() {
 		select {
 		case msg := <-s.q:
 			{
-				log.Println("sender send: ",msg)
+				log.Println("sender send: ", msg)
 				//_ = msg.Do(s.driver)
 
 				if err := msg.Do(s.driver); err != nil {
-					if err:= msg.ShouldRetry(err); err != nil {
+					if err := msg.ShouldRetry(err); err != nil {
 						//	handle error
 						continue
 					}
@@ -63,8 +63,17 @@ func (s *Sender) execution() {
 	}
 }
 
+func Decorator(f func(interface{})) (func(interface{}) func(interface{})) {
+	wrapper := func(interface{}) func(interface{}){
+		retrytime := 3
+		return f
+	}
+
+	return wrapper
+}
+
 // Send Would Block when channel full of Message
-func(s *Sender) Send(msg *Message) {
+func (s *Sender) Send(msg *Message) {
 	s.q <- msg
 }
 
@@ -83,7 +92,6 @@ type Message struct {
 	Body   []byte
 
 	retrytime int
-	//ACK    uint64
 }
 
 func NewMessage(topic string, body io.Reader) (*Message, error) {
@@ -128,6 +136,7 @@ func (m *Message) ShouldRetry(lasterr error) error {
 	m.retrytime--
 	return nil
 }
+
 // example for retry, ratelimit, ACK and store
 func Retry(handler Handler) Handler {
 	return &RetryHandler{retrytime: 3, origin: handler}

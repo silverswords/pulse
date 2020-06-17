@@ -5,27 +5,27 @@ import (
 )
 
 type Subscription struct {
-	*Queue // use to store messages
+	*Queue                // use to store messages
 	handlers []SubHandler // use to handle messages
 	Driver
 }
 
-type SubHandler interface{
+type SubHandler interface {
 	Do(*Message) error
 }
 
 type SubHandlerFunc func(*Message) error
 
-func (h SubHandlerFunc) Do(m *Message) error{return h(m)}
+func (h SubHandlerFunc) Do(m *Message) error { return h(m) }
 
 func NewSubscription(driver Driver) *Subscription {
 	return &Subscription{
-		Queue: NewQueue(),
-		Driver:driver,
+		Queue:  NewQueue(),
+		Driver: driver,
 	}
 }
 
-func (s *Subscription)AddHandler(handler func(*Message) error) {
+func (s *Subscription) AddHandler(handler func(*Message) error) {
 	s.handlers = append([]SubHandler{SubHandlerFunc(handler)}, s.handlers...)
 }
 
@@ -41,9 +41,9 @@ func LogMessage(m *Message) error {
 }
 
 // Sub would sub multiple topic and do the same action with SubHandlers.
-func (s *Subscription) Sub(topic string)(UnSubscriber, error) {
+func (s *Subscription) Sub(topic string) (UnSubscriber, error) {
 	unsub, err := s.Driver.Sub(topic, func(message *Message) {
-		log.Println("get a message and append in subscription: ",message)
+		log.Println("get a message and append in subscription: ", message)
 		s.Append(message)
 	})
 	if err != nil {
@@ -53,7 +53,7 @@ func (s *Subscription) Sub(topic string)(UnSubscriber, error) {
 	go func() {
 		for unsub != nil {
 			msg := s.Pop().(*Message)
-			for _,v := range s.handlers {
+			for _, v := range s.handlers {
 				err := v.Do(msg)
 				if err != nil {
 					log.Println("err in handle message: ", err)
@@ -65,7 +65,7 @@ func (s *Subscription) Sub(topic string)(UnSubscriber, error) {
 			log.Println("suber already closed")
 		}
 	}()
-	return unsub,nil
+	return unsub, nil
 }
 
 //// receiveMessage hajack messages Do() to and Do() selves.
@@ -83,4 +83,3 @@ func (s *Subscription) Sub(topic string)(UnSubscriber, error) {
 //	fmt.Println("Get message and handle message with driver or do something.")
 //	return nil
 //}
-

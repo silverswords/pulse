@@ -7,11 +7,12 @@ import (
 )
 
 var msg = &whisper.Message{
-	MsgID: 1000,
+	MsgID:  1000,
 	Header: make(whisper.Header),
-	Body: []byte("Hello"),
+	Body:   []byte("Hello"),
 }
-func main(){
+
+func main() {
 	topic := whisper.NewLocalTopic()
 	defer topic.Stop()
 	// normally send messages
@@ -19,7 +20,7 @@ func main(){
 	topic.Send(msg)
 
 	suber := whisper.NewLocalSub()
-	unsubHandler,err :=suber.Sub("hello")
+	unsubHandler, err := suber.Sub("hello")
 	if err != nil {
 		log.Println(err)
 	}

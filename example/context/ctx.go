@@ -6,12 +6,11 @@ import (
 )
 
 func main() {
-	ctx:=context.Background()
-	v:= ctx.Value("hello")
+	ctx := context.Background()
+	v := ctx.Value("hello")
 	v, ok := v.(context.Context)
 	if !ok {
 		fmt.Println("ok")
 	}
-	fmt.Println(v,v.(context.Context))
+	fmt.Println(v, v.(context.Context))
 }
-

@@ -3,22 +3,22 @@ package whisper
 import "log"
 
 type RetryErr struct {
-	msg *Message
+	msg       *Message
 	retrytime int
 }
 
 type Errorsender struct {
 	errQueue *Queue
-	closed bool
-	s *Sender
+	closed   bool
+	s        *Sender
 
 	retrytime int
 }
 
-func NewErrorsender(driver Driver,retrytime int) *Errorsender {
+func NewErrorsender(driver Driver, retrytime int) *Errorsender {
 	return &Errorsender{
-		errQueue: NewQueue(),
-		s:NewSender(driver),
+		errQueue:  NewQueue(),
+		s:         NewSender(driver),
 		retrytime: retrytime,
 	}
 }
@@ -28,25 +28,25 @@ func (s *Errorsender) Send(msg *Message) {
 }
 
 // two goroutines to send message and handle error
-func (s *Errorsender) execution()  {
+func (s *Errorsender) execution() {
 	go func() {
 		for !s.closed {
-			err,ok := s.errQueue.Pop().(Handler)
+			err, ok := s.errQueue.Pop().(Handler)
 			if !ok {
 				log.Println("[err]: an error is not Handler, can't handle. \n [content]: ", err)
 				continue
 			}
-			
+
 			err.Do(s.s.driver)
 		}
 	}()
 
-	go func(){
+	go func() {
 		for {
 			select {
 			case msg := <-s.s.q:
 				{
-					log.Println("sender send: ",msg)
+					log.Println("sender send: ", msg)
 					//_ = msg.Do(s.driver)
 
 					err := msg.Do(s.s.driver)

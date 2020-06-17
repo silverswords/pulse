@@ -5,7 +5,7 @@ import (
 	"runtime"
 )
 
-func main(){
+func main() {
 	nats.Sub("msg.test")
 	runtime.Goexit()
 }

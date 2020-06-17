@@ -1,8 +1,8 @@
 package whisper
 
 import (
-"math/rand"
-"sync"
+	"math/rand"
+	"sync"
 )
 
 const minQueueLen = 32

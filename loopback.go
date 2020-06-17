@@ -1,7 +1,7 @@
 package whisper
 
 import (
-"errors"
+	"errors"
 	"log"
 	"sync"
 )
@@ -32,24 +32,26 @@ func (d *simpleDriver) Pub(topic string, msg *Message) error {
 }
 
 type unSubscriber struct {
-	topic string
-	serial int
+	topic   string
+	serial  int
 	channel chan *Message
 }
 
 func (u *unSubscriber) Unsubscribe() error {
-	if u == nil || u.channel == nil {return errors.New("nil subscriber")}
+	if u == nil || u.channel == nil {
+		return errors.New("nil subscriber")
+	}
 	rm.Lock()
 	subscribers[u.topic][u.serial] = nil
 	rm.Unlock()
 	return nil
 }
 
-func (d *simpleDriver) Sub(topic string, handler func(*Message) ) (UnSubscriber,error) {
+func (d *simpleDriver) Sub(topic string, handler func(*Message)) (UnSubscriber, error) {
 	suber := &unSubscriber{
-		topic:topic,
-		channel: make(chan *Message,100),
-		serial: 0,
+		topic:   topic,
+		channel: make(chan *Message, 100),
+		serial:  0,
 	}
 
 	rm.Lock()
@@ -64,10 +66,10 @@ func (d *simpleDriver) Sub(topic string, handler func(*Message) ) (UnSubscriber,
 	}
 	rm.Unlock()
 
-	go func (){
+	go func() {
 		log.Println("start sub : ", topic)
 		for suber.channel != nil {
-			msg := <- suber.channel
+			msg := <-suber.channel
 			handler(msg)
 			//log.Println("dispatch message: ",msg)
 		}

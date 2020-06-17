@@ -14,25 +14,24 @@ var (
 )
 
 // Open give a conn to MQ to send and receive msg.
-func Open(driverName ,driverSource string, options interface{}) (Conn, error){
+func Open(driverName, driverSource string, options interface{}) (Conn, error) {
 	driversMu.RLock()
 	driveri, ok := drivers[driverName]
 	driversMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("mq: unknown driver %q (forgotten import?)", driverName)
 	}
-	conn, err := driveri.Dial(driverSource,options)
+	conn, err := driveri.Dial(driverSource, options)
 	if err != nil {
 		return nil, err
 	}
 
-	return conn,nil
+	return conn, nil
 }
 
 type Driver interface {
-	Dial(target string, options interface{}) (Conn,error)
+	Dial(target string, options interface{}) (Conn, error)
 }
-
 
 // Register makes a database driver available by the provided name.
 // If Register is called twice with the same name or if driver is nil,
@@ -67,7 +66,6 @@ func Drivers() []string {
 	sort.Strings(list)
 	return list
 }
-
 
 type Conn interface {
 	Pub(topic string, msg []byte) error

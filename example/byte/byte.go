@@ -9,14 +9,13 @@ type simple struct {
 	b []byte
 }
 
-
-func main (){
+func main() {
 	s := &simple{
 		x: "hello",
 	}
 
 	fmt.Println(s)
 
-	s.b = append(s.b,'2')
+	s.b = append(s.b, '2')
 	fmt.Println(s)
 }
