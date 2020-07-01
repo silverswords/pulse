@@ -42,3 +42,14 @@ func (s *Sender) Close(_ context.Context) error {
 
 	return nil
 }
+
+type SenderOption func(*Sender) error
+
+func (s *Sender) applyOptions(opts ...SenderOption) error {
+	for _, fn := range opts {
+		if err := fn(s); err != nil {
+			return err
+		}
+	}
+	return nil
+}

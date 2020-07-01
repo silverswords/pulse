@@ -1,24 +1,61 @@
 package nats
 
 import (
-	"fmt"
+	"context"
 	nats "github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper"
-	"github.com/silverswords/whisper/client"
 	"log"
 	"time"
 )
 
 const DefaultURL = "nats://39.105.141.168:4222"
 
-type NatsDriver struct{}
-
-var nc, _ = nats.Connect(DefaultURL, SetupConnOptions([]nats.Option{})...)
-
 func init() {
 
 }
 
+type Driver struct {
+	Conn *nats.Conn
+	*Sender
+	sOpts []SenderOption
+	*Receiver
+	rOpts    []ReceiverOption
+	holdConn bool
+}
+
+func NewDriver(url, subTopic string, natsOpts []nats.Option, opts ...DriverOption) (*Driver, error) {
+	conn, err := nats.Connect(url, natsOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	d, err := NewDriverFromConn(conn, subTopic, opts...)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	d.holdConn = true
+
+	return d, nil
+}
+func NewDriverFromConn(conn *nats.Conn, subTopic string, opts ...DriverOption) (*Driver, error) {
+	var err error
+	d := &Driver{
+		Conn: conn,
+	}
+
+	if err := d.applyOptions(opts...); err != nil {
+		return nil, err
+	}
+
+	if d.Sender, err = NewSenderFromConn(conn); err != nil {
+		return nil, err
+	}
+
+	if d.Receiver, err = NewReceiverFromConn(conn, subTopic); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
 func SetupConnOptions(opts []nats.Option) []nats.Option {
 	totalWait := 10 * time.Minute
 	reconnectDelay := time.Second
@@ -37,71 +74,30 @@ func SetupConnOptions(opts []nats.Option) []nats.Option {
 	return opts
 }
 
-func (d NatsDriver) Dial(target string, options interface{}) (whisper.Conn, error) {
-	var (
-		err  error
-		conn *nats.Conn
-	)
-
-	// if not set, use default target and options
-	if target == "" {
-		target = DefaultURL
+// Close implements Closer.Close
+func (d *Driver) Close(ctx context.Context) error {
+	if d.holdConn {
+		defer d.Conn.Close()
 	}
-	options, ok := options.([]nats.Option)
-	if !ok {
-		conn, err = nats.Connect(target, SetupConnOptions([]nats.Option{})...)
-	} else {
-		conn, err = nats.Connect(target, options.([]nats.Option)...)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return Conn{conn}, err
-}
 
-type Conn struct {
-	*nats.Conn
-}
-
-// Send send msg to nc
-func (c Conn) Pub(topic string, msg client.Message) error {
-	raw, err := whisper.Encode(msg)
-	if err != nil {
+	if err := d.Receiver.Close(ctx); err != nil {
 		return err
 	}
-	err = c.Publish(topic, raw)
-	if err != nil {
-		fmt.Println(err)
+
+	if err := d.Sender.Close(ctx); err != nil {
 		return err
 	}
-	nc.Flush()
+
 	return nil
 }
 
-type Suber struct {
-	conn *nats.Subscription
-}
+type DriverOption func(d *Driver) error
 
-// Receive is a blocked method
-func (s Suber) Receive(timeout time.Duration) (*client.Message, error) {
-	m, err := s.conn.NextMsg(timeout)
-	if err != nil {
-		return nil, err
+func (d *Driver) applyOptions(opts ...DriverOption) error {
+	for _, fn := range opts {
+		if err := fn(d); err != nil {
+			return err
+		}
 	}
-
-	msg := client.Message{}
-	if err := whisper.Decode(m.Data, &msg); err != nil {
-		return nil, err
-	}
-	return &msg, nil
-}
-
-func (c Conn) Sub(subject string) (whisper.Suber, error) {
-	subs, err := c.SubscribeSync(subject)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	return Suber{subs}, nil
+	return nil
 }
