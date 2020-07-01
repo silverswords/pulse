@@ -5,10 +5,18 @@ import (
 	"encoding/gob"
 )
 
+// Message format maybe below
+//{
+//"specversion": "1.x-wip",
+//"type": "coolevent",
+//"id": "xxxx-xxxx-xxxx",
+//"source": "bigco.com",
+//"data": { ... }
+//}
 type Message struct {
 	// Where the message from and to. what codec is the message have. when and why have this message.
 	context Header // Message Header use to specific message and how to handle it.
-	body    []byte // Message data
+	data    []byte // Message data
 }
 
 func (m *Message) SetTopic(topic string) {
