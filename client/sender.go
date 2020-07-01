@@ -4,7 +4,7 @@ package client
 import (
 	"errors"
 	"github.com/silverswords/whisper"
-	"github.com/silverswords/whisper/driver/loopback"
+	"github.com/silverswords/whisper/driver/multiChan"
 	"github.com/silverswords/whisper/message"
 	"io"
 	"io/ioutil"
@@ -18,7 +18,7 @@ var (
 	HandlerError         = errors.New("interface{} isn't handler")
 )
 
-var Loopback = NewSender(loopback.LoopbackDriver)
+var Loopback = NewSender(multiChan.LoopbackDriver)
 
 func LoopPublish(m *Message) { Loopback.Send(m) }
 
@@ -66,16 +66,16 @@ func (s *QueueSender) execution() {
 	}
 }
 
-func Decorator(f func(interface{})error) (func(interface{}) error) {
+func Decorator(f func(interface{}) error) func(interface{}) error {
 	retryTimes := 3
-	wrapper := func (driver interface{}) error{
+	wrapper := func(driver interface{}) error {
 		if err := f(driver); err != nil {
 			if err == RetryError {
-				retryTimes --
+				retryTimes--
 				if retryTimes < 0 {
 					return RetryTimeRunOutError
 				}
-				
+
 			}
 			return err
 		}

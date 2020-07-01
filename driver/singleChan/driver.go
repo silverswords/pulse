@@ -42,13 +42,13 @@ func (s Sender) Send(ctx context.Context, m *message.Message) error {
 	}
 }
 
-func (s Sender) Close(ctx context.Context) (err error) {
+func (d Driver) Close(ctx context.Context) (err error) {
 	defer func() {
 		if recover() != nil {
 			err = errors.New("trying to close a closed Sender")
 		}
 	}()
-	close(s)
+	close(d.Sender)
 	return nil
 }
 

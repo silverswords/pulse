@@ -2,7 +2,7 @@ package client
 
 import (
 	"github.com/silverswords/whisper"
-	"github.com/silverswords/whisper/driver/loopback"
+	"github.com/silverswords/whisper/driver/multiChan"
 	"log"
 )
 
@@ -33,7 +33,7 @@ func NewTopic(driver whisper.Driver) *Topic {
 
 // localtopic log msg with default options.
 func NewLocalTopic() *Topic {
-	t := NewTopic(loopback.LoopbackDriver)
+	t := NewTopic(multiChan.LoopbackDriver)
 	t.topicOptions = append(t.topicOptions, LogOption)
 	return t
 }

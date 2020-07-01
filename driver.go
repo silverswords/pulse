@@ -5,6 +5,12 @@ import (
 	"github.com/silverswords/whisper/message"
 )
 
+type Client interface {
+	Sender
+
+	// startReceive start to handle msg := client.Receive(). with fn function.
+	StartReceive(ctx context.Context, fn interface{}) error
+}
 type Sender interface {
 	Send(ctx context.Context, msg *message.Message) error
 }

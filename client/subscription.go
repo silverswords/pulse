@@ -2,7 +2,7 @@ package client
 
 import (
 	"github.com/silverswords/whisper"
-	"github.com/silverswords/whisper/driver/loopback"
+	"github.com/silverswords/whisper/driver/multiChan"
 	"log"
 )
 
@@ -32,7 +32,7 @@ func (s *Subscription) AddHandler(handler func(*Message) error) {
 }
 
 func NewLocalSub() *Subscription {
-	sub := NewSubscription(loopback.LoopbackDriver)
+	sub := NewSubscription(multiChan.LoopbackDriver)
 	sub.AddHandler(LogMessage)
 	return sub
 }
