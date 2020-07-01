@@ -1,12 +1,14 @@
-package whisper
+package client
 
 import (
+	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/driver/loopback"
 	"log"
 )
 
 type Topic struct {
 	topicOptions []SendOptions
-	sender       *Sender
+	sender       *whisper.Sender
 	sendFunc     func(msg *Message)
 }
 
@@ -20,7 +22,7 @@ func (t *Topic) Close() {
 	t.sender.Close()
 }
 
-func NewTopic(driver Driver) *Topic {
+func NewTopic(driver whisper.Driver) *Topic {
 	t := &Topic{sender: NewSender(driver)}
 	t.sendFunc = t.sender.Send
 	for _, v := range t.topicOptions {
@@ -31,7 +33,7 @@ func NewTopic(driver Driver) *Topic {
 
 // localtopic log msg with default options.
 func NewLocalTopic() *Topic {
-	t := NewTopic(LoopbackDriver)
+	t := NewTopic(loopback.LoopbackDriver)
 	t.topicOptions = append(t.topicOptions, LogOption)
 	return t
 }

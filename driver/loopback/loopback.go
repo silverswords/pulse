@@ -1,22 +1,24 @@
-package whisper
+package loopback
 
 import (
 	"errors"
+	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/client"
 	"log"
 	"sync"
 )
 
 var LoopbackDriver = &simpleDriver{}
-var subscribers = make(map[string][]chan *Message)
+var subscribers = make(map[string][]chan *client.Message)
 var rm sync.RWMutex
 
 type simpleDriver struct{}
 
-func (d *simpleDriver) Pub(topic string, msg *Message) error {
+func (d *simpleDriver) Pub(topic string, msg *client.Message) error {
 	rm.RLock()
 	if chans, found := subscribers[topic]; found {
-		channels := append([]chan *Message{}, chans...)
-		go func(msg *Message, dataChannelSlices []chan *Message) {
+		channels := append([]chan *client.Message{}, chans...)
+		go func(msg *client.Message, dataChannelSlices []chan *client.Message) {
 			for _, ch := range dataChannelSlices {
 				if ch == nil {
 					continue
@@ -34,7 +36,7 @@ func (d *simpleDriver) Pub(topic string, msg *Message) error {
 type unSubscriber struct {
 	topic   string
 	serial  int
-	channel chan *Message
+	channel chan *client.Message
 }
 
 func (u *unSubscriber) Unsubscribe() error {
@@ -47,10 +49,10 @@ func (u *unSubscriber) Unsubscribe() error {
 	return nil
 }
 
-func (d *simpleDriver) Sub(topic string, handler func(*Message)) (UnSubscriber, error) {
+func (d *simpleDriver) Sub(topic string, handler func(*client.Message)) (whisper.UnSubscriber, error) {
 	suber := &unSubscriber{
 		topic:   topic,
-		channel: make(chan *Message, 100),
+		channel: make(chan *client.Message, 100),
 		serial:  0,
 	}
 
@@ -61,7 +63,7 @@ func (d *simpleDriver) Sub(topic string, handler func(*Message)) (UnSubscriber, 
 		//log.Println("already have a subscriber")
 	} else {
 		suber.serial = 0
-		subscribers[topic] = append([]chan *Message{}, suber.channel)
+		subscribers[topic] = append([]chan *client.Message{}, suber.channel)
 		//log.Println("new a subscriber")
 	}
 	rm.Unlock()

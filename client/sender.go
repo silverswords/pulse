@@ -1,8 +1,11 @@
-package whisper
+package client
 
 // how to use, new a Executor with MQ driver. and append new message to executor queue.
 import (
 	"errors"
+	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/driver/loopback"
+	"github.com/silverswords/whisper/message"
 	"io"
 	"io/ioutil"
 	"log"
@@ -15,20 +18,20 @@ var (
 	HandlerError         = errors.New("interface{} isn't handler")
 )
 
-var Loopback = NewSender(LoopbackDriver)
+var Loopback = NewSender(loopback.LoopbackDriver)
 
 func LoopPublish(m *Message) { Loopback.Send(m) }
 
 // Sender only to send every message with the driver.
-type Sender struct {
+type QueueSender struct {
 	q      chan *Message
 	driver interface{} // use for every handler to do the thing.
 
 	closed chan struct{}
 }
 
-func NewSender(driver Driver) *Sender {
-	s := &Sender{
+func NewSender(driver whisper.Driver) *QueueSender {
+	s := &QueueSender{
 		q:      make(chan *Message, 100),
 		driver: driver,
 		closed: make(chan struct{}, 1),
@@ -41,7 +44,7 @@ func NewSender(driver Driver) *Sender {
 //https://sourcegraph.com/github.com/grpc/grpc-go@9a465503579e4f97b81d4e2ddafdd1daef80aa93/-/blob/stream.go#L466:25
 
 // send message in Sender until colsed.
-func (s *Sender) execution() {
+func (s *QueueSender) execution() {
 	for {
 		select {
 		case msg := <-s.q:
@@ -83,11 +86,11 @@ func Decorator(f func(interface{})error) (func(interface{}) error) {
 }
 
 // Send Would Block when channel full of Message
-func (s *Sender) Send(msg *Message) {
+func (s *QueueSender) Send(msg *Message) {
 	s.q <- msg
 }
 
-func (s *Sender) Close() {
+func (s *QueueSender) Close() {
 	s.closed <- struct{}{}
 }
 
@@ -98,7 +101,7 @@ type Handler interface {
 // Message has imply Handler interface.
 type Message struct {
 	MsgID  uint64
-	Header Header
+	Header message.Header
 	Body   []byte
 
 	retrytime int
@@ -111,7 +114,7 @@ func NewMessage(topic string, body io.Reader) (*Message, error) {
 	}
 
 	message := &Message{
-		Header: make(Header),
+		Header: make(message.Header),
 		Body:   make([]byte, 256),
 	}
 
@@ -120,7 +123,7 @@ func NewMessage(topic string, body io.Reader) (*Message, error) {
 }
 
 func (m *Message) Do(driver interface{}) error {
-	d, ok := driver.(Driver)
+	d, ok := driver.(whisper.Driver)
 	if !ok {
 		panic("MQ: unknown driver (forgotten import?) ")
 	}
@@ -158,7 +161,7 @@ type RetryHandler struct {
 }
 
 func (h *RetryHandler) Do(driver interface{}) error {
-	d, ok := driver.(Driver)
+	d, ok := driver.(whisper.Driver)
 	if !ok {
 		return DriverError
 	}

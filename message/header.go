@@ -1,4 +1,4 @@
-package whisper
+package message
 
 import (
 	"net/textproto"

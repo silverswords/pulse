@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/silverswords/whisper/pubsub/nats"
+	"github.com/silverswords/whisper/driver/nats"
 	"runtime"
 )
 

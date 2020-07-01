@@ -1,13 +1,15 @@
-package whisper
+package client
 
 import (
+	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/driver/loopback"
 	"log"
 )
 
 type Subscription struct {
 	*Queue                // use to store messages
 	handlers []SubHandler // use to handle messages
-	Driver
+	whisper.Driver
 }
 
 type SubHandler interface {
@@ -18,7 +20,7 @@ type SubHandlerFunc func(*Message) error
 
 func (h SubHandlerFunc) Do(m *Message) error { return h(m) }
 
-func NewSubscription(driver Driver) *Subscription {
+func NewSubscription(driver whisper.Driver) *Subscription {
 	return &Subscription{
 		Queue:  NewQueue(),
 		Driver: driver,
@@ -30,7 +32,7 @@ func (s *Subscription) AddHandler(handler func(*Message) error) {
 }
 
 func NewLocalSub() *Subscription {
-	sub := NewSubscription(LoopbackDriver)
+	sub := NewSubscription(loopback.LoopbackDriver)
 	sub.AddHandler(LogMessage)
 	return sub
 }
@@ -41,7 +43,7 @@ func LogMessage(m *Message) error {
 }
 
 // Sub would sub multiple topic and do the same action with SubHandlers.
-func (s *Subscription) Sub(topic string) (UnSubscriber, error) {
+func (s *Subscription) Sub(topic string) (whisper.UnSubscriber, error) {
 	unsub, err := s.Driver.Sub(topic, func(message *Message) {
 		log.Println("get a message and append in subscription: ", message)
 		s.Append(message)

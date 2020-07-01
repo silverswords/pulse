@@ -4,6 +4,7 @@ import (
 	"fmt"
 	nats "github.com/nats-io/nats.go"
 	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/client"
 	"log"
 	"time"
 )
@@ -63,7 +64,7 @@ type Conn struct {
 }
 
 // Send send msg to nc
-func (c Conn) Pub(topic string, msg whisper.Message) error {
+func (c Conn) Pub(topic string, msg client.Message) error {
 	raw, err := whisper.Encode(msg)
 	if err != nil {
 		return err
@@ -82,13 +83,13 @@ type Suber struct {
 }
 
 // Receive is a blocked method
-func (s Suber) Receive(timeout time.Duration) (*whisper.Message, error) {
+func (s Suber) Receive(timeout time.Duration) (*client.Message, error) {
 	m, err := s.conn.NextMsg(timeout)
 	if err != nil {
 		return nil, err
 	}
 
-	msg := whisper.Message{}
+	msg := client.Message{}
 	if err := whisper.Decode(m.Data, &msg); err != nil {
 		return nil, err
 	}

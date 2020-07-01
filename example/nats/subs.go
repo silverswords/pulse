@@ -16,6 +16,7 @@ package main
 import (
 	"flag"
 	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/client"
 	"log"
 	"os"
 	"runtime"
@@ -39,7 +40,7 @@ func showUsageAndExit(exitcode int) {
 }
 
 func printMsg(m *nats.Msg, i int) {
-	var msg whisper.Message
+	var msg client.Message
 	whisper.Decode(m.Data, &msg)
 	log.Printf("[#%d] Received on [%s]:", i, m.Subject)
 	log.Println(msg)
