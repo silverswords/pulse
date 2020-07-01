@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"testing"
 
-	cecontext "github.com/silverswords/whisper/context"
 	"github.com/google/go-cmp/cmp"
+	cecontext "github.com/silverswords/whisper/context"
 )
 
 func TestTargetContext(t *testing.T) {

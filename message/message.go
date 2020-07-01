@@ -8,14 +8,14 @@ import (
 type Message struct {
 	// Where the message from and to. what codec is the message have. when and why have this message.
 	context Header // Message Header use to specific message and how to handle it.
-	body []byte // Message data
+	body    []byte // Message data
 }
 
 func (m *Message) SetTopic(topic string) {
 	m.context.SetTopic(topic)
 }
 
-func (m *Message) Topic() string{
+func (m *Message) Topic() string {
 	return m.context.GetTopic()
 }
 
@@ -24,13 +24,13 @@ func ToByte(m *Message) []byte {
 	return bytes
 }
 
-func ToMessage(bytes []byte) (*Message,error) {
+func ToMessage(bytes []byte) (*Message, error) {
 	m := &Message{}
-	err:= Decode(bytes, m)
+	err := Decode(bytes, m)
 	if err != nil {
-		return nil , err
+		return nil, err
 	}
-	return m,nil
+	return m, nil
 }
 
 func Encode(data interface{}) ([]byte, error) {

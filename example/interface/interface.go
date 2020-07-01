@@ -16,9 +16,10 @@ func (p *Dog) Age() int {
 	return p.age
 }
 
-type Ager interface{
+type Ager interface {
 	Age() int
 }
+
 func Age(a Ager) int {
 	return a.Age()
 }

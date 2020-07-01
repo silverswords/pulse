@@ -9,19 +9,19 @@ type Sender interface {
 	Send(ctx context.Context, msg *message.Message) error
 }
 
-type Receiver interface{
+type Receiver interface {
 	Receive(ctx context.Context) (msg *message.Message, err error)
 }
 
 type Requests interface {
-	Request(ctx context.Context, request *message.Message)(resp *message.Message, err error)
+	Request(ctx context.Context, request *message.Message) (resp *message.Message, err error)
 }
-type SenderCloser interface{
+type SenderCloser interface {
 	Sender
 	Closer
 }
 
-type ReceiverCloser interface{
+type ReceiverCloser interface {
 	Receiver
 	Closer
 }
@@ -43,7 +43,6 @@ type Driver interface {
 	Sender
 	Receiver
 }
-
 
 type UnSubscriber interface {
 	//Drain() error

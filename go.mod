@@ -10,7 +10,7 @@ require (
 	github.com/Azure/go-autorest/autorest/to v0.2.0 // indirect
 	github.com/Azure/go-autorest/autorest/validation v0.1.0 // indirect
 	github.com/cloudevents/sdk-go v2.1.0+incompatible // indirect
-	github.com/cloudevents/sdk-go/v2 v2.1.0 // indirect
+	github.com/cloudevents/sdk-go/v2 v2.1.0
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/google/go-cmp v0.4.0
@@ -21,7 +21,7 @@ require (
 	github.com/nats-io/nats-server/v2 v2.1.6 // indirect
 	github.com/nats-io/nats.go v1.9.2
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	go.opencensus.io v0.22.0 // indirect
+	go.opencensus.io v0.22.0
 	go.uber.org/zap v1.15.0
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2 // indirect
 	google.golang.org/api v0.15.0 // indirect

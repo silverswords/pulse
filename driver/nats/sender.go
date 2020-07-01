@@ -8,17 +8,24 @@ import (
 
 type Sender struct {
 	Conn *nats.Conn
+
+	holdConn bool
 }
 
-func NewSender(url string, natsOpts []nats.Option) (*Sender,error){
-	conn,err := nats.Connect(url, natsOpts...)
+func NewSender(url string, natsOpts []nats.Option) (*Sender, error) {
+	conn, err := nats.Connect(url, natsOpts...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Sender{
-		Conn:conn,
-	},nil
+		Conn:     conn,
+		holdConn: true,
+	}, nil
+}
+
+func NewSenderFromConn(conn *nats.Conn) (*Sender, error) {
+	return &Sender{Conn: conn}, nil
 }
 
 func (s *Sender) Send(ctx context.Context, in *message.Message) (err error) {
@@ -29,7 +36,7 @@ func (s *Sender) Send(ctx context.Context, in *message.Message) (err error) {
 // Close implements Closer.Close
 // This method only closes the connection if the Sender opened it
 func (s *Sender) Close(_ context.Context) error {
-	if s != nil {
+	if s.holdConn {
 		s.Conn.Close()
 	}
 

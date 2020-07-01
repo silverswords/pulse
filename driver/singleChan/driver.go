@@ -2,12 +2,13 @@ package singleChan
 
 import (
 	"context"
-	"fmt"
-	"github.com/silverswords/whisper/message"
-	"github.com/silverswords/whisper"
 	"errors"
+	"fmt"
+	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/message"
 	"io"
 )
+
 const defaultChanDepth = 20
 
 type Driver struct {
@@ -71,4 +72,3 @@ func (r Receiver) Receive(ctx context.Context) (*message.Message, error) {
 
 var _ whisper.Sender = (*Sender)(nil)
 var _ whisper.Receiver = (*Receiver)(nil)
-

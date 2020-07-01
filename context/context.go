@@ -2,9 +2,9 @@
 package context
 
 import (
-"context"
-"net/url"
-"time"
+	"context"
+	"net/url"
+	"time"
 )
 
 // Opaque key type used to store target
