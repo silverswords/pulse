@@ -5,6 +5,16 @@ type Topic struct {
 	topicOptions []topicOption
 }
 
+func NewTopic(topic string, options ...topicOption) (*Topic,error) {
+	t := &Topic{topic: topic,topicOptions: options}
+
+	if err := t.applyOptions(options...); err != nil {
+		return nil,err
+	}
+
+	return t, nil
+}
+
 type topicOption func(*Topic) error
 
 func (c *Topic) applyOptions(opts ...topicOption) error {
