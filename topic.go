@@ -9,6 +9,7 @@ type Topic struct {
 	topic string
 	topicOptions []topicOption
 	client Client
+	waittingMessage map[string]*message.Message
 }
 
 func NewTopic(topic string, options ...topicOption) (*Topic,error) {
@@ -21,11 +22,18 @@ func NewTopic(topic string, options ...topicOption) (*Topic,error) {
 	return t, nil
 }
 
+func (t *Topic) startSender() {
+	go func() {
+		for _, v := range t.queue {
+			t.client.send()
+		}
+	}()
+}
+
 func (t *Topic) Send(m *message.Message) {
 	if err := t.client.Send(context.Background(),m); err != nil{
 		return
 	}
-
 }
 
 type topicOption func(*Topic) error

@@ -5,6 +5,10 @@ import (
 	"github.com/silverswords/whisper/message"
 )
 
+type factory struct {
+	buses map[string]func() Driver
+}
+
 type Client interface {
 	Sender
 
@@ -27,7 +31,12 @@ type SenderCloser interface {
 	Closer
 }
 
+type Initer interface {
+	Init(metadata interface{}) error
+}
+
 type ReceiverCloser interface {
+	Initer
 	Receiver
 	Closer
 }
