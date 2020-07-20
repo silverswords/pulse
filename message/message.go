@@ -2,14 +2,13 @@ package message
 
 import (
 	"bytes"
-	"context"
 	"encoding/gob"
 )
 
-// DirectMessaging is the API interface for invoking a remote app
-type DirectMessaging interface {
-	Invoke(ctx context.Context, targetAppID string, req *invokev1.InvokeMethodRequest) (*invokev1.InvokeMethodResponse, error)
-}
+//// DirectMessaging is the API interface for invoking a remote app
+//type DirectMessaging interface {
+//	Invoke(ctx context.Context, targetAppID string, req *invokev1.InvokeMethodRequest) (*invokev1.InvokeMethodResponse, error)
+//}
 
 // Message format maybe below
 //{

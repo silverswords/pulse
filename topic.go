@@ -1,8 +1,14 @@
 package whisper
 
+import (
+	"context"
+	"github.com/silverswords/whisper/message"
+)
+
 type Topic struct {
 	topic string
 	topicOptions []topicOption
+	client Client
 }
 
 func NewTopic(topic string, options ...topicOption) (*Topic,error) {
@@ -13,6 +19,13 @@ func NewTopic(topic string, options ...topicOption) (*Topic,error) {
 	}
 
 	return t, nil
+}
+
+func (t *Topic) Send(m *message.Message) {
+	if err := t.client.Send(context.Background(),m); err != nil{
+		return
+	}
+
 }
 
 type topicOption func(*Topic) error
