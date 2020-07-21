@@ -6,17 +6,17 @@ import (
 )
 
 type Topic struct {
-	topic string
-	topicOptions []topicOption
-	client Client
+	topic           string
+	topicOptions    []topicOption
+	client          Client
 	waittingMessage map[string]*message.Message
 }
 
-func NewTopic(topic string, options ...topicOption) (*Topic,error) {
-	t := &Topic{topic: topic,topicOptions: options}
+func NewTopic(topic string, options ...topicOption) (*Topic, error) {
+	t := &Topic{topic: topic, topicOptions: options}
 
 	if err := t.applyOptions(options...); err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	return t, nil
@@ -31,7 +31,7 @@ func (t *Topic) startSender() {
 }
 
 func (t *Topic) Send(m *message.Message) {
-	if err := t.client.Send(context.Background(),m); err != nil{
+	if err := t.client.Send(context.Background(), m); err != nil {
 		return
 	}
 }

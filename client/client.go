@@ -11,17 +11,17 @@ type Client struct {
 	driver whisper.Driver
 	opener whisper.Opener
 
-	q *Queue
+	q          *Queue
 	callbackFn interface{}
 }
 
-func (c *Client) Send(ctx context.Context,m *message.Message) error{
-	return c.driver.Send(ctx,m)
+func (c *Client) Send(ctx context.Context, m *message.Message) error {
+	return c.driver.Send(ctx, m)
 }
 
-func (c *Client) StartReceive(ctx context.Context,callbackFn interface{}) error {
+func (c *Client) StartReceive(ctx context.Context, callbackFn interface{}) error {
 	// start open inbound.
-	if c.opener  != nil {
+	if c.opener != nil {
 		go func() {
 			if err := c.opener.Open(ctx); err != nil {
 				cecontext.LoggerFrom(ctx).Errorf("Error while opening the inbound connection: %s", err)
@@ -43,8 +43,8 @@ func Worker(ctx context.Context) {
 
 }
 
-func NewClient(driver whisper.Driver, opts ...Option) (c *Client,err error) {
-	c = &Client{driver: driver,q:NewQueue()}
+func NewClient(driver whisper.Driver, opts ...Option) (c *Client, err error) {
+	c = &Client{driver: driver, q: NewQueue()}
 
 	if d, ok := driver.(whisper.Opener); ok {
 		c.opener = d
@@ -56,8 +56,8 @@ func NewClient(driver whisper.Driver, opts ...Option) (c *Client,err error) {
 	return c, nil
 }
 
-
 type Option func(*Client) error
+
 func (c *Client) applyOptions(opts ...Option) error {
 	for _, fn := range opts {
 		if err := fn(c); err != nil {

@@ -61,8 +61,7 @@ type Driver interface {
 
 // Subscriber under ther driver and implements by driver.
 // often call in Driver.Open() to push message to driver incoming channel.
-type Sucscriber interface{
-
+type Sucscriber interface {
 }
 
 type UnSubscriber interface {
