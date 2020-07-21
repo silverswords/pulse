@@ -1,12 +1,19 @@
 package whisper
 
-import "github.com/silverswords/whisper/message"
+import (
+	"context"
+	"github.com/silverswords/whisper/message"
+	"time"
+)
 
 type Subscription struct {
 	Driver
 	topic string
 	queue chan *message.Message
 	subOptions []subOption
+
+
+	handlerEndpoint []func(msg *message.Message) error
 	callbackFn interface{}
 }
 
@@ -20,14 +27,21 @@ func NewSubscription() (*Subscription,error) {
 }
 
 func (s *Subscription) startReceive() error {
-	go func() {
-		for s.Driver.Receive() != nil {
-			for option := range s.subOptions{+
 
+	go func() {
+		for  {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			m, err := s.Driver.Receive(ctx)
+
+
+			for _,option := range s.handlerEndpoint{
+				option(m)
 			}
-			callbackFn()
+			callbackFn(m)
 		}
 	}()
+
 }
 
 type subOption func(*Subscription) error
