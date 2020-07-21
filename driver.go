@@ -35,6 +35,9 @@ type Initer interface {
 	Init(metadata interface{}) error
 }
 
+type Metadata struct{
+	Properties map[string]string
+}
 type ReceiverCloser interface {
 	Initer
 	Receiver
