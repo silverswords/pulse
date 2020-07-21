@@ -40,17 +40,23 @@ func init() {
 type metadata struct {
 	natsURL string
 	natsOpts []nats.Option
+	queueGroupName string
 }
+
 type NatsDriver struct {
 	Conn *nats.Conn
 	metadata
+
+	closedCh chan struct{}
 
 	// todo: add a logger module
 	logger interface{}
 }
 
 func NewNats() *NatsDriver {
-	return &NatsDriver{}
+	return &NatsDriver{
+		closedCh: make(chan struct{}),
+	}
 }
 
 func (n *NatsDriver) Init(metadata whisper.Metadata) error {
@@ -70,22 +76,51 @@ func (n *NatsDriver) Init(metadata whisper.Metadata) error {
 }
 
 func (n *NatsDriver) Publish(ctx context.Context, in *message.Message) error {
-	err := n.Conn.Publish(req.Topic, req.Data)
+	err := n.Conn.Publish(in.Topic(), message.ToByte(in))
 	if err != nil {
 		return fmt.Errorf("nats: error from publish: %s", err)
 	}
 	return nil
 }
 
-func (n *NatsDriver) Subscribe(req pubsub.SubscribeRequest, handler func(msg *pubsub.NewMessage) error) error {
-	sub, err := n.Conn.QueueSubscribe(req.Topic, n.metadata.natsQueueGroupName, func(natsMsg *nats.Msg) {
-		handler(&pubsub.NewMessage{Topic: req.Topic, Data: natsMsg.Data})
-	})
-	if err != nil {
-		n.logger.Warnf("nats: error subscribe: %s", err)
-	}
-	n.logger.Debugf("nats: subscribed to subject %s with queue group %s", sub.Subject, sub.Queue)
+func (n *NatsDriver) Subscribe(ctx context.Context , topic string, handler func(msg *message.Message) error) error {
+	var (
+		sub *nats.Subscription
+		err error
+		MsgHandler = func (m *nats.Msg) {
+		msg, err := message.ToMessage(m.Data)
+		if err != nil {
+			//n.logger.Warnf("nats: error subscribe: %s", err)
 
+			fmt.Println("Not whisper message: ", err)
+			return
+		}
+		handler(msg)
+	}
+	)
+
+	if n.metadata.queueGroupName == "" {
+		sub, err = n.Conn.Subscribe(topic, MsgHandler)
+
+	}else {
+		sub, err = n.Conn.QueueSubscribe(topic, n.metadata.queueGroupName, MsgHandler)
+	}
+
+	if err != nil {
+		//n.logger.Warnf("nats: error subscribe: %s", err)
+		return err
+	}
+	//n.logger.Debugf("nats: subscribed to subject %s with queue group %s", sub.Subject, sub.Queue)
+	select {
+		case <-ctx.Done():
+		case <-n.closedCh:
+	}
+
+	return sub.Drain()
+}
+
+func (n *NatsDriver) Close(ctx context.Context) error {
+	n.closedCh <- struct{}{}
 	return nil
 }
 
