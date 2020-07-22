@@ -13,11 +13,13 @@ type handler interface {
 	Do(interface{}) error
 }
 
+// bug in error handler
 func (w Worker) Do(iface interface{}) error {
-	errch := make(chan error)
+	errch := make(chan error,1)
+	closedCh := make(chan struct {})
 	go func() {
 		select {
-		case <-errch:
+		case <- closedCh :
 			return
 		default:
 			for v := <-w.workerQueue; ; {
@@ -26,8 +28,11 @@ func (w Worker) Do(iface interface{}) error {
 					errch <- err
 				}
 
-				if err = h.Do(); err != nil {
+				if err = h.Do(iface); err != nil {
 					errch <- err
+				}
+				if err != nil{
+					closedCh <- struct{}{}
 				}
 			}
 		}
