@@ -12,8 +12,14 @@ const DefaultURL = "nats://39.105.141.168:4222"
 func init() {
 
 }
+type metadata struct {
+	sOpts []SenderOption
+	rOpts []ReceiverOption
+	dOpts []DriverOption
+}
 
 type Driver struct {
+	metadata
 	Conn *nats.Conn
 	*Sender
 	sOpts []SenderOption
