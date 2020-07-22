@@ -48,9 +48,6 @@ type NatsDriver struct {
 	metadata
 
 	closedCh chan struct{}
-
-	// todo: add a logger module
-	logger interface{}
 }
 
 func NewNats() *NatsDriver {
@@ -75,6 +72,7 @@ func (n *NatsDriver) Init(metadata whisper.Metadata) error {
 	return nil
 }
 
+// Publish publishes a message to Nats Server with message destination topic.
 func (n *NatsDriver) Publish(ctx context.Context, in *message.Message) error {
 	err := n.Conn.Publish(in.Topic(), message.ToByte(in))
 	if err != nil {
@@ -83,6 +81,9 @@ func (n *NatsDriver) Publish(ctx context.Context, in *message.Message) error {
 	return nil
 }
 
+// Subscribe handle message from specific topic.
+// in metadata:
+// - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
 func (n *NatsDriver) Subscribe(ctx context.Context , topic string, handler func(msg *message.Message) error) error {
 	var (
 		sub *nats.Subscription
@@ -90,7 +91,7 @@ func (n *NatsDriver) Subscribe(ctx context.Context , topic string, handler func(
 		MsgHandler = func (m *nats.Msg) {
 		msg, err := message.ToMessage(m.Data)
 		if err != nil {
-			//n.logger.Warnf("nats: error subscribe: %s", err)
+			//ctx.logger.Warnf("nats: error subscribe: %s", err)
 
 			fmt.Println("Not whisper message: ", err)
 			return
@@ -110,7 +111,7 @@ func (n *NatsDriver) Subscribe(ctx context.Context , topic string, handler func(
 		//n.logger.Warnf("nats: error subscribe: %s", err)
 		return err
 	}
-	//n.logger.Debugf("nats: subscribed to subject %s with queue group %s", sub.Subject, sub.Queue)
+	//ctx.logger.Debugf("nats: subscribed to subject %s with queue group %s", sub.Subject, sub.Queue)
 	select {
 		case <-ctx.Done():
 		case <-n.closedCh:
