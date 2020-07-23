@@ -9,6 +9,7 @@ import (
 type Sender struct {
 	Conn *nats.Conn
 
+	topic    string
 	holdConn bool
 }
 
@@ -24,12 +25,15 @@ func NewSender(url string, natsOpts []nats.Option) (*Sender, error) {
 	}, nil
 }
 
-func NewSenderFromConn(conn *nats.Conn) (*Sender, error) {
-	return &Sender{Conn: conn}, nil
+func NewSenderFromConn(conn *nats.Conn, topic string) (*Sender, error) {
+	return &Sender{Conn: conn, topic: topic}, nil
 }
 
 func (s *Sender) Send(ctx context.Context, in *message.Message) (err error) {
-	topic := in.Topic()
+	var topic string
+	if topic = in.Topic(); topic == "" {
+		topic = s.topic
+	}
 	return s.Conn.Publish(topic, message.ToByte(in))
 }
 

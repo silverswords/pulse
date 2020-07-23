@@ -2,67 +2,88 @@ package nats
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	nats "github.com/nats-io/nats.go"
+	"github.com/silverswords/whisper"
 	"log"
 	"time"
 )
 
-const DefaultURL = "nats://39.105.141.168:4222"
+const (
+	natsURL    = "natsURL"
+	DefaultURL = "nats://39.105.141.168:4222"
+)
 
 func init() {
 
 }
+
+type Driver struct {
+	metadata
+
+	Conn *nats.Conn
+	*Sender
+	*Receiver
+}
+
+func NewDriver() whisper.Driver {
+	return &Driver{}
+}
+
+func (d *Driver) Init(metadata whisper.Metadata) error {
+	m, err := parseNATSMetadata(metadata)
+	if err != nil {
+		return err
+	}
+
+	// url to conn. subtopic to topic, opts to driver.
+	d.metadata = m
+	conn, err := nats.Connect(m.natsURL, m.natsOpts...)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("nats: error connecting to nats at %s: %s", m.natsURL, err)
+	}
+	d.Conn = conn
+	if d.Sender, err = NewSenderFromConn(conn, m.topic); err != nil {
+		return err
+	}
+
+	if d.Receiver, err = NewReceiverFromConn(conn, m.topic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// parseNATSMetadata parse driver's metadata map[string]string to this nats' metadata
 type metadata struct {
+	natsURL  string
+	natsOpts []nats.Option
+	topic    string
+
+	// deprecated: options
 	sOpts []SenderOption
 	rOpts []ReceiverOption
 	dOpts []DriverOption
 }
 
-type Driver struct {
-	metadata
-	Conn *nats.Conn
-	*Sender
-	sOpts []SenderOption
-	*Receiver
-	rOpts    []ReceiverOption
-	holdConn bool
+func parseNATSMetadata(meta whisper.Metadata) (metadata, error) {
+	m := metadata{}
+	if val, ok := meta.Properties[natsURL]; ok && val != "" {
+		m.natsURL = val
+	} else {
+		return m, errors.New("nats error: missing nats URL")
+	}
+
+	if m.natsOpts == nil {
+		m.natsOpts = setupConnOptions(m.natsOpts)
+	}
+
+	return m, nil
 }
 
-func NewDriver(url, subTopic string, natsOpts []nats.Option, opts ...DriverOption) (*Driver, error) {
-	conn, err := nats.Connect(url, natsOpts...)
-	if err != nil {
-		return nil, err
-	}
-
-	d, err := NewDriverFromConn(conn, subTopic, opts...)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-	d.holdConn = true
-
-	return d, nil
-}
-func NewDriverFromConn(conn *nats.Conn, subTopic string, opts ...DriverOption) (*Driver, error) {
-	var err error
-	d := &Driver{
-		Conn: conn,
-	}
-
-	if err := d.applyOptions(opts...); err != nil {
-		return nil, err
-	}
-
-	if d.Sender, err = NewSenderFromConn(conn); err != nil {
-		return nil, err
-	}
-
-	if d.Receiver, err = NewReceiverFromConn(conn, subTopic); err != nil {
-		return nil, err
-	}
-	return d, nil
-}
-func SetupConnOptions(opts []nats.Option) []nats.Option {
+func setupConnOptions(opts []nats.Option) []nats.Option {
 	totalWait := 10 * time.Minute
 	reconnectDelay := time.Second
 
@@ -80,12 +101,19 @@ func SetupConnOptions(opts []nats.Option) []nats.Option {
 	return opts
 }
 
+type DriverOption func(d *metadata) error
+
+func (m *metadata) applyOptions(opts ...DriverOption) error {
+	for _, fn := range opts {
+		if err := fn(m); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Close implements Closer.Close
 func (d *Driver) Close(ctx context.Context) error {
-	if d.holdConn {
-		defer d.Conn.Close()
-	}
-
 	if err := d.Receiver.Close(ctx); err != nil {
 		return err
 	}
@@ -94,16 +122,5 @@ func (d *Driver) Close(ctx context.Context) error {
 		return err
 	}
 
-	return nil
-}
-
-type DriverOption func(d *Driver) error
-
-func (d *Driver) applyOptions(opts ...DriverOption) error {
-	for _, fn := range opts {
-		if err := fn(d); err != nil {
-			return err
-		}
-	}
 	return nil
 }
