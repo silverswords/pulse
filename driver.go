@@ -12,8 +12,8 @@ type factory struct {
 type Publisher interface {
 	Publish(ctx context.Context, in *message.Message) error
 }
-type Subscriber interface{
-	Subscribe(ctx context.Context , topic string, handler func(msg *message.Message) error) error
+type Subscriber interface {
+	Subscribe(ctx context.Context, topic string, handler func(msg *message.Message) error) error
 }
 
 type Client interface {
@@ -42,7 +42,7 @@ type Initer interface {
 	Init(metadata interface{}) error
 }
 
-type Metadata struct{
+type Metadata struct {
 	Properties map[string]string
 }
 type ReceiverCloser interface {

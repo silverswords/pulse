@@ -21,20 +21,20 @@ import (
 //}
 type Message struct {
 	// Where the message from and to. what codec is the message have. when and why have this message.
-	context Header // Message Header use to specific message and how to handle it.
+	context     Header // Message Header use to specific message and how to handle it.
 	specversion string
-	typeName string
-	id string
-	ackid string
+	typeName    string
+	id          string
+	ackid       string
 	// Timestamp
-	time time.Time
-	source string
+	time        time.Time
+	source      string
 	destination string
-	data    []byte // Message data
+	data        []byte // Message data
 }
 
 type LogicModules struct {
-	ackid string
+	ackid   string
 	ackdone bool
 
 	retrytime int
@@ -45,7 +45,7 @@ type MQ_Message struct {
 	LogicModules
 }
 
-func (m *Message) Ack(){
+func (m *Message) Ack() {
 
 }
 

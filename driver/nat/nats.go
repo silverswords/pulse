@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	natsURL = "natsURL"
+	natsURL    = "natsURL"
 	DefaultURL = "nats://39.105.141.168:4222"
 )
 
@@ -37,9 +37,10 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 func init() {
 	// use to register the nats to pubsub driver factory
 }
+
 type metadata struct {
-	natsURL string
-	natsOpts []nats.Option
+	natsURL        string
+	natsOpts       []nats.Option
 	queueGroupName string
 }
 
@@ -63,7 +64,7 @@ func (n *NatsDriver) Init(metadata whisper.Metadata) error {
 	}
 
 	n.metadata = m
-	conn, err := nats.Connect(m.natsURL,m.natsOpts...)
+	conn, err := nats.Connect(m.natsURL, m.natsOpts...)
 	if err != nil {
 		return fmt.Errorf("nats: error connecting to nats at %s: %s", m.natsURL, err)
 	}
@@ -84,26 +85,26 @@ func (n *NatsDriver) Publish(ctx context.Context, in *message.Message) error {
 // Subscribe handle message from specific topic.
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
-func (n *NatsDriver) Subscribe(ctx context.Context , topic string, handler func(msg *message.Message) error) error {
+func (n *NatsDriver) Subscribe(ctx context.Context, topic string, handler func(msg *message.Message) error) error {
 	var (
-		sub *nats.Subscription
-		err error
-		MsgHandler = func (m *nats.Msg) {
-		msg, err := message.ToMessage(m.Data)
-		if err != nil {
-			//ctx.logger.Warnf("nats: error subscribe: %s", err)
+		sub        *nats.Subscription
+		err        error
+		MsgHandler = func(m *nats.Msg) {
+			msg, err := message.ToMessage(m.Data)
+			if err != nil {
+				//ctx.logger.Warnf("nats: error subscribe: %s", err)
 
-			fmt.Println("Not whisper message: ", err)
-			return
+				fmt.Println("Not whisper message: ", err)
+				return
+			}
+			handler(msg)
 		}
-		handler(msg)
-	}
 	)
 
 	if n.metadata.queueGroupName == "" {
 		sub, err = n.Conn.Subscribe(topic, MsgHandler)
 
-	}else {
+	} else {
 		sub, err = n.Conn.QueueSubscribe(topic, n.metadata.queueGroupName, MsgHandler)
 	}
 
@@ -113,8 +114,8 @@ func (n *NatsDriver) Subscribe(ctx context.Context , topic string, handler func(
 	}
 	//ctx.logger.Debugf("nats: subscribed to subject %s with queue group %s", sub.Subject, sub.Queue)
 	select {
-		case <-ctx.Done():
-		case <-n.closedCh:
+	case <-ctx.Done():
+	case <-n.closedCh:
 	}
 
 	return sub.Drain()
@@ -136,7 +137,6 @@ func parseNATSMetadata(meta whisper.Metadata) (metadata, error) {
 	if m.natsOpts == nil {
 		m.natsOpts = setupConnOptions(m.natsOpts)
 	}
-
 
 	return m, nil
 }

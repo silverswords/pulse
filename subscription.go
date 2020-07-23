@@ -8,20 +8,16 @@ import (
 
 type Subscription struct {
 	Driver
-	topic string
-	queue chan *message.Message
+	topic      string
+	queue      chan *message.Message
 	subOptions []subOption
 
-
 	handlerEndpoint []func(msg *message.Message) error
-	callbackFn interface{}
+	callbackFn      interface{}
 }
 
-func NewSubscription() (*Subscription,error) {
-	s := &Subscription{
-
-	}
-
+func NewSubscription() (*Subscription, error) {
+	s := &Subscription{}
 
 	return s, nil
 }
@@ -29,13 +25,12 @@ func NewSubscription() (*Subscription,error) {
 func (s *Subscription) startReceive() error {
 
 	go func() {
-		for  {
+		for {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			m, err := s.Driver.Receive(ctx)
 
-
-			for _,option := range s.handlerEndpoint{
+			for _, option := range s.handlerEndpoint {
 				option(m)
 			}
 			callbackFn(m)
