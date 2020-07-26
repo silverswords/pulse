@@ -6,16 +6,20 @@ import (
 	"github.com/silverswords/whisper/message"
 )
 
-type pubSubRegistry struct {
+var Registry = pubsubRegistry{
+	buses: make(map[string]func() Driver),
+}
+
+type pubsubRegistry struct {
 	buses map[string]func() Driver
 }
 
-func (r *pubSubRegistry) Register(name string, factory func() Driver) {
+func (r *pubsubRegistry) Register(name string, factory func() Driver) {
 	r.buses[createFullName(name)] = factory
 }
 
 // Create instantiates a pub/sub based on `name`.
-func (p *pubSubRegistry) Create(name string) (Driver, error) {
+func (p *pubsubRegistry) Create(name string) (Driver, error) {
 	if method, ok := p.buses[name]; ok {
 		return method(), nil
 	}
@@ -23,13 +27,13 @@ func (p *pubSubRegistry) Create(name string) (Driver, error) {
 }
 
 type Metadata struct {
-	Properties map[string]string
+	Properties map[string]interface{}
 }
 
 func createFullName(name string) string { return fmt.Sprintf("pubsub.%s", name) }
 
 type Initer interface {
-	Init() error
+	Init(Metadata) error
 }
 
 type Driver interface {

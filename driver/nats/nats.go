@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	natsURL    = "natsURL"
-	DefaultURL = "nats://39.105.141.168:4222"
+	natsURL     = "natsURL"
+	natsOptions = "natsOptions"
+	DefaultURL  = "nats://39.105.141.168:4222"
 )
 
 func setupConnOptions(opts []nats.Option) []nats.Option {
@@ -35,6 +36,9 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 
 func init() {
 	// use to register the nats to pubsub driver factory
+	driver.Registry.Register("nats", func() driver.Driver {
+		return NewNats()
+	})
 }
 
 type metadata struct {
@@ -48,19 +52,18 @@ type NatsDriver struct {
 	Conn *nats.Conn
 }
 
-func NewNats(metadata driver.Metadata) (*NatsDriver, error) {
-	m, err := parseNATSMetadata(metadata)
-	if err != nil {
-		return nil, err
-	}
-	return &NatsDriver{
-		metadata: m,
-	}, nil
+func NewNats() *NatsDriver {
+	return &NatsDriver{}
 }
 
 // Init initializes the driver and init the connection to the server.
-func (n *NatsDriver) Init() error {
-	m := n.metadata
+func (n *NatsDriver) Init(metadata driver.Metadata) error {
+	m, err := parseNATSMetadata(metadata)
+	if err != nil {
+		return nil
+	}
+
+	n.metadata = m
 	conn, err := nats.Connect(m.natsURL, m.natsOpts...)
 	if err != nil {
 		return fmt.Errorf("nats: error connecting to nats at %s: %s", m.natsURL, err)
@@ -131,12 +134,18 @@ func (n *NatsDriver) Close() error {
 func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[natsURL]; ok && val != "" {
-		m.natsURL = val
+		if m.natsURL, ok = val.(string); !ok {
+			return m, errors.New("nats error: nats URL is not a string")
+		}
 	} else {
 		return m, errors.New("nats error: missing nats URL")
 	}
 
-	if m.natsOpts == nil {
+	if val, ok := meta.Properties[natsOptions]; ok && val != nil {
+		if m.natsOpts, ok = val.([]nats.Option); !ok {
+			return m, errors.New("nats error: missing nats Options and not use default.")
+		}
+	} else {
 		m.natsOpts = setupConnOptions(m.natsOpts)
 	}
 

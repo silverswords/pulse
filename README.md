@@ -1,6 +1,10 @@
 # whisper
 send and receive messages with any protocol like nats etc.
 
+could define the handler to process messages simply.
+
+Could be eventbus with more decorating.
+
 ## Concepts
 ### Driver
 Driver is the realization of various protocol like Nats, http etc.
@@ -17,6 +21,8 @@ Message is the object transport from the whisper endpoint. It's format as CloudE
                 }
 
 ## Progress
+completed basic function and framework.
 
 ### Not Perfect
-* no retry and no error handle
+* no logger
+* some error not detect and handle
