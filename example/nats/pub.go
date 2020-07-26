@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-	nats.Send("msg.test", []byte("hello"))
+	nats_deprecated.Send("msg.test", []byte("hello"))
 
 }

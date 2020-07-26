@@ -1,4 +1,4 @@
-package nat
+package nats
 
 import (
 	"context"
@@ -48,6 +48,7 @@ type NatsDriver struct {
 	Conn *nats.Conn
 	metadata
 
+	// one natsDriver only hold one subscriber
 	closedCh chan struct{}
 }
 
@@ -57,6 +58,7 @@ func NewNats() *NatsDriver {
 	}
 }
 
+// Init initializes the driver and init the connection to the server.
 func (n *NatsDriver) Init(metadata whisper.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
@@ -83,9 +85,10 @@ func (n *NatsDriver) Publish(ctx context.Context, in *message.Message) error {
 }
 
 // Subscribe handle message from specific topic.
+// use context to cancel the subscriber
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
-func (n *NatsDriver) Subscribe(ctx context.Context, topic string, handler func(msg *message.Message) error) error {
+func (n *NatsDriver) Subscribe(ctx context.Context, topic string, handler func(msg *message.Message) error)error {
 	var (
 		sub        *nats.Subscription
 		err        error
@@ -140,3 +143,5 @@ func parseNATSMetadata(meta whisper.Metadata) (metadata, error) {
 
 	return m, nil
 }
+
+var _ whisper.Driver = (*NatsDriver)(nil)

@@ -6,6 +6,6 @@ import (
 )
 
 func main() {
-	nats.Sub("msg.test")
+	nats_deprecated.Sub("msg.test")
 	runtime.Goexit()
 }

@@ -1,4 +1,4 @@
-package nats
+package nats_deprecated
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	nats "github.com/nats-io/nats.go"
 	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/message"
 	"log"
 	"time"
 )
@@ -23,7 +24,7 @@ type Driver struct {
 	metadata
 
 	Conn *nats.Conn
-	*Sender
+	holdConn bool
 	*Receiver
 }
 
@@ -45,9 +46,7 @@ func (d *Driver) Init(metadata whisper.Metadata) error {
 		return fmt.Errorf("nats: error connecting to nats at %s: %s", m.natsURL, err)
 	}
 	d.Conn = conn
-	if d.Sender, err = NewSenderFromConn(conn, m.topic); err != nil {
-		return err
-	}
+	d.holdConn = true
 
 	if d.Receiver, err = NewReceiverFromConn(conn, m.topic); err != nil {
 		return err
@@ -111,18 +110,21 @@ func (m *metadata) applyOptions(opts ...DriverOption) error {
 	}
 	return nil
 }
+func (d *Driver) Send(ctx context.Context, in *message.Message) (err error) {
+	var topic string
+	if topic = in.Topic(); topic == "" {
+		topic = d.topic
+	}
+	return d.Conn.Publish(topic, message.ToByte(in))
+}
 
 // Close implements Closer.Close
 func (d *Driver) Close(ctx context.Context) error {
-	if err := d.Receiver.Close(ctx); err != nil {
-		return err
-	}
-
-	if err := d.Sender.Close(ctx); err != nil {
-		return err
-	}
+	d.Conn.Close()
 
 	return nil
 }
 
-var _ whisper.Driver = Driver(nil)
+
+var _ whisper.Driver = &Driver{}
+var _ whisper.Closer = Driver(nil)

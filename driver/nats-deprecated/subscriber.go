@@ -1,4 +1,4 @@
-package nats
+package nats_deprecated
 
 import "github.com/nats-io/nats.go"
 

@@ -18,17 +18,19 @@ type Subscription struct {
 
 func NewSubscription() (*Subscription, error) {
 	s := &Subscription{}
+	receiver :=s.Driver.Subscribe()
 
 	return s, nil
 }
 
+//
 func (s *Subscription) startReceive() error {
 
 	go func() {
 		for {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			m, err := s.Driver.Receive(ctx)
+			m, err := s.Driver.Subscribe()
 
 			for _, option := range s.handlerEndpoint {
 				option(m)
