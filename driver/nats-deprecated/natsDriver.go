@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	nats "github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/message"
 	"log"
 	"time"
@@ -23,16 +23,16 @@ func init() {
 type Driver struct {
 	metadata
 
-	Conn *nats.Conn
+	Conn     *nats.Conn
 	holdConn bool
 	*Receiver
 }
 
-func NewDriver() whisper.Driver {
+func NewDriver() driver.Driver {
 	return &Driver{}
 }
 
-func (d *Driver) Init(metadata whisper.Metadata) error {
+func (d *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ type metadata struct {
 	dOpts []DriverOption
 }
 
-func parseNATSMetadata(meta whisper.Metadata) (metadata, error) {
+func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[natsURL]; ok && val != "" {
 		m.natsURL = val
@@ -125,6 +125,5 @@ func (d *Driver) Close(ctx context.Context) error {
 	return nil
 }
 
-
-var _ whisper.Driver = &Driver{}
-var _ whisper.Closer = Driver(nil)
+var _ driver.Driver = &Driver{}
+var _ driver.Closer = Driver(nil)

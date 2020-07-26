@@ -1,11 +1,10 @@
 package nats
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/message"
 	"log"
 	"time"
@@ -45,27 +44,23 @@ type metadata struct {
 }
 
 type NatsDriver struct {
-	Conn *nats.Conn
 	metadata
-
-	// one natsDriver only hold one subscriber
-	closedCh chan struct{}
+	Conn *nats.Conn
 }
 
-func NewNats() *NatsDriver {
-	return &NatsDriver{
-		closedCh: make(chan struct{}),
+func NewNats(metadata driver.Metadata) (*NatsDriver, error) {
+	m, err := parseNATSMetadata(metadata)
+	if err != nil {
+		return nil, err
 	}
+	return &NatsDriver{
+		metadata: m,
+	}, nil
 }
 
 // Init initializes the driver and init the connection to the server.
-func (n *NatsDriver) Init(metadata whisper.Metadata) error {
-	m, err := parseNATSMetadata(metadata)
-	if err != nil {
-		return nil
-	}
-
-	n.metadata = m
+func (n *NatsDriver) Init() error {
+	m := n.metadata
 	conn, err := nats.Connect(m.natsURL, m.natsOpts...)
 	if err != nil {
 		return fmt.Errorf("nats: error connecting to nats at %s: %s", m.natsURL, err)
@@ -76,7 +71,7 @@ func (n *NatsDriver) Init(metadata whisper.Metadata) error {
 }
 
 // Publish publishes a message to Nats Server with message destination topic.
-func (n *NatsDriver) Publish(ctx context.Context, in *message.Message) error {
+func (n *NatsDriver) Publish(in *message.Message) error {
 	err := n.Conn.Publish(in.Topic(), message.ToByte(in))
 	if err != nil {
 		return fmt.Errorf("nats: error from publish: %s", err)
@@ -88,7 +83,7 @@ func (n *NatsDriver) Publish(ctx context.Context, in *message.Message) error {
 // use context to cancel the subscriber
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
-func (n *NatsDriver) Subscribe(ctx context.Context, topic string, handler func(msg *message.Message) error)error {
+func (n *NatsDriver) Subscribe(topic string, handler func(msg *message.Message) error) (driver.Closer, error) {
 	var (
 		sub        *nats.Subscription
 		err        error
@@ -113,23 +108,27 @@ func (n *NatsDriver) Subscribe(ctx context.Context, topic string, handler func(m
 
 	if err != nil {
 		//n.logger.Warnf("nats: error subscribe: %s", err)
-		return err
-	}
-	//ctx.logger.Debugf("nats: subscribed to subject %s with queue group %s", sub.Subject, sub.Queue)
-	select {
-	case <-ctx.Done():
-	case <-n.closedCh:
+		return nil, err
 	}
 
-	return sub.Drain()
+	return &subscriber{sub: sub}, nil
 }
 
-func (n *NatsDriver) Close(ctx context.Context) error {
-	n.closedCh <- struct{}{}
+type subscriber struct {
+	sub *nats.Subscription
+}
+
+// Close subscriber to unsubscribe topic but not close connection.
+func (s *subscriber) Close() error {
+	return s.sub.Drain()
+}
+
+func (n *NatsDriver) Close() error {
+	n.Conn.Close()
 	return nil
 }
 
-func parseNATSMetadata(meta whisper.Metadata) (metadata, error) {
+func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[natsURL]; ok && val != "" {
 		m.natsURL = val
@@ -144,4 +143,5 @@ func parseNATSMetadata(meta whisper.Metadata) (metadata, error) {
 	return m, nil
 }
 
-var _ whisper.Driver = (*NatsDriver)(nil)
+var _ driver.Driver = (*NatsDriver)(nil)
+var _ driver.Closer = (*subscriber)(nil)

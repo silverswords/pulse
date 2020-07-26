@@ -1,4 +1,4 @@
-package whisper
+package driver
 
 import (
 	"context"
@@ -29,7 +29,7 @@ type Metadata struct {
 func createFullName(name string) string { return fmt.Sprintf("pubsub.%s", name) }
 
 type Initer interface {
-	Init(metadata Metadata) error
+	Init() error
 }
 
 type Driver interface {
@@ -40,19 +40,19 @@ type Driver interface {
 }
 
 type Publisher interface {
-	Publish(ctx context.Context, in *message.Message) error
+	Publish(in *message.Message) error
 }
 
 // Subscriber is a blocking method
 // should be cancel() with ctx or call Driver.Close() to close all the subscribers.
 type Subscriber interface {
-	Subscribe(ctx context.Context, topic string, handler func(msg *message.Message) error)  error
+	Subscribe(topic string, handler func(msg *message.Message) error) (Closer, error)
 }
 
 // Closer is the common interface for things that can be closed.
 // After invoking Close(ctx), you cannot reuse the object you closed.
 type Closer interface {
-	Close(ctx context.Context) error
+	Close() error
 }
 
 type Client interface {

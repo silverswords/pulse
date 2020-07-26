@@ -2,12 +2,13 @@ package whisper
 
 import (
 	"context"
+	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/message"
 	"time"
 )
 
 type Subscription struct {
-	Driver
+	driver.Driver
 	topic      string
 	queue      chan *message.Message
 	subOptions []subOption
@@ -18,7 +19,7 @@ type Subscription struct {
 
 func NewSubscription() (*Subscription, error) {
 	s := &Subscription{}
-	receiver :=s.Driver.Subscribe()
+	receiver := s.Driver.Subscribe()
 
 	return s, nil
 }

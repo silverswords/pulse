@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/silverswords/whisper"
+	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/message"
 	"io"
 )
@@ -70,5 +70,5 @@ func (r Receiver) Receive(ctx context.Context) (*message.Message, error) {
 	}
 }
 
-var _ whisper.Sender = (*Sender)(nil)
-var _ whisper.Receiver = (*Receiver)(nil)
+var _ driver.Sender = (*Sender)(nil)
+var _ driver.Receiver = (*Receiver)(nil)

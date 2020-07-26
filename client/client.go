@@ -4,11 +4,12 @@ import (
 	"context"
 	"github.com/silverswords/whisper"
 	cecontext "github.com/silverswords/whisper/context"
+	driver2 "github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/message"
 )
 
 type Client struct {
-	driver whisper.Driver
+	driver driver2.Driver
 	opener whisper.Opener
 
 	q          *Queue
@@ -43,7 +44,7 @@ func Worker(ctx context.Context) {
 
 }
 
-func NewClient(driver whisper.Driver, opts ...Option) (c *Client, err error) {
+func NewClient(driver driver2.Driver, opts ...Option) (c *Client, err error) {
 	c = &Client{driver: driver, q: NewQueue()}
 
 	if d, ok := driver.(whisper.Opener); ok {

@@ -2,14 +2,23 @@ package whisper
 
 import (
 	"context"
+	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/message"
 )
 
 type Topic struct {
-	topic           string
-	topicOptions    []topicOption
-	psDriver        Driver
-	waittingMessage map[string]*message.Message
+	topicOptions []topicOption
+
+	d     driver.Driver
+	topic string
+	queue chan *message.Message
+	// ackid map message
+	waittingMessage map[string]struct {
+		*message.Message
+		ack bool
+	}
+
+	timeout time.Duration
 }
 
 func NewTopic(topic string, options ...topicOption) (*Topic, error) {
@@ -24,8 +33,9 @@ func NewTopic(topic string, options ...topicOption) (*Topic, error) {
 
 func (t *Topic) startSender() {
 	go func() {
-		for _, v := range t.queue {
-			t.client.send()
+		for {
+			m := <-t.queue
+			t.d.Publish(ctx, m)
 		}
 	}()
 }
