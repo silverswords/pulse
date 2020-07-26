@@ -2,12 +2,28 @@ package whisper
 
 import (
 	"context"
+	"fmt"
 	"github.com/silverswords/whisper/message"
 )
 
-type factory struct {
+type pubSubRegistry struct {
 	buses map[string]func() Driver
 }
+
+func (r *pubSubRegistry)Register(name string, factory func() Driver) {
+	r.buses[createFullName(name)] = factory
+}
+
+// Create instantiates a pub/sub based on `name`.
+func (p *pubSubRegistry) Create(name string) (Driver, error) {
+	if method, ok := p.buses[name]; ok {
+		return method(), nil
+	}
+	return nil, fmt.Errorf("couldn't find message bus %s", name)
+}
+
+func createFullName(name string) string{return fmt.Sprintf("pubsub.%s", name)}
+
 
 type Publisher interface {
 	Publish(ctx context.Context, in *message.Message) error
@@ -45,6 +61,21 @@ type Initer interface {
 type Metadata struct {
 	Properties map[string]string
 }
+
+
+// Closer is the common interface for things that can be closed.
+// After invoking Close(ctx), you cannot reuse the object you closed.
+type Closer interface {
+	Close(ctx context.Context) error
+}
+
+type Driver interface {
+	Sender
+	Receiver
+	Closer
+}
+
+
 type ReceiverCloser interface {
 	Initer
 	Receiver
@@ -56,25 +87,4 @@ type Opener interface {
 	// Open is a blocking call and ctx is used to stop the Inbound message Receiver/Responder.
 	// Closing the context won't close the Receiver/Responder, aka it won't invoke Close(ctx).
 	Open(ctx context.Context) error
-}
-
-// Closer is the common interface for things that can be closed.
-// After invoking Close(ctx), you cannot reuse the object you closed.
-type Closer interface {
-	Close(ctx context.Context) error
-}
-
-type Driver interface {
-	Sender
-	Receiver
-}
-
-// Subscriber under ther driver and implements by driver.
-// often call in Driver.Open() to push message to driver incoming channel.
-type Sucscriber interface {
-}
-
-type UnSubscriber interface {
-	//Drain() error
-	Unsubscribe() error
 }

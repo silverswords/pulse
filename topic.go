@@ -8,7 +8,7 @@ import (
 type Topic struct {
 	topic           string
 	topicOptions    []topicOption
-	client          Client
+	psDriver        Driver
 	waittingMessage map[string]*message.Message
 }
 

@@ -124,3 +124,5 @@ func (d *Driver) Close(ctx context.Context) error {
 
 	return nil
 }
+
+var _ whisper.Driver = Driver(nil)
