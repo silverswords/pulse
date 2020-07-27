@@ -34,11 +34,20 @@ import (
 // sequentially.
 type PublishScheduler struct {
 	// Settings passed down to each bundler that gets created.
-	DelayThreshold       time.Duration
+	DelayThreshold time.Duration
+	// Once a bundle has this many items, handle the bundle. Since only one
+	// item at a time is added to a bundle, no bundle will exceed this
+	// threshold, so it also serves as a limit. The default is
+	// DefaultBundleCountThreshold.
 	BundleCountThreshold int
-	BundleByteThreshold  int
-	BundleByteLimit      int
-	BufferedByteLimit    int
+	// Once the number of bytes in current bundle reaches this threshold, handle
+	// the bundle. The default is DefaultBundleByteThreshold. This triggers handling,
+	// but does not cap the total size of a bundle.
+	BundleByteThreshold int
+	// The maximum number of bytes that the Bundler will keep in memory before
+	// returning ErrOverflow. The default is DefaultBufferedByteLimit.
+	BundleByteLimit   int
+	BufferedByteLimit int
 
 	mu          sync.Mutex
 	bundlers    map[string]*bundler.Bundler

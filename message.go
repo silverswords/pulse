@@ -26,8 +26,6 @@ type Message struct {
 
 	// Where the message from and to. what codec is the message have. when and why have this message.
 	Attributes  internal.Header // Message Header use to specific message and how to handle it.
-	Topic       string
-	AckID       string
 	specversion string
 	typeName    string
 	source      string
@@ -36,9 +34,12 @@ type Message struct {
 	publishTime time.Time
 	receiveTime time.Time
 
+	AckID       string
 	calledDone bool
 	doneFunc func(string,bool,time.Time)
 
+	size int
+	OrderingKey string
 }
 
 type LogicModules struct {
