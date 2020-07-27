@@ -3,7 +3,7 @@ package nats_deprecated
 import (
 	"context"
 	"github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper/message"
+	"github.com/silverswords/whisper"
 )
 
 type Sender struct {
@@ -29,12 +29,12 @@ func NewSenderFromConn(conn *nats.Conn, topic string) (*Sender, error) {
 	return &Sender{Conn: conn, topic: topic}, nil
 }
 
-func (s *Sender) Send(ctx context.Context, in *message.Message) (err error) {
+func (s *Sender) Send(ctx context.Context, in *whisper.Message) (err error) {
 	var topic string
 	if topic = in.Topic(); topic == "" {
 		topic = s.topic
 	}
-	return s.Conn.Publish(topic, message.ToByte(in))
+	return s.Conn.Publish(topic, whisper.ToByte(in))
 }
 
 // Close implements Closer.Close

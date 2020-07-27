@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"github.com/silverswords/whisper"
 	"github.com/silverswords/whisper/driver"
-	"github.com/silverswords/whisper/message"
 	"log"
 	"time"
 )
@@ -74,8 +74,8 @@ func (n *NatsDriver) Init(metadata driver.Metadata) error {
 }
 
 // Publish publishes a message to Nats Server with message destination topic.
-func (n *NatsDriver) Publish(in *message.Message) error {
-	err := n.Conn.Publish(in.Topic(), message.ToByte(in))
+func (n *NatsDriver) Publish(in *whisper.Message) error {
+	err := n.Conn.Publish(in.Topic(), whisper.ToByte(in))
 	if err != nil {
 		return fmt.Errorf("nats: error from publish: %s", err)
 	}
@@ -86,12 +86,13 @@ func (n *NatsDriver) Publish(in *message.Message) error {
 // use context to cancel the subscriber
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
-func (n *NatsDriver) Subscribe(topic string, handler func(msg *message.Message) error) (driver.Closer, error) {
+// handler use to receive the message and move to top level subscriber.
+func (n *NatsDriver) Subscribe(topic string, handler func(msg *whisper.Message) error) (driver.Closer, error) {
 	var (
 		sub        *nats.Subscription
 		err        error
 		MsgHandler = func(m *nats.Msg) {
-			msg, err := message.ToMessage(m.Data)
+			msg, err := whisper.ToMessage(m.Data)
 			if err != nil {
 				//ctx.logger.Warnf("nats: error subscribe: %s", err)
 

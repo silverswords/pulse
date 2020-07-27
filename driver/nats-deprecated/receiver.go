@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"github.com/nats-io/nats.go"
 	"github.com/silverswords/whisper"
-	"github.com/silverswords/whisper/message"
 	"io"
 	"sync"
 )
 
 type Receiver struct {
-	incoming chan *message.Message
+	incoming chan *whisper.Message
 	Conn     *nats.Conn
 
 	Subscriber Subscriber
@@ -55,7 +54,7 @@ func NewReceiver(url, topic string, natsOpts []nats.Option, opts ...ReceiverOpti
 
 func NewReceiverFromConn(conn *nats.Conn, topic string, opts ...ReceiverOption) (*Receiver, error) {
 	r := &Receiver{
-		incoming:   make(chan *message.Message),
+		incoming:   make(chan *whisper.Message),
 		Conn:       conn,
 		Topic:      topic,
 		Subscriber: &RegularSubscriber{},
@@ -73,7 +72,7 @@ func NewReceiverFromConn(conn *nats.Conn, topic string, opts ...ReceiverOption) 
 // MsgHandler implements nats.MsgHandler and publishes messages onto our internal incoming channel to be delivered
 // via r.Receive(ctx)
 func (r *Receiver) MsgHandler(m *nats.Msg) {
-	msg, err := message.ToMessage(m.Data)
+	msg, err := whisper.ToMessage(m.Data)
 	if err != nil {
 		fmt.Println("Not whisper message: ", err)
 		return
@@ -81,7 +80,7 @@ func (r *Receiver) MsgHandler(m *nats.Msg) {
 	r.incoming <- msg
 }
 
-func (r *Receiver) Receive(ctx context.Context) (*message.Message, error) {
+func (r *Receiver) Receive(ctx context.Context) (*whisper.Message, error) {
 	select {
 	case msg, ok := <-r.incoming:
 		if !ok {

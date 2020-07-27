@@ -2,14 +2,14 @@ package main
 
 import (
 	"github.com/silverswords/whisper/client"
-	"github.com/silverswords/whisper/message"
+	"github.com/silverswords/whisper/internal"
 	"log"
 	"time"
 )
 
 var msg = &client.Message{
 	MsgID:  1000,
-	Header: make(message.Header),
+	Header: make(internal.Header),
 	Body:   []byte("Hello"),
 }
 

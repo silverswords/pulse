@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	nats "github.com/nats-io/nats.go"
+	"github.com/silverswords/whisper"
 	"github.com/silverswords/whisper/driver"
-	"github.com/silverswords/whisper/message"
 	"log"
 	"time"
 )
@@ -110,12 +110,12 @@ func (m *metadata) applyOptions(opts ...DriverOption) error {
 	}
 	return nil
 }
-func (d *Driver) Send(ctx context.Context, in *message.Message) (err error) {
+func (d *Driver) Send(ctx context.Context, in *whisper.Message) (err error) {
 	var topic string
 	if topic = in.Topic(); topic == "" {
 		topic = d.topic
 	}
-	return d.Conn.Publish(topic, message.ToByte(in))
+	return d.Conn.Publish(topic, whisper.ToByte(in))
 }
 
 // Close implements Closer.Close

@@ -3,7 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
-	"github.com/silverswords/whisper/message"
+	"github.com/silverswords/whisper"
 )
 
 var Registry = pubsubRegistry{
@@ -44,13 +44,13 @@ type Driver interface {
 }
 
 type Publisher interface {
-	Publish(in *message.Message) error
+	Publish(in *whisper.Message) error
 }
 
 // Subscriber is a blocking method
 // should be cancel() with ctx or call Driver.Close() to close all the subscribers.
 type Subscriber interface {
-	Subscribe(topic string, handler func(msg *message.Message) error) (Closer, error)
+	Subscribe(topic string, handler func(msg *whisper.Message) error) (Closer, error)
 }
 
 // Closer is the common interface for things that can be closed.
@@ -67,7 +67,7 @@ type Client interface {
 }
 
 type Requests interface {
-	Request(ctx context.Context, request *message.Message) (resp *message.Message, err error)
+	Request(ctx context.Context, request *whisper.Message) (resp *whisper.Message, err error)
 }
 
 type SenderCloser interface {
@@ -76,9 +76,9 @@ type SenderCloser interface {
 }
 
 type Sender interface {
-	Send(ctx context.Context, msg *message.Message) error
+	Send(ctx context.Context, msg *whisper.Message) error
 }
 
 type Receiver interface {
-	Receive(ctx context.Context) (msg *message.Message, err error)
+	Receive(ctx context.Context) (msg *whisper.Message, err error)
 }

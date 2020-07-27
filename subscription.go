@@ -3,13 +3,15 @@ package whisper
 import (
 	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/driver/nats"
-	"github.com/silverswords/whisper/message"
 	"log"
 	"runtime"
 	"sync"
 )
 
-const QueueCapacity = 100
+const (
+	QueueCapacity = 100
+	AckTopicPrefix = "_ack_"
+)
 
 type Subscription struct {
 	subOptions []subOption
@@ -17,29 +19,32 @@ type Subscription struct {
 	d     driver.Driver
 	topic string
 	// the messages which received by the driver.
-	queue chan *message.Message
+	queue chan *Message
 	// todo: consider that if need use mutex because of the elements in the queue is pointer. maybe some middleware change the message's attributes like retrytime and ack bool, would be in wrong logic.
-	messageMutex sync.Mutex
+	//messageMutex sync.Mutex
 
 	pollGoroutines int
-	handlers       []func(msg *message.Message) error
+	handlers       []func(msg *Message) error
 	onErr          func(error)
 	// todo: combine callbackFn in handlers
-	callbackFn func(msg *message.Message) error
-	ackFn      func(msg *message.Message) error
+	callbackFn func(msg *Message) error
+	ackFn      func(msg *Message) error
 
-	closer   driver.Closer
 	closedCh chan struct{}
 }
 
 // NewSubscription return a Subscription which handle the messages received by the driver.
 // default no AckFn and when open message should be with its ackid is not ""
 func NewSubscription(topic string, driverMetadata driver.Metadata, options ...subOption) (*Subscription, error) {
-	s := &Subscription{topic: topic, subOptions: options,
-		queue:          make(chan *message.Message, 100),
+	s := &Subscription{
+		topic: topic,
+		subOptions: options,
+		queue:          make(chan *Message, 100),
 		d:              nats.NewNats(),
 		pollGoroutines: runtime.GOMAXPROCS(0),
 		ackFn:          noAckFn,
+		onErr: func(err error) { return},
+		closedCh:make(chan struct{}),
 	}
 
 	if err := s.applyOptions(options...); err != nil {
@@ -51,9 +56,14 @@ func NewSubscription(topic string, driverMetadata driver.Metadata, options ...su
 	return s, nil
 }
 
+func (s *Subscription) Close() error{
+	s.closedCh <- struct{}{}
+	return nil
+}
+
 //
 func (s *Subscription) startReceive() error {
-	closer, err := s.d.Subscribe(s.topic, func(msg *message.Message) error {
+	closer, err := s.d.Subscribe(s.topic, func(msg *Message) error {
 		s.queue <- msg
 		return nil
 	})
@@ -112,6 +122,9 @@ func (s *Subscription) processMessage() (err error) {
 
 	if msg.AckID != "" {
 		s.ackFn(msg)
+		//if s.ackFn == noAckFn{
+		//	log.Println("need ack but not.")
+		//}
 	}
 
 	for _, v := range s.handlers {
@@ -127,17 +140,45 @@ func (s *Subscription) processMessage() (err error) {
 	}
 	return err
 }
-func WithAck() subOption {
-	return func(s *Subscription) error {
-		// todo: completed the ack logic
 
+func WithMiddlewares(handlers ...func(*Message)error ) subOption{
+	return func(s *Subscription) error {
+		s.handlers =  handlers
 		return nil
 	}
 }
 
-func noAckFn(_ *message.Message) error {
+func WithAck() subOption {
+	return func(s *Subscription) error {
+		// todo: completed the ack logic
+		s.ackFn = func(m *Message) error {
+			var ackMsg *Message
+			acksender(s.d, ackMsg)
+
+			return nil
+		}
+		return nil
+	}
+}
+
+func newAckEvent(m *Message) (ackMsg *Message) {
+	ackMsg = &Message{
+		Id: m.Id,
+		AckID: m.AckID,
+		Topic: AckTopicPrefix +m.Topic,
+	}
+	return ackMsg
+}
+
+func acksender(d driver.Driver, m *Message) error {
+	err := d.Publish(m)
+	return err
+}
+
+func noAckFn(_ *Message) error {
 	return nil
 }
+
 
 type subOption func(*Subscription) error
 

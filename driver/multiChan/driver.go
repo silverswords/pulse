@@ -4,18 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/silverswords/whisper/message"
+	"github.com/silverswords/whisper"
 	"io"
 	"log"
 	"strings"
 	"sync"
 )
 
-var subscribers map[string]map[string]chan *message.Message = make(map[string]map[string]chan *message.Message)
+var subscribers map[string]map[string]chan *whisper.Message = make(map[string]map[string]chan *whisper.Message)
 var mutex sync.RWMutex
 
 type Driver struct {
-	incoming chan *message.Message
+	incoming chan *whisper.Message
 
 	subscriptions []subscriber
 }
@@ -27,17 +27,17 @@ type subscriber struct {
 
 func NewDriver(subscriptions []subscriber) (*Driver, error) {
 	d := &Driver{
-		incoming:      make(chan *message.Message),
+		incoming:      make(chan *whisper.Message),
 		subscriptions: subscriptions,
 	}
 
 	return d, nil
 }
 
-func (d *Driver) Send(ctx context.Context, m *message.Message) error {
+func (d *Driver) Send(ctx context.Context, m *whisper.Message) error {
 	mutex.RLock()
 	if maps, found := subscribers[m.Topic()]; found {
-		go func(msg *message.Message, dataChannelSlices map[string]chan *message.Message) {
+		go func(msg *whisper.Message, dataChannelSlices map[string]chan *whisper.Message) {
 			for _, ch := range dataChannelSlices {
 				if ch == nil {
 					continue
@@ -60,7 +60,7 @@ func (d *Driver) Send(ctx context.Context, m *message.Message) error {
 	return nil
 }
 
-func (d Driver) Receive(ctx context.Context) (*message.Message, error) {
+func (d Driver) Receive(ctx context.Context) (*whisper.Message, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("nil Context")
 	}
@@ -79,14 +79,14 @@ func (d Driver) Receive(ctx context.Context) (*message.Message, error) {
 func (d *Driver) startSubscriber(ctx context.Context, sub subscriber) error {
 	mutex.Lock()
 	if subscribers[sub.topic] == nil {
-		subscribers[sub.topic] = make(map[string]chan *message.Message)
+		subscribers[sub.topic] = make(map[string]chan *whisper.Message)
 	}
 	if subscribers[sub.topic][sub.subscriberid] == nil {
-		subscribers[sub.topic][sub.subscriberid] = make(chan *message.Message, 100)
+		subscribers[sub.topic][sub.subscriberid] = make(chan *whisper.Message, 100)
 	}
 	mutex.Unlock()
 
-	var m *message.Message
+	var m *whisper.Message
 	select {
 	case m = <-subscribers[sub.topic][sub.subscriberid]:
 	case <-ctx.Done():

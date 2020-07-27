@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/silverswords/whisper"
 	"github.com/silverswords/whisper/driver"
-	"github.com/silverswords/whisper/message"
 	"io"
 )
 
@@ -17,7 +17,7 @@ type Driver struct {
 }
 
 func NewDriver() *Driver {
-	ch := make(chan *message.Message, defaultChanDepth)
+	ch := make(chan *whisper.Message, defaultChanDepth)
 
 	return &Driver{
 		Sender:   Sender(ch),
@@ -25,9 +25,9 @@ func NewDriver() *Driver {
 	}
 }
 
-type Sender chan<- *message.Message
+type Sender chan<- *whisper.Message
 
-func (s Sender) Send(ctx context.Context, m *message.Message) error {
+func (s Sender) Send(ctx context.Context, m *whisper.Message) error {
 	if ctx == nil {
 		return fmt.Errorf("nil Context")
 	} else if m == nil {
@@ -52,9 +52,9 @@ func (d Driver) Close(ctx context.Context) (err error) {
 	return nil
 }
 
-type Receiver <-chan *message.Message
+type Receiver <-chan *whisper.Message
 
-func (r Receiver) Receive(ctx context.Context) (*message.Message, error) {
+func (r Receiver) Receive(ctx context.Context) (*whisper.Message, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("nil Context")
 	}

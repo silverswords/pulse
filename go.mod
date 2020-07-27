@@ -13,7 +13,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.5.1 // indirect
 	go.uber.org/zap v1.15.0
-	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5 // indirect
+	google.golang.org/api v0.29.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
