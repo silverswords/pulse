@@ -74,8 +74,8 @@ func (n *NatsDriver) Init(metadata driver.Metadata) error {
 }
 
 // Publish publishes a message to Nats Server with message destination topic.
-func (n *NatsDriver) Publish(in *whisper.Message) error {
-	err := n.Conn.Publish(in.Topic(), whisper.ToByte(in))
+func (n *NatsDriver) Publish(topic string,in *whisper.Message) error {
+	err := n.Conn.Publish(topic, whisper.ToByte(in))
 	if err != nil {
 		return fmt.Errorf("nats: error from publish: %s", err)
 	}

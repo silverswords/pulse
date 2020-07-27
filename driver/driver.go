@@ -43,8 +43,10 @@ type Driver interface {
 	Closer
 }
 
+// Publisher should realize the retry by themselves..
+// like nats, it retry when conn is reconnecting, it would be in the pending queue.
 type Publisher interface {
-	Publish(in *whisper.Message) error
+	Publish(topic string, in *whisper.Message) error
 }
 
 // Subscriber is a blocking method
