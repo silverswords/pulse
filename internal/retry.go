@@ -24,7 +24,7 @@ const (
 	BackoffStrategyExponential = "exponential"
 )
 
-var DefaultRetryParams = RetryParams{Strategy: BackoffStrategyNone}
+var DefaultRetryParams = RetryParams{Strategy: BackoffStrategyLinear, MaxTries: 10, Period: 1 * time.Second}
 
 // RetryParams holds parameters applied to retries
 type RetryParams struct {

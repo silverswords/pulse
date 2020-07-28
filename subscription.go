@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	QueueCapacity  = 100
+	QueueCapacity = 100
 )
 
 type Subscription struct {
