@@ -123,7 +123,7 @@ func (s *Subscription) processMessage() (err error) {
 	}
 	msg := <-s.queue
 
-	if msg.AckID != "" {
+	if msg.L.AckID != "" {
 		s.ackFn(msg)
 		//if s.ackFn == noAckFn{
 		//	log.Println("need ack but not.")

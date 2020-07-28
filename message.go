@@ -24,14 +24,15 @@ type Message struct {
 	Id   string
 	Data []byte // Message data
 
-	AckID string
 	// Where the message from and to. what codec is the message have. when and why have this message.
 	Attributes internal.Header // Message Header use to specific message and how to handle it.
 
+	// Logic is represents the fields that don't need initialize by the message producer.
 	L Logic
 }
 
 type Logic struct {
+	AckID string
 	// Timestamp
 	publishTime time.Time
 	receiveTime time.Time
@@ -84,7 +85,7 @@ func (m *Message) done(ack bool) {
 		return
 	}
 	m.L.calledDone = true
-	m.L.doneFunc(m.AckID, ack, m.L.receiveTime)
+	m.L.doneFunc(m.L.AckID, ack, m.L.receiveTime)
 }
 
 func ToByte(m *Message) []byte {

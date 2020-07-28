@@ -9,6 +9,7 @@ import (
 	"github.com/silverswords/whisper/driver/nats"
 	"github.com/silverswords/whisper/internal"
 	"github.com/silverswords/whisper/internal/scheduler"
+	"strconv"
 	//"go.opencensus.io/stats"
 	//"github.com/golang/protobuf/proto"
 
@@ -44,7 +45,7 @@ type Topic struct {
 	d    driver.Driver
 	name string
 
-	endpoints []func(m *Message)
+	endpoints []func(m *Message) error
 	// Settings for publishing messages. All changes must be made before the
 	// first call to Publish. The default is DefaultPublishSettings.
 	// it means could not dynamically change and hot start.
@@ -145,13 +146,16 @@ func (t *Topic) startAck() error {
 	// todo: now the ack logic's stability rely on driver subscriber implements. but not whisper implements.
 	// open a subscriber, receive and then ack the message.
 	// message should check itself and then depend on topic RetryParams to retry.
+	if !t.EnableAck {
+		return nil
+	}
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) error {
 		m, err := ToMessage(out)
 		if err != nil {
 			fmt.Println("error in message decode: ", err)
 			return err
 		}
-		t.done(m.AckID, true, time.Now())
+		t.done(m.L.AckID, true, time.Now())
 		return nil
 	})
 	if err != nil {
@@ -177,6 +181,15 @@ func (t *Topic) Publish(_ context.Context, msg *Message) *PublishResult {
 		return r
 	}
 
+	// With Chain handlers to handle.
+	for _, handler := range t.endpoints {
+		err := handler(msg)
+		if err != nil {
+			r.set(err)
+			return r
+		}
+	}
+
 	// Use a PublishRequest with only the Messages field to calculate the size
 	// of an individual message. This accurately calculates the size of the
 	// encoded proto message by accounting for the length of an individual
@@ -185,15 +198,7 @@ func (t *Topic) Publish(_ context.Context, msg *Message) *PublishResult {
 	msg.L.size = len(ToByte(msg))
 	var tryTimes int
 	msg.L.DeliveryAttempt = &tryTimes
-	//	proto.Size(&pb.PublishRequest{
-	//	Messages: []*pb.PubsubMessage{
-	//	{
-	//			Data:        msg.Data,
-	//			Attributes:  msg.Attributes,
-	//			OrderingKey: msg.OrderingKey,
-	//		},
-	//	},
-	//})
+
 	t.start()
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -337,8 +342,12 @@ var (
 	keyError  = tag.MustNewKey("error")
 )
 
+// choose to skip ack logic.
 func (t *Topic) checkAck(m *Message) bool {
-	return t.pendingAcks[m.AckID]
+	if !t.EnableAck {
+		return true
+	}
+	return t.pendingAcks[m.L.AckID]
 }
 
 // publishMessageBundle handle all the logic
@@ -362,55 +371,26 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bm *bundledMessage) {
 			bm.res.set(err)
 		}
 
+		// handle the retry logic.
 		ticker := time.After(t.AckTimeout)
 		<-ticker
 		for *bm.msg.L.DeliveryAttempt < t.RetryParams.MaxTries{
 			if t.checkAck(bm.msg){
 				bm.msg = nil
 				bm.res.set(nil)
+				break
 			}
 			err = t.d.Publish(t.name, mb)
 			if err != nil {
 				bm.res.set(err)
+				break
 			}
 			t.RetryParams.Backoff(context.TODO(), *bm.msg.L.DeliveryAttempt)
 			*bm.msg.L.DeliveryAttempt ++
 		}
 		if *bm.msg.L.DeliveryAttempt >= t.RetryParams.MaxTries{
-			bm.res.set(errors.New("no message"))
+			bm.res.set(errors.New(fmt.Sprintf("Retry Error: Message %s retry %d times",bm.msg.Id, t.RetryParams.MaxTries)))
 		}
-		// new a goroutine to handle ack and retry
-		go func() {
-			timeout := t.AckTimeout + t.RetryParams.BackoffFor(*bm.msg.L.DeliveryAttempt)
-			ticker := time.After(timeout)
-			<-ticker
-			if t.checkAck(bm.msg) {
-				// todo: know if need to GC
-				// bm.msg = nil // release bm.msg for GC
-				bm.msg = nil
-				bm.res.set(nil)
-			}else {
-				*bm.msg.L.DeliveryAttempt ++
-				// it's dead and then run dead_letter_policy
-				if *bm.msg.L.DeliveryAttempt > t.RetryParams.MaxTries{
-					if t.DeadLetterPolicy == nil {
-						bm.msg =nil
-						bm.res.set(errors.New("dead_letter"))
-					}
-				}
-				// resend
-				t.scheduler.Add(bm.msg.L.OrderingKey,bm,bm.msg.L.size)
-			}
-		}()
-
-		//if bm.msg.Ack() {
-		//	waiting ctx. timeout
-		//		or ack return
-		//	bm.msg.Ack or retrytime -1
-		//	waitting backoff time
-		//	then retry t.Send
-		////	because of msg has the same address, know about how many times retry.
-		//}
 
 		//end := time.Now()
 		//stats.Record(ctx,
@@ -448,11 +428,11 @@ func (t *Topic) ResumePublish(orderingKey string) {
 // WithACK would turn on the ack function.
 func WithACK() topicOption {
 	return func(t *Topic) error {
-		t.endpoints = append(t.endpoints, func(m *Message) {
-			//t.waittingMessage[m.AckID] = m
-			//todo: change to random unique id
-			m.AckID = "todo:"
-
+		t.EnableAck = true
+		// gen AckId
+		t.endpoints = append(t.endpoints, func(m *Message) error{
+			m.L.AckID= m.Id + strconv.FormatInt(time.Now().Unix(),10)
+			return nil
 		})
 
 		// todo: sub the ack channel and do the ack delete.
