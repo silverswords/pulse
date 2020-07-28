@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	QueueCapacity = 100
-	AckTopicPrefix = "_ack_"
+	QueueCapacity  = 100
 )
 
 type Subscription struct {
@@ -37,14 +36,14 @@ type Subscription struct {
 // default no AckFn and when open message should be with its ackid is not ""
 func NewSubscription(topic string, driverMetadata driver.Metadata, options ...subOption) (*Subscription, error) {
 	s := &Subscription{
-		topic: topic,
-		subOptions: options,
+		topic:          topic,
+		subOptions:     options,
 		queue:          make(chan *Message, 100),
 		d:              nats.NewNats(),
 		pollGoroutines: runtime.GOMAXPROCS(0),
 		ackFn:          noAckFn,
-		onErr: func(err error) { return},
-		closedCh:make(chan struct{}),
+		onErr:          func(err error) { return },
+		closedCh:       make(chan struct{}),
 	}
 
 	if err := s.applyOptions(options...); err != nil {
@@ -56,15 +55,19 @@ func NewSubscription(topic string, driverMetadata driver.Metadata, options ...su
 	return s, nil
 }
 
-func (s *Subscription) Close() error{
+func (s *Subscription) Close() error {
 	s.closedCh <- struct{}{}
 	return nil
 }
 
 //
 func (s *Subscription) startReceive() error {
-	closer, err := s.d.Subscribe(s.topic, func(msg *Message) error {
-		s.queue <- msg
+	closer, err := s.d.Subscribe(s.topic, func(msg []byte) error {
+		m, err := ToMessage(msg)
+		if err != nil {
+			log.Println("Error while transform the []byte to message: ", err)
+		}
+		s.queue <- m
 		return nil
 	})
 	if err != nil {
@@ -141,9 +144,9 @@ func (s *Subscription) processMessage() (err error) {
 	return err
 }
 
-func WithMiddlewares(handlers ...func(*Message)error ) subOption{
+func WithMiddlewares(handlers ...func(*Message) error) subOption {
 	return func(s *Subscription) error {
-		s.handlers =  handlers
+		s.handlers = handlers
 		return nil
 	}
 }
@@ -161,24 +164,23 @@ func WithAck() subOption {
 	}
 }
 
-func newAckEvent(m *Message) (ackMsg *Message) {
-	ackMsg = &Message{
-		Id: m.Id,
-		AckID: m.AckID,
-		Topic: AckTopicPrefix +m.Topic,
-	}
-	return ackMsg
-}
+//func newAckEvent(m *Message) (ackMsg *Message) {
+//	ackMsg = &Message{
+//		Id: m.Id,
+//		AckID: m.AckID,
+//		Topic: AckTopicPrefix +m.Topic,
+//	}
+//	return ackMsg
+//}
 
 func acksender(d driver.Driver, m *Message) error {
-	err := d.Publish(m)
-	return err
+	//err := d.Publish(m)
+	return nil
 }
 
 func noAckFn(_ *Message) error {
 	return nil
 }
-
 
 type subOption func(*Subscription) error
 

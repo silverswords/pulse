@@ -2,20 +2,19 @@ package main
 
 import (
 	"fmt"
+	"github.com/silverswords/whisper"
 )
 
-type simple struct {
-	x string
-	b []byte
-}
-
 func main() {
-	s := &simple{
-		x: "hello",
+	var y int
+	m := whisper.NewMessage("ddd", []byte{'2'})
+	m.Attributes.Add("haha", "haha")
+	y += 1
+	b := whisper.ToByte(m)
+	fmt.Println(*m)
+	msg, err := whisper.ToMessage(b)
+	if err != nil {
+		fmt.Println(err)
 	}
-
-	fmt.Println(s)
-
-	s.b = append(s.b, '2')
-	fmt.Println(s)
+	fmt.Println(*msg)
 }

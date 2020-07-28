@@ -21,32 +21,20 @@ import (
 //"data": { ... }
 //}
 type Message struct {
-	Id    string
-	Data  []byte // Message data
+	Id   string
+	Data []byte // Message data
 
+	AckID string
 	// Where the message from and to. what codec is the message have. when and why have this message.
-	Attributes  internal.Header // Message Header use to specific message and how to handle it.
-	specversion string
-	typeName    string
-	source      string
-	destination string
+	Attributes internal.Header // Message Header use to specific message and how to handle it.
+
+	L Logic
+}
+
+type Logic struct {
 	// Timestamp
 	publishTime time.Time
 	receiveTime time.Time
-
-	AckID       string
-	calledDone bool
-	doneFunc func(string,bool,time.Time)
-
-	size int
-	OrderingKey string
-}
-
-type LogicModules struct {
-	ackid   string
-	ackdone bool
-
-	retrytime int
 
 	// DeliveryAttempt is the number of times a message has been delivered.
 	// This is part of the dead lettering feature that forwards messages that
@@ -55,13 +43,22 @@ type LogicModules struct {
 	// with value 1. Otherwise, the value will be nil.
 	// This field is read-only.
 	DeliveryAttempt *int
-	// use to topic with knowing if have a async error
-	errch chan error
+	calledDone      bool
+	doneFunc        func(string, bool, time.Time)
+
+	size        int
+	OrderingKey string
 }
 
-type MQ_Message struct {
-	Message
-	LogicModules
+func NewMessage(id string, data []byte) *Message {
+	return &Message{
+		Id:         id,
+		Data:       data,
+		Attributes: make(internal.Header),
+		L: Logic{
+			publishTime: time.Now(),
+		},
+	}
 }
 
 // Ack indicates successful processing of a Message passed to the Subscriber.Receive callback.
@@ -83,14 +80,12 @@ func (m *Message) Nack() {
 }
 
 func (m *Message) done(ack bool) {
-	if m.calledDone {
+	if m.L.calledDone {
 		return
 	}
-	m.calledDone = true
-	m.doneFunc(m.ackID, ack, m.receiveTime)
+	m.L.calledDone = true
+	m.L.doneFunc(m.AckID, ack, m.L.receiveTime)
 }
-
-
 
 func ToByte(m *Message) []byte {
 	bytes, _ := Encode(m)
