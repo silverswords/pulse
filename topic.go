@@ -221,6 +221,19 @@ func (t *Topic) Publish(_ context.Context, msg *Message) *PublishResult {
 	return r
 }
 
+// ResumePublish resumes accepting messages for the provided ordering key.
+// Publishing using an ordering key might be paused if an error is
+// encountered while publishing, to prevent messages from being published
+// out of order.
+func (t *Topic) ResumePublish(orderingKey string) {
+	t.mu.RLock()
+	noop := t.scheduler == nil
+	t.mu.RUnlock()
+	if noop {
+		return
+	}
+}
+
 // Stop sends all remaining published messages and stop goroutines created for handling
 // publishing. Returns once all outstanding messages have been sent or have
 // failed to be sent.
@@ -421,19 +434,6 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bm *bundledMessage) {
 		bm.res.set(err)
 	} else {
 		bm.res.set(nil)
-	}
-}
-
-// ResumePublish resumes accepting messages for the provided ordering key.
-// Publishing using an ordering key might be paused if an error is
-// encountered while publishing, to prevent messages from being published
-// out of order.
-func (t *Topic) ResumePublish(orderingKey string) {
-	t.mu.RLock()
-	noop := t.scheduler == nil
-	t.mu.RUnlock()
-	if noop {
-		return
 	}
 }
 
