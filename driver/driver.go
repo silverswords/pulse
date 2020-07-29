@@ -62,8 +62,9 @@ type Publisher interface {
 
 // Subscriber is a blocking method
 // should be cancel() with ctx or call Driver.Close() to close all the subscribers.
+// note that handle just push the received message to subscription
 type Subscriber interface {
-	Subscribe(topic string, handler func(out []byte) error) (Closer, error)
+	Subscribe(topic string, handler func(out []byte) ) (Closer, error)
 }
 
 // Closer is the common interface for things that can be closed.

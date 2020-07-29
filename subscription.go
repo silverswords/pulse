@@ -2,14 +2,18 @@ package whisper
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/silverswords/whisper/driver"
-	"github.com/silverswords/whisper/driver/nats"
 	"github.com/silverswords/whisper/internal"
 	"github.com/silverswords/whisper/internal/scheduler"
 	"log"
-	"runtime"
 	"sync"
 	"time"
+)
+
+var (
+	errReceiveInProgress = errors.New("pubsub: Receive already in progress for this subscription")
 )
 
 const (
@@ -22,13 +26,23 @@ type Subscription struct {
 	d     driver.Driver
 	topic string
 	// the messages which received by the driver.
-	scheduler scheduler.ReceiveScheduler
+	scheduler *scheduler.ReceiveScheduler
 
-	handlers       []func(msg *Message) error
+	handlers       []func(ctx context.Context, msg *Message)
 	onErr          func(error)
 	// todo: combine callbackFn in handlers
 	callbackFn func(msg *Message) error
 	ackFn      func(msg *Message) error
+
+	handleGoroutineNumber chan struct{}
+
+
+	// the received message so the repeated message not handle again.
+	// todo: consider change it to bitmap
+	receivedEvent map[string]bool
+
+	pendingAcks map[string]bool
+	deadQueue chan *Message
 
 	mu sync.RWMutex
 	// Settings for receiving messages. All changes must be made before the
@@ -48,6 +62,8 @@ type ReceiveSettings struct {
 	// without notice.
 	EnableMessageOrdering bool
 
+	EnableAck bool
+
 	// DeadLetterPolicy specifies the conditions for dead lettering messages in
 	// a subscription. If not set, dead lettering is disabled.
 	DeadLetterPolicy *internal.DeadLetterPolicy
@@ -63,7 +79,7 @@ type ReceiveSettings struct {
 	Filter string
 
 	// RetryPolicy specifies how Cloud Pub/Sub retries message delivery.
-	RetryPolicy *internal.RetryParams
+	RetryParams *internal.RetryParams
 
 	// Detached indicates whether the subscription is detached from its topic.
 	// Detached subscriptions don't receive messages from their topic and don't
@@ -71,24 +87,9 @@ type ReceiveSettings struct {
 	// FAILED_PRECONDITION. If the subscription is a push subscription, pushes to
 	// the endpoint will not be made.
 	Detached bool
-	// MaxExtension is the maximum period for which the Subscription should
-	// automatically extend the ack deadline for each message.
-	//
-	// The Subscription will automatically extend the ack deadline of all
-	// fetched Messages up to the duration specified. Automatic deadline
-	// extension beyond the initial receipt may be disabled by specifying a
-	// duration less than 0.
-	MaxExtension time.Duration
 
-	// MaxExtensionPeriod is the maximum duration by which to extend the ack
-	// deadline at a time. The ack deadline will continue to be extended by up
-	// to this duration until MaxExtension is reached. Setting MaxExtensionPeriod
-	// bounds the maximum amount of time before a message redelivery in the
-	// event the subscriber fails to extend the deadline.
-	//
-	// MaxExtensionPeriod configuration can be disabled by specifying a
-	// duration less than (or equal to) 0.
-	MaxExtensionPeriod time.Duration
+	// The maximum time that the client will attempt to publish a bundle of messages.
+	Timeout time.Duration
 
 	// MaxOutstandingMessages is the maximum number of unprocessed messages
 	// (unacknowledged but not yet expired). If MaxOutstandingMessages is 0, it
@@ -96,13 +97,6 @@ type ReceiveSettings struct {
 	// If the value is negative, then there will be no limit on the number of
 	// unprocessed messages.
 	MaxOutstandingMessages int
-
-	// MaxOutstandingBytes is the maximum size of unprocessed messages
-	// (unacknowledged but not yet expired). If MaxOutstandingBytes is 0, it will
-	// be treated as if it were DefaultReceiveSettings.MaxOutstandingBytes. If
-	// the value is negative, then there will be no limit on the number of bytes
-	// for unprocessed messages.
-	MaxOutstandingBytes int
 
 	// NumGoroutines is the number of goroutines that each datastructure along
 	// the Receive path will spawn. Adjusting this value adjusts concurrency
@@ -115,32 +109,18 @@ type ReceiveSettings struct {
 	// once, because that goroutine may continually receive messages and invoke the
 	// function passed to Receive on them. To limit the number of messages being
 	//	processed concurrently, set MaxOutstandingMessages.
-			NumGoroutines int
-
-			// If Synchronous is true, then no more than MaxOutstandingMessages will be in
-			// memory at one time. (In contrast, when Synchronous is false, more than
-			// MaxOutstandingMessages may have been received from the service and in memory
-			// before being processed.) MaxOutstandingBytes still refers to the total bytes
-			// processed, rather than in memory. NumGoroutines is ignored.
-			// The default is false.
-			Synchronous bool
+	NumGoroutines int
 }
 
 // DefaultPublishSettings holds the default values for topics' PublishSettings.
 var DefaultRecieveSettings = ReceiveSettings{
-	DelayThreshold: 10 * time.Millisecond,
-	CountThreshold: 100,
-	ByteThreshold:  1e6,
-	Timeout:        60 * time.Second,
-	AckTimeout:     2 * 60 * time.Second,
-	// By default, limit the bundler to 10 times the max message size. The number 10 is
-	// chosen as a reasonable amount of messages in the worst case whilst still
-	// capping the number to a low enough value to not OOM users.
-	BufferedByteLimit: 10 * MaxPublishRequestBytes,
 	// default linear increase retry interval and 10 times.
 	RetryParams:       &internal.DefaultRetryParams,
 	// default nil and drop letter.
 	DeadLetterPolicy: nil,
+
+	MaxOutstandingMessages: 1000,
+	NumGoroutines: 10,
 }
 
 // new a topic and init it with the connection options
@@ -153,6 +133,7 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 		topic:            topicName,
 		subOptions:    options,
 		d:               driver,
+		receivedEvent: make(map[string]bool),
 		pendingAcks:     make(map[string]bool),
 		deadQueue:       nil,
 	}
@@ -164,105 +145,132 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 	if err := t.d.Init(driverMetadata); err != nil {
 		return nil, err
 	}
-	if err := t.startAck(); err != nil {
-		t.d.Close()
-		return nil, err
-	}
+
 	return t, nil
 }
 
-func (s *Subscription) done() {
+// done make the message.Ack could request to send a ack event to the topic with AckTopicPrefix.
+// receiveTime is not useful now because there is no required to promise to topic that suber had handled themessage.
+func (s *Subscription) done(ackId string, ack bool, receiveTime time.Time) {
+	// No ack logic
+	if !ack {
+		s.pendingAcks[ackId] = true
+		return
+	}
+//	send the ack event to topic and keep retry if error if connection error.
+	go func() {
+		var tryTimes int
+		m := &Message{L:Logic{AckID: ackId,DeliveryAttempt:&tryTimes }}
+		err := s.d.Publish(AckTopicPrefix + s.topic, ToByte(m))
 
+		for err != nil {
+			// wait for sometime
+			err1 := s.RetryParams.Backoff(context.TODO(),*m.L.DeliveryAttempt)
+			if err1 != nil {
+				//	retry and then handle the deadletter with s.receiveSettings.dead_letter_policy
+				if s.DeadLetterPolicy == nil {
+					return
+				}
+			}
+			err = s.d.Publish(AckTopicPrefix + s.topic, ToByte(m))
+		}
+	//	if reached here, the message have been send ack.
+	}()
+}
+
+// checkIfReceived checkd and set true if not true previous. It returns true when subscription had received the message.
+func (s *Subscription) checkIfReceived(msg *Message) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.receivedEvent[msg.Id] {
+		s.receivedEvent[msg.Id] = true
+		return false
+	}else {
+		return true
+	}
 }
 
 // Receive for receive the message and return error when handle message error.
 // if error, may should call DrainAck()?
 func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *Message)) error {
-	s.scheduler = scheduler.NewReceiveScheduler(Re),
-	closer, err := s.d.Subscribe(s.topic, func(msg []byte) error {
-		m, err := ToMessage(msg)
-		if err != nil {
-			log.Println("Error while transform the []byte to message: ", err)
-		}
+	s.mu.Lock()
+	if s.receiveActive {
+		s.mu.Unlock()
+		return errReceiveInProgress
+	}
+	s.receiveActive = true
+	s.mu.Unlock()
+	defer func() {s.mu.Lock(); s.receiveActive = false; s.mu.Unlock()}()
+
+	s.scheduler = scheduler.NewReceiveScheduler(s.MaxOutstandingMessages)
+
+	// Cancel a sub-context which, when we finish a single receiver, will kick
+	// off the context-aware callbacks and the goroutine below (which stops
+	// all receivers, iterators, and the scheduler).
+	ctx2, cancel2 := context.WithCancel(ctx)
+	defer cancel2()
+
+	s.handleGoroutineNumber = make(chan struct{}, s.NumGoroutines)
+
+	closer, err := s.d.Subscribe(s.topic, func(msg []byte)  {
+			m, err := ToMessage(msg)
+			if err != nil {
+				log.Println("Error while transform the []byte to message: ", err)
+			}
+			// don't repeat the handle logic.
+			if s.checkIfReceived(m) {
+				return
+			}
+
+			m.L.doneFunc = s.done
+			// promise to ack when received a right message.
+			if s.EnableAck {
+				defer m.Ack()
+			}else {
+				defer m.Nack()
+			}
+
+			// if no ordering, it would be concurrency handle the message.
+			err = s.scheduler.Add(m.L.OrderingKey,m,func(msg interface{}){
+				// group to receive the first error and terminate all the subscribers.
+					// just hint the message is not ordering handle.
+					if s.EnableMessageOrdering && m.L.OrderingKey != "" {
+						err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", m.L.OrderingKey)
+					}
+					// handle the message until the ackTimeout is reached
+					// if cannot handle out the message
 
 
-		return nil
+					// second endpoints
+					for _, v := range s.handlers {
+						v(ctx2,m)
+					}
+
+						callback(ctx2, m)
+			})
+			if err != nil {
+				cancel2()
+			}
 	})
+	// sub error
 	if err != nil {
 		return err
 	}
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+		case <-ctx2.Done():
+			err = ctx2.Err()
+	}
 
-	// start pollGoroutines worker to handle messages every function
-	go func() {
-		for {
-			select {
-			case <-s.closedCh:
-				closer.Close()
-				// if close only drain(), new a goroutine to consume rest of messages.
-				go func() {
-					for {
-						if len(s.queue) == 0 {
-							return
-						}
-						err := s.processMessage()
-						if err != nil {
-							s.onErr(err)
-						}
-					}
-				}()
+	closer.Close()
+	s.scheduler.Shutdown()
 
-			default:
-				// Start Polling.
-				wg := sync.WaitGroup{}
-				for i := 0; i < s.pollGoroutines; i++ {
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
-						for {
-							err := s.processMessage()
-							if err != nil {
-								s.onErr(err)
-							}
-						}
-					}()
-				}
-				wg.Wait()
-			}
-
-		}
-	}()
-
-	return nil
+	// if there is some error. close the suber and return the error.
+	return ctx2.Err()
 }
 
-func (s *Subscription) processMessage() (err error) {
-	if len(s.queue) == 0 {
-		return
-	}
-	msg := <-s.queue
-
-	if msg.L.AckID != "" {
-		s.ackFn(msg)
-		//if s.ackFn == noAckFn{
-		//	log.Println("need ack but not.")
-		//}
-	}
-
-	for _, v := range s.handlers {
-		if err = v(msg); err != nil {
-			//	todo: with logger to log error
-			log.Println("Error while handle message with ", v, "error: ", err)
-		}
-	}
-
-	err = s.callbackFn(msg)
-	if err != nil {
-		log.Println("Error while handle message with callbackFn: ", s.callbackFn, "error: ", err)
-	}
-	return err
-}
-
-func WithMiddlewares(handlers ...func(*Message) error) subOption {
+func WithMiddlewares(handlers ...func(context.Context,*Message) ) subOption {
 	return func(s *Subscription) error {
 		s.handlers = handlers
 		return nil
@@ -271,33 +279,9 @@ func WithMiddlewares(handlers ...func(*Message) error) subOption {
 
 func WithAck() subOption {
 	return func(s *Subscription) error {
-		// todo: completed the ack logic
-		s.ackFn = func(m *Message) error {
-			var ackMsg *Message
-			acksender(s.d, ackMsg)
-
-			return nil
-		}
+		s.EnableAck = true
 		return nil
 	}
-}
-
-//func newAckEvent(m *Message) (ackMsg *Message) {
-//	ackMsg = &Message{
-//		Id: m.Id,
-//		AckID: m.AckID,
-//		Topic: AckTopicPrefix +m.Topic,
-//	}
-//	return ackMsg
-//}
-
-func acksender(d driver.Driver, m *Message) error {
-	//err := d.Publish(m)
-	return nil
-}
-
-func noAckFn(_ *Message) error {
-	return nil
 }
 
 type subOption func(*Subscription) error

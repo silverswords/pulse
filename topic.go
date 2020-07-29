@@ -56,6 +56,8 @@ type Topic struct {
 
 	// ackid map to *int . if 0 ack.
 	pendingAcks map[string]bool
+	// todo: consider if need a ack delay deadline holding. It gives more time to store the message in the Topic and not to retry or drop.
+	// pendingAckDeadline map[string]time.Time
 	deadQueue   chan *Message
 }
 
@@ -85,6 +87,7 @@ type PublishSettings struct {
 	// The maximum time that the client will attempt to publish a bundle of messages.
 	Timeout time.Duration
 
+	// After AckTimeout to confirm if message has been acknowledged, and decide whether to retry.
 	AckTimeout time.Duration
 	// The maximum number of bytes that the Bundler will keep in memory before
 	// returning ErrOverflow.
@@ -104,7 +107,7 @@ var DefaultPublishSettings = PublishSettings{
 	CountThreshold: 100,
 	ByteThreshold:  1e6,
 	Timeout:        60 * time.Second,
-	AckTimeout:     2 * 60 * time.Second,
+	AckTimeout:     1 * time.Second,
 	// By default, limit the bundler to 10 times the max message size. The number 10 is
 	// chosen as a reasonable amount of messages in the worst case whilst still
 	// capping the number to a low enough value to not OOM users.
@@ -151,14 +154,12 @@ func (t *Topic) startAck() error {
 	if !t.EnableAck {
 		return nil
 	}
-	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) error {
+	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte)  {
 		m, err := ToMessage(out)
 		if err != nil {
 			fmt.Println("error in message decode: ", err)
-			return err
 		}
 		t.done(m.L.AckID, true, time.Now())
-		return nil
 	})
 	if err != nil {
 		subCloser.Close()
@@ -344,14 +345,15 @@ var (
 	keyError  = tag.MustNewKey("error")
 )
 
-// choose to skip ack logic.
+// choose to skip ack logic. would delete key when ack.
 func (t *Topic) checkAck(m *Message) bool {
-	if !t.EnableAck {
-		return true
-	}
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	return t.pendingAcks[m.L.AckID]
+	if !t.pendingAcks[m.L.AckID] {
+		return false
+	}
+	delete(t.pendingAcks, m.L.AckID)
+	return true
 }
 
 // publishMessageBundle handle all the logic
@@ -375,6 +377,12 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bm *bundledMessage) {
 			bm.res.set(err)
 		}
 
+		// if no ack logic, just return
+		if !t.EnableAck {
+			bm.res.set(nil)
+			return
+		}
+		// todo: consider wrap it with a function.
 		// handle the retry logic.
 		ticker := time.After(t.AckTimeout)
 		<-ticker
@@ -439,7 +447,14 @@ func WithACK() topicOption {
 			return nil
 		})
 
-		// todo: sub the ack channel and do the ack delete.
+		return nil
+	}
+}
+
+// WithACK would turn on the ack function.
+func WithOrdered() topicOption {
+	return func(t *Topic) error {
+		t.EnableMessageOrdering = true
 		return nil
 	}
 }
