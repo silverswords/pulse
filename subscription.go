@@ -3,9 +3,11 @@ package whisper
 import (
 	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/driver/nats"
+	"github.com/silverswords/whisper/internal/scheduler"
 	"log"
 	"runtime"
 	"sync"
+	"time"
 )
 
 const (
@@ -18,10 +20,9 @@ type Subscription struct {
 	d     driver.Driver
 	topic string
 	// the messages which received by the driver.
-	queue chan *Message
-	// todo: consider that if need use mutex because of the elements in the queue is pointer. maybe some middleware change the message's attributes like retrytime and ack bool, would be in wrong logic.
-	//messageMutex sync.Mutex
+	scheduler scheduler.ReceiveScheduler
 
+	mu sync.RWMutex
 	pollGoroutines int
 	handlers       []func(msg *Message) error
 	onErr          func(error)
@@ -29,37 +30,162 @@ type Subscription struct {
 	callbackFn func(msg *Message) error
 	ackFn      func(msg *Message) error
 
-	closedCh chan struct{}
+	receiveActive bool
 }
 
-// NewSubscription return a Subscription which handle the messages received by the driver.
-// default no AckFn and when open message should be with its ackid is not ""
-func NewSubscription(topic string, driverMetadata driver.Metadata, options ...subOption) (*Subscription, error) {
-	s := &Subscription{
-		topic:          topic,
-		subOptions:     options,
-		queue:          make(chan *Message, 100),
-		d:              nats.NewNats(),
-		pollGoroutines: runtime.GOMAXPROCS(0),
-		ackFn:          noAckFn,
-		onErr:          func(err error) { return },
-		closedCh:       make(chan struct{}),
+// coudl add toproto() protoToSubscriptionConfig() from https://github.com/googleapis/google-cloud-go/blob/master/pubsub/subscription.go
+// SubscriptionConfig describes the configuration of a subscription.
+type SubscriptionConfig struct {
+	Topic      *Topic
+
+	// The default maximum time after a subscriber receives a message before
+	// the subscriber should acknowledge the message. Note: messages which are
+	// obtained via Subscription.Receive need not be acknowledged within this
+	// deadline, as the deadline will be automatically extended.
+	AckDeadline time.Duration
+
+	// Whether to retain acknowledged messages. If true, acknowledged messages
+	// will not be expunged until they fall out of the RetentionDuration window.
+	RetainAckedMessages bool
+
+	// How long to retain messages in backlog, from the time of publish. If
+	// RetainAckedMessages is true, this duration affects the retention of
+	// acknowledged messages, otherwise only unacknowledged messages are retained.
+	// Defaults to 7 days. Cannot be longer than 7 days or shorter than 10 minutes.
+	RetentionDuration time.Duration
+
+	// Expiration policy specifies the conditions for a subscription's expiration.
+	// A subscription is considered active as long as any connected subscriber is
+	// successfully consuming messages from the subscription or is issuing
+	// operations on the subscription. If `expiration_policy` is not set, a
+	// *default policy* with `ttl` of 31 days will be used. The minimum allowed
+	// value for `expiration_policy.ttl` is 1 day.
+	//
+	// Use time.Duration(0) to indicate that the subscription should never expire.
+	ExpirationPolicy optional.Duration
+
+	// The set of labels for the subscription.
+	Labels map[string]string
+
+	// EnableMessageOrdering enables message ordering.
+	//
+	// It is EXPERIMENTAL and a part of a closed alpha that may not be
+	// accessible to all users. This field is subject to change or removal
+	// without notice.
+	EnableMessageOrdering bool
+
+	// DeadLetterPolicy specifies the conditions for dead lettering messages in
+	// a subscription. If not set, dead lettering is disabled.
+	DeadLetterPolicy *DeadLetterPolicy
+
+	// Filter is an expression written in the Cloud Pub/Sub filter language. If
+	// non-empty, then only `PubsubMessage`s whose `attributes` field matches the
+	// filter are delivered on this subscription. If empty, then no messages are
+	// filtered out. Cannot be changed after the subscription is created.
+	//
+	// It is EXPERIMENTAL and a part of a closed alpha that may not be
+	// accessible to all users. This field is subject to change or removal
+	// without notice.
+	Filter string
+
+	// RetryPolicy specifies how Cloud Pub/Sub retries message delivery.
+	RetryPolicy *RetryPolicy
+
+	// Detached indicates whether the subscription is detached from its topic.
+	// Detached subscriptions don't receive messages from their topic and don't
+	// retain any backlog. `Pull` and `StreamingPull` requests will return
+	// FAILED_PRECONDITION. If the subscription is a push subscription, pushes to
+	// the endpoint will not be made.
+	Detached bool
+}
+// ReceiveSettings configure the Receive method.
+// A zero ReceiveSettings will result in values equivalent to DefaultReceiveSettings.
+type ReceiveSettings struct {
+	// MaxExtension is the maximum period for which the Subscription should
+	// automatically extend the ack deadline for each message.
+	//
+	// The Subscription will automatically extend the ack deadline of all
+	// fetched Messages up to the duration specified. Automatic deadline
+	// extension beyond the initial receipt may be disabled by specifying a
+	// duration less than 0.
+	MaxExtension time.Duration
+
+	// MaxExtensionPeriod is the maximum duration by which to extend the ack
+	// deadline at a time. The ack deadline will continue to be extended by up
+	// to this duration until MaxExtension is reached. Setting MaxExtensionPeriod
+	// bounds the maximum amount of time before a message redelivery in the
+	// event the subscriber fails to extend the deadline.
+	//
+	// MaxExtensionPeriod configuration can be disabled by specifying a
+	// duration less than (or equal to) 0.
+	MaxExtensionPeriod time.Duration
+
+	// MaxOutstandingMessages is the maximum number of unprocessed messages
+	// (unacknowledged but not yet expired). If MaxOutstandingMessages is 0, it
+	// will be treated as if it were DefaultReceiveSettings.MaxOutstandingMessages.
+	// If the value is negative, then there will be no limit on the number of
+	// unprocessed messages.
+	MaxOutstandingMessages int
+
+	// MaxOutstandingBytes is the maximum size of unprocessed messages
+	// (unacknowledged but not yet expired). If MaxOutstandingBytes is 0, it will
+	// be treated as if it were DefaultReceiveSettings.MaxOutstandingBytes. If
+	// the value is negative, then there will be no limit on the number of bytes
+	// for unprocessed messages.
+	MaxOutstandingBytes int
+
+	// NumGoroutines is the number of goroutines that each datastructure along
+	// the Receive path will spawn. Adjusting this value adjusts concurrency
+	// along the receive path.
+	//
+	// NumGoroutines defaults to DefaultReceiveSettings.NumGoroutines.
+	//
+	// NumGoroutines does not limit the number of messages that can be processed
+	// concurrently. Even with one goroutine, many messages might be processed at
+	// once, because that goroutine may continually receive messages and invoke the
+	// function passed to Receive on them. To limit the number of messages being
+	// processed concurrently, set MaxOutstandingMessages.
+	NumGoroutines int
+
+	// If Synchronous is true, then no more than MaxOutstandingMessages will be in
+	// memory at one time. (In contrast, when Synchronous is false, more than
+	// MaxOutstandingMessages may have been received from the service and in memory
+	// before being processed.) MaxOutstandingBytes still refers to the total bytes
+	// processed, rather than in memory. NumGoroutines is ignored.
+	// The default is false.
+	Synchronous bool
+}
+// new a topic and init it with the connection options
+func NewSubscription(topicName string, driverMetadata driver.Metadata, options ...subOption) (*Subscription, error) {
+	driver, err := driver.Registry.Create(driverMetadata.GetDriverName())
+	if err != nil {
+		return nil, err
+	}
+	t := &Subscription{
+		topic:            topicName,
+		subOptions:    options,
+		d:               driver,
+		pendingAcks:     make(map[string]bool),
+		deadQueue:       nil,
 	}
 
-	if err := s.applyOptions(options...); err != nil {
+	if err := t.applyOptions(options...); err != nil {
 		return nil, err
 	}
 
-	s.d.Init(driverMetadata)
-	s.startReceive()
-	return s, nil
+	if err := t.d.Init(driverMetadata); err != nil {
+		return nil, err
+	}
+	if err := t.startAck(); err != nil {
+		t.d.Close()
+		return nil, err
+	}
+	return t, nil
 }
 
-func (s *Subscription) Close() error {
-	s.closedCh <- struct{}{}
-	return nil
-}
+func (s *Subscription) done() {
 
+}
 //
 func (s *Subscription) startReceive() error {
 	closer, err := s.d.Subscribe(s.topic, func(msg []byte) error {
@@ -184,9 +310,9 @@ func noAckFn(_ *Message) error {
 
 type subOption func(*Subscription) error
 
-func (c *Subscription) applyOptions(opts ...subOption) error {
+func (s *Subscription) applyOptions(opts ...subOption) error {
 	for _, fn := range opts {
-		if err := fn(c); err != nil {
+		if err := fn(s); err != nil {
 			return err
 		}
 	}

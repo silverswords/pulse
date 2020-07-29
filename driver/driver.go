@@ -29,6 +29,18 @@ type Metadata struct {
 	Properties map[string]interface{}
 }
 
+// todo: default change it to local eventbus
+func (m *Metadata) GetDriverName() string {
+	var noDriver = ""
+	if driverName, ok := m.Properties["DriverName"]; ok {
+		if nameString, ok := driverName.(string); ok {
+			return nameString
+		}
+		return noDriver
+	}
+	return noDriver
+}
+
 func createFullName(name string) string { return fmt.Sprintf("pubsub.%s", name) }
 
 type Initer interface {

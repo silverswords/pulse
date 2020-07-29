@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/silverswords/whisper/driver"
-	"github.com/silverswords/whisper/driver/nats"
 	"github.com/silverswords/whisper/internal"
 	"github.com/silverswords/whisper/internal/scheduler"
 	"strconv"
@@ -119,10 +118,14 @@ var DefaultPublishSettings = PublishSettings{
 
 // new a topic and init it with the connection options
 func NewTopic(topicName string, driverMetadata driver.Metadata, options ...topicOption) (*Topic, error) {
+	driver, err := driver.Registry.Create(driverMetadata.GetDriverName())
+	if err != nil {
+		return nil, err
+	}
 	t := &Topic{
 		name:            topicName,
 		topicOptions:    options,
-		d:               nats.NewNats(),
+		d:               driver,
 		PublishSettings: DefaultPublishSettings,
 		pendingAcks:     make(map[string]bool),
 		deadQueue:       nil,
@@ -347,6 +350,8 @@ func (t *Topic) checkAck(m *Message) bool {
 	if !t.EnableAck {
 		return true
 	}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return t.pendingAcks[m.L.AckID]
 }
 
