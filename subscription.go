@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/driver/nats"
+	"github.com/silverswords/whisper/internal"
 	"github.com/silverswords/whisper/internal/scheduler"
 	"log"
 	"runtime"
@@ -30,8 +31,8 @@ type Subscription struct {
 	ackFn      func(msg *Message) error
 
 	mu sync.RWMutex
-	// Settings for Subs messages. All changes must be made before the
-	// first call to Publish. The default is DefaultPublishSettings.
+	// Settings for receiving messages. All changes must be made before the
+	// first call to Receive. The default is DefaultPublishSettings.
 	// it means could not dynamically change and hot start.
 	ReceiveSettings
 	receiveActive bool
@@ -49,7 +50,7 @@ type ReceiveSettings struct {
 
 	// DeadLetterPolicy specifies the conditions for dead lettering messages in
 	// a subscription. If not set, dead lettering is disabled.
-	DeadLetterPolicy *DeadLetterPolicy
+	DeadLetterPolicy *internal.DeadLetterPolicy
 
 	// Filter is an expression written in the Cloud Pub/Sub filter language. If
 	// non-empty, then only `PubsubMessage`s whose `attributes` field matches the
@@ -62,7 +63,7 @@ type ReceiveSettings struct {
 	Filter string
 
 	// RetryPolicy specifies how Cloud Pub/Sub retries message delivery.
-	RetryPolicy *RetryPolicy
+	RetryPolicy *internal.RetryParams
 
 	// Detached indicates whether the subscription is detached from its topic.
 	// Detached subscriptions don't receive messages from their topic and don't
@@ -123,6 +124,23 @@ type ReceiveSettings struct {
 			// processed, rather than in memory. NumGoroutines is ignored.
 			// The default is false.
 			Synchronous bool
+}
+
+// DefaultPublishSettings holds the default values for topics' PublishSettings.
+var DefaultRecieveSettings = ReceiveSettings{
+	DelayThreshold: 10 * time.Millisecond,
+	CountThreshold: 100,
+	ByteThreshold:  1e6,
+	Timeout:        60 * time.Second,
+	AckTimeout:     2 * 60 * time.Second,
+	// By default, limit the bundler to 10 times the max message size. The number 10 is
+	// chosen as a reasonable amount of messages in the worst case whilst still
+	// capping the number to a low enough value to not OOM users.
+	BufferedByteLimit: 10 * MaxPublishRequestBytes,
+	// default linear increase retry interval and 10 times.
+	RetryParams:       &internal.DefaultRetryParams,
+	// default nil and drop letter.
+	DeadLetterPolicy: nil,
 }
 
 // new a topic and init it with the connection options
