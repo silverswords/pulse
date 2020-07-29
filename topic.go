@@ -54,10 +54,6 @@ type Topic struct {
 	stopped   bool
 	scheduler *scheduler.PublishScheduler
 
-	// EnableMessageOrdering enables delivery of ordered keys.
-	EnableMessageOrdering bool
-	EnableAck             bool
-
 	// ackid map to *int . if 0 ack.
 	pendingAcks map[string]bool
 	deadQueue   chan *Message
@@ -65,6 +61,9 @@ type Topic struct {
 
 // PublishSettings control the bundling of published messages.
 type PublishSettings struct {
+	// EnableMessageOrdering enables delivery of ordered keys.
+	EnableMessageOrdering bool
+	EnableAck             bool
 
 	// Publish a non-empty batch after this delay has passed.
 	DelayThreshold time.Duration

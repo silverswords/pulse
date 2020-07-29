@@ -1,6 +1,7 @@
 package whisper
 
 import (
+	"context"
 	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/driver/nats"
 	"github.com/silverswords/whisper/internal/scheduler"
@@ -22,51 +23,23 @@ type Subscription struct {
 	// the messages which received by the driver.
 	scheduler scheduler.ReceiveScheduler
 
-	mu sync.RWMutex
-	pollGoroutines int
 	handlers       []func(msg *Message) error
 	onErr          func(error)
 	// todo: combine callbackFn in handlers
 	callbackFn func(msg *Message) error
 	ackFn      func(msg *Message) error
 
+	mu sync.RWMutex
+	// Settings for Subs messages. All changes must be made before the
+	// first call to Publish. The default is DefaultPublishSettings.
+	// it means could not dynamically change and hot start.
+	ReceiveSettings
 	receiveActive bool
 }
 
-// coudl add toproto() protoToSubscriptionConfig() from https://github.com/googleapis/google-cloud-go/blob/master/pubsub/subscription.go
+// could add toproto() protoToSubscriptionConfig() from https://github.com/googleapis/google-cloud-go/blob/master/pubsub/subscription.go
 // SubscriptionConfig describes the configuration of a subscription.
-type SubscriptionConfig struct {
-	Topic      *Topic
-
-	// The default maximum time after a subscriber receives a message before
-	// the subscriber should acknowledge the message. Note: messages which are
-	// obtained via Subscription.Receive need not be acknowledged within this
-	// deadline, as the deadline will be automatically extended.
-	AckDeadline time.Duration
-
-	// Whether to retain acknowledged messages. If true, acknowledged messages
-	// will not be expunged until they fall out of the RetentionDuration window.
-	RetainAckedMessages bool
-
-	// How long to retain messages in backlog, from the time of publish. If
-	// RetainAckedMessages is true, this duration affects the retention of
-	// acknowledged messages, otherwise only unacknowledged messages are retained.
-	// Defaults to 7 days. Cannot be longer than 7 days or shorter than 10 minutes.
-	RetentionDuration time.Duration
-
-	// Expiration policy specifies the conditions for a subscription's expiration.
-	// A subscription is considered active as long as any connected subscriber is
-	// successfully consuming messages from the subscription or is issuing
-	// operations on the subscription. If `expiration_policy` is not set, a
-	// *default policy* with `ttl` of 31 days will be used. The minimum allowed
-	// value for `expiration_policy.ttl` is 1 day.
-	//
-	// Use time.Duration(0) to indicate that the subscription should never expire.
-	ExpirationPolicy optional.Duration
-
-	// The set of labels for the subscription.
-	Labels map[string]string
-
+type ReceiveSettings struct {
 	// EnableMessageOrdering enables message ordering.
 	//
 	// It is EXPERIMENTAL and a part of a closed alpha that may not be
@@ -97,10 +70,6 @@ type SubscriptionConfig struct {
 	// FAILED_PRECONDITION. If the subscription is a push subscription, pushes to
 	// the endpoint will not be made.
 	Detached bool
-}
-// ReceiveSettings configure the Receive method.
-// A zero ReceiveSettings will result in values equivalent to DefaultReceiveSettings.
-type ReceiveSettings struct {
 	// MaxExtension is the maximum period for which the Subscription should
 	// automatically extend the ack deadline for each message.
 	//
@@ -144,17 +113,18 @@ type ReceiveSettings struct {
 	// concurrently. Even with one goroutine, many messages might be processed at
 	// once, because that goroutine may continually receive messages and invoke the
 	// function passed to Receive on them. To limit the number of messages being
-	// processed concurrently, set MaxOutstandingMessages.
-	NumGoroutines int
+	//	processed concurrently, set MaxOutstandingMessages.
+			NumGoroutines int
 
-	// If Synchronous is true, then no more than MaxOutstandingMessages will be in
-	// memory at one time. (In contrast, when Synchronous is false, more than
-	// MaxOutstandingMessages may have been received from the service and in memory
-	// before being processed.) MaxOutstandingBytes still refers to the total bytes
-	// processed, rather than in memory. NumGoroutines is ignored.
-	// The default is false.
-	Synchronous bool
+			// If Synchronous is true, then no more than MaxOutstandingMessages will be in
+			// memory at one time. (In contrast, when Synchronous is false, more than
+			// MaxOutstandingMessages may have been received from the service and in memory
+			// before being processed.) MaxOutstandingBytes still refers to the total bytes
+			// processed, rather than in memory. NumGoroutines is ignored.
+			// The default is false.
+			Synchronous bool
 }
+
 // new a topic and init it with the connection options
 func NewSubscription(topicName string, driverMetadata driver.Metadata, options ...subOption) (*Subscription, error) {
 	driver, err := driver.Registry.Create(driverMetadata.GetDriverName())
@@ -186,14 +156,18 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 func (s *Subscription) done() {
 
 }
-//
-func (s *Subscription) startReceive() error {
+
+// Receive for receive the message and return error when handle message error.
+// if error, may should call DrainAck()?
+func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *Message)) error {
+	s.scheduler = scheduler.NewReceiveScheduler(Re),
 	closer, err := s.d.Subscribe(s.topic, func(msg []byte) error {
 		m, err := ToMessage(msg)
 		if err != nil {
 			log.Println("Error while transform the []byte to message: ", err)
 		}
-		s.queue <- m
+
+
 		return nil
 	})
 	if err != nil {
