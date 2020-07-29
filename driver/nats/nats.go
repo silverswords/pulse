@@ -86,7 +86,7 @@ func (n *NatsDriver) Publish(topic string, in []byte) error {
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
 // handler use to receive the message and move to top level subscriber.
-func (n *NatsDriver) Subscribe(topic string, handler func(msg []byte) ) (driver.Closer, error) {
+func (n *NatsDriver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	var (
 		sub        *nats.Subscription
 		err        error

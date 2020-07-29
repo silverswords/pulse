@@ -16,10 +16,6 @@ var (
 	errReceiveInProgress = errors.New("pubsub: Receive already in progress for this subscription")
 )
 
-const (
-	QueueCapacity = 100
-)
-
 type Subscription struct {
 	subOptions []subOption
 
@@ -28,21 +24,14 @@ type Subscription struct {
 	// the messages which received by the driver.
 	scheduler *scheduler.ReceiveScheduler
 
-	handlers       []func(ctx context.Context, msg *Message)
-	onErr          func(error)
-	// todo: combine callbackFn in handlers
-	callbackFn func(msg *Message) error
-	ackFn      func(msg *Message) error
-
-	handleGoroutineNumber chan struct{}
-
+	handlers []func(ctx context.Context, msg *Message)
 
 	// the received message so the repeated message not handle again.
 	// todo: consider change it to bitmap
 	receivedEvent map[string]bool
 
 	pendingAcks map[string]bool
-	deadQueue chan *Message
+	deadQueue   chan *Message
 
 	mu sync.RWMutex
 	// Settings for receiving messages. All changes must be made before the
@@ -68,28 +57,8 @@ type ReceiveSettings struct {
 	// a subscription. If not set, dead lettering is disabled.
 	DeadLetterPolicy *internal.DeadLetterPolicy
 
-	// Filter is an expression written in the Cloud Pub/Sub filter language. If
-	// non-empty, then only `PubsubMessage`s whose `attributes` field matches the
-	// filter are delivered on this subscription. If empty, then no messages are
-	// filtered out. Cannot be changed after the subscription is created.
-	//
-	// It is EXPERIMENTAL and a part of a closed alpha that may not be
-	// accessible to all users. This field is subject to change or removal
-	// without notice.
-	Filter string
-
 	// RetryPolicy specifies how Cloud Pub/Sub retries message delivery.
 	RetryParams *internal.RetryParams
-
-	// Detached indicates whether the subscription is detached from its topic.
-	// Detached subscriptions don't receive messages from their topic and don't
-	// retain any backlog. `Pull` and `StreamingPull` requests will return
-	// FAILED_PRECONDITION. If the subscription is a push subscription, pushes to
-	// the endpoint will not be made.
-	Detached bool
-
-	// The maximum time that the client will attempt to publish a bundle of messages.
-	Timeout time.Duration
 
 	// MaxOutstandingMessages is the maximum number of unprocessed messages
 	// (unacknowledged but not yet expired). If MaxOutstandingMessages is 0, it
@@ -97,45 +66,31 @@ type ReceiveSettings struct {
 	// If the value is negative, then there will be no limit on the number of
 	// unprocessed messages.
 	MaxOutstandingMessages int
-
-	// NumGoroutines is the number of goroutines that each datastructure along
-	// the Receive path will spawn. Adjusting this value adjusts concurrency
-	// along the receive path.
-	//
-	// NumGoroutines defaults to DefaultReceiveSettings.NumGoroutines.
-	//
-	// NumGoroutines does not limit the number of messages that can be processed
-	// concurrently. Even with one goroutine, many messages might be processed at
-	// once, because that goroutine may continually receive messages and invoke the
-	// function passed to Receive on them. To limit the number of messages being
-	//	processed concurrently, set MaxOutstandingMessages.
-	NumGoroutines int
 }
 
 // DefaultPublishSettings holds the default values for topics' PublishSettings.
 var DefaultRecieveSettings = ReceiveSettings{
 	// default linear increase retry interval and 10 times.
-	RetryParams:       &internal.DefaultRetryParams,
+	RetryParams: &internal.DefaultRetryParams,
 	// default nil and drop letter.
 	DeadLetterPolicy: nil,
 
 	MaxOutstandingMessages: 1000,
-	NumGoroutines: 10,
 }
 
 // new a topic and init it with the connection options
 func NewSubscription(topicName string, driverMetadata driver.Metadata, options ...subOption) (*Subscription, error) {
-	driver, err := driver.Registry.Create(driverMetadata.GetDriverName())
+	d, err := driver.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
 	}
 	t := &Subscription{
-		topic:            topicName,
-		subOptions:    options,
-		d:               driver,
-		receivedEvent: make(map[string]bool),
+		topic:           topicName,
+		subOptions:      options,
+		d:               d,
+		receivedEvent:   make(map[string]bool),
 		pendingAcks:     make(map[string]bool),
-		deadQueue:       nil,
+		ReceiveSettings: DefaultRecieveSettings,
 	}
 
 	if err := t.applyOptions(options...); err != nil {
@@ -157,24 +112,24 @@ func (s *Subscription) done(ackId string, ack bool, receiveTime time.Time) {
 		s.pendingAcks[ackId] = true
 		return
 	}
-//	send the ack event to topic and keep retry if error if connection error.
+	//	send the ack event to topic and keep retry if error if connection error.
 	go func() {
 		var tryTimes int
-		m := &Message{L:Logic{AckID: ackId,DeliveryAttempt:&tryTimes }}
-		err := s.d.Publish(AckTopicPrefix + s.topic, ToByte(m))
+		m := &Message{L: Logic{AckID: ackId, DeliveryAttempt: &tryTimes}}
+		err := s.d.Publish(AckTopicPrefix+s.topic, ToByte(m))
 
 		for err != nil {
 			// wait for sometime
-			err1 := s.RetryParams.Backoff(context.TODO(),*m.L.DeliveryAttempt)
+			err1 := s.RetryParams.Backoff(context.TODO(), *m.L.DeliveryAttempt)
 			if err1 != nil {
 				//	retry and then handle the deadletter with s.receiveSettings.dead_letter_policy
 				if s.DeadLetterPolicy == nil {
 					return
 				}
 			}
-			err = s.d.Publish(AckTopicPrefix + s.topic, ToByte(m))
+			err = s.d.Publish(AckTopicPrefix+s.topic, ToByte(m))
 		}
-	//	if reached here, the message have been send ack.
+		//	if reached here, the message have been send ack.
 	}()
 }
 
@@ -185,7 +140,7 @@ func (s *Subscription) checkIfReceived(msg *Message) bool {
 	if !s.receivedEvent[msg.Id] {
 		s.receivedEvent[msg.Id] = true
 		return false
-	}else {
+	} else {
 		return true
 	}
 }
@@ -200,7 +155,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	}
 	s.receiveActive = true
 	s.mu.Unlock()
-	defer func() {s.mu.Lock(); s.receiveActive = false; s.mu.Unlock()}()
+	defer func() { s.mu.Lock(); s.receiveActive = false; s.mu.Unlock() }()
 
 	s.scheduler = scheduler.NewReceiveScheduler(s.MaxOutstandingMessages)
 
@@ -210,47 +165,44 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	ctx2, cancel2 := context.WithCancel(ctx)
 	defer cancel2()
 
-	s.handleGoroutineNumber = make(chan struct{}, s.NumGoroutines)
+	closer, err := s.d.Subscribe(s.topic, func(msg []byte) {
+		m, err := ToMessage(msg)
+		if err != nil {
+			log.Println("Error while transform the []byte to message: ", err)
+		}
+		// don't repeat the handle logic.
+		if s.checkIfReceived(m) {
+			return
+		}
 
-	closer, err := s.d.Subscribe(s.topic, func(msg []byte)  {
-			m, err := ToMessage(msg)
-			if err != nil {
-				log.Println("Error while transform the []byte to message: ", err)
+		m.L.doneFunc = s.done
+		// promise to ack when received a right message.
+		if s.EnableAck {
+			defer m.Ack()
+		} else {
+			defer m.Nack()
+		}
+
+		// if no ordering, it would be concurrency handle the message.
+		err = s.scheduler.Add(m.L.OrderingKey, m, func(msg interface{}) {
+			// group to receive the first error and terminate all the subscribers.
+			// just hint the message is not ordering handle.
+			if s.EnableMessageOrdering && m.L.OrderingKey != "" {
+				err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", m.L.OrderingKey)
 			}
-			// don't repeat the handle logic.
-			if s.checkIfReceived(m) {
-				return
+			// handle the message until the ackTimeout is reached
+			// if cannot handle out the message
+
+			// second endpoints
+			for _, v := range s.handlers {
+				v(ctx2, m)
 			}
 
-			m.L.doneFunc = s.done
-			// promise to ack when received a right message.
-			if s.EnableAck {
-				defer m.Ack()
-			}else {
-				defer m.Nack()
-			}
-
-			// if no ordering, it would be concurrency handle the message.
-			err = s.scheduler.Add(m.L.OrderingKey,m,func(msg interface{}){
-				// group to receive the first error and terminate all the subscribers.
-					// just hint the message is not ordering handle.
-					if s.EnableMessageOrdering && m.L.OrderingKey != "" {
-						err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", m.L.OrderingKey)
-					}
-					// handle the message until the ackTimeout is reached
-					// if cannot handle out the message
-
-
-					// second endpoints
-					for _, v := range s.handlers {
-						v(ctx2,m)
-					}
-
-						callback(ctx2, m)
-			})
-			if err != nil {
-				cancel2()
-			}
+			callback(ctx2, m)
+		})
+		if err != nil {
+			cancel2()
+		}
 	})
 	// sub error
 	if err != nil {
@@ -259,18 +211,18 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	select {
 	case <-ctx.Done():
 		err = ctx.Err()
-		case <-ctx2.Done():
-			err = ctx2.Err()
+	case <-ctx2.Done():
+		err = ctx2.Err()
 	}
 
-	closer.Close()
+	_ = closer.Close()
 	s.scheduler.Shutdown()
 
 	// if there is some error. close the suber and return the error.
 	return ctx2.Err()
 }
 
-func WithMiddlewares(handlers ...func(context.Context,*Message) ) subOption {
+func WithMiddlewares(handlers ...func(context.Context, *Message)) subOption {
 	return func(s *Subscription) error {
 		s.handlers = handlers
 		return nil

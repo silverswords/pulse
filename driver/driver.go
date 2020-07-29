@@ -64,11 +64,10 @@ type Publisher interface {
 // should be cancel() with ctx or call Driver.Close() to close all the subscribers.
 // note that handle just push the received message to subscription
 type Subscriber interface {
-	Subscribe(topic string, handler func(out []byte) ) (Closer, error)
+	Subscribe(topic string, handler func(out []byte)) (Closer, error)
 }
 
 // Closer is the common interface for things that can be closed.
-// After invoking Close(ctx), you cannot reuse the object you closed.
 type Closer interface {
 	Close() error
 }

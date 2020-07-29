@@ -58,7 +58,7 @@ type Topic struct {
 	pendingAcks map[string]bool
 	// todo: consider if need a ack delay deadline holding. It gives more time to store the message in the Topic and not to retry or drop.
 	// pendingAckDeadline map[string]time.Time
-	deadQueue   chan *Message
+	deadQueue chan *Message
 }
 
 // PublishSettings control the bundling of published messages.
@@ -113,7 +113,7 @@ var DefaultPublishSettings = PublishSettings{
 	// capping the number to a low enough value to not OOM users.
 	BufferedByteLimit: 10 * MaxPublishRequestBytes,
 	// default linear increase retry interval and 10 times.
-	RetryParams:       &internal.DefaultRetryParams,
+	RetryParams: &internal.DefaultRetryParams,
 	// default nil and drop letter.
 	DeadLetterPolicy: nil,
 }
@@ -154,7 +154,7 @@ func (t *Topic) startAck() error {
 	if !t.EnableAck {
 		return nil
 	}
-	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte)  {
+	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
 		m, err := ToMessage(out)
 		if err != nil {
 			fmt.Println("error in message decode: ", err)
@@ -386,8 +386,8 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bm *bundledMessage) {
 		// handle the retry logic.
 		ticker := time.After(t.AckTimeout)
 		<-ticker
-		for *bm.msg.L.DeliveryAttempt < t.RetryParams.MaxTries{
-			if t.checkAck(bm.msg){
+		for *bm.msg.L.DeliveryAttempt < t.RetryParams.MaxTries {
+			if t.checkAck(bm.msg) {
 				bm.msg = nil
 				bm.res.set(nil)
 				break
@@ -398,10 +398,10 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bm *bundledMessage) {
 				break
 			}
 			t.RetryParams.Backoff(context.TODO(), *bm.msg.L.DeliveryAttempt)
-			*bm.msg.L.DeliveryAttempt ++
+			*bm.msg.L.DeliveryAttempt++
 		}
-		if *bm.msg.L.DeliveryAttempt >= t.RetryParams.MaxTries{
-			bm.res.set(errors.New(fmt.Sprintf("Retry Error: Message %s retry %d times",bm.msg.Id, t.RetryParams.MaxTries)))
+		if *bm.msg.L.DeliveryAttempt >= t.RetryParams.MaxTries {
+			bm.res.set(errors.New(fmt.Sprintf("Retry Error: Message %s retry %d times", bm.msg.Id, t.RetryParams.MaxTries)))
 		}
 
 		//end := time.Now()
@@ -442,8 +442,8 @@ func WithACK() topicOption {
 	return func(t *Topic) error {
 		t.EnableAck = true
 		// gen AckId
-		t.endpoints = append(t.endpoints, func(m *Message) error{
-			m.L.AckID= m.Id + strconv.FormatInt(time.Now().Unix(),10)
+		t.endpoints = append(t.endpoints, func(m *Message) error {
+			m.L.AckID = m.Id + strconv.FormatInt(time.Now().Unix(), 10)
 			return nil
 		})
 
