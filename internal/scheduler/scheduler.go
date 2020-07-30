@@ -18,6 +18,7 @@ package scheduler
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -269,9 +270,13 @@ func (s *ReceiveScheduler) Add(key string, item interface{}, handle func(item in
 		// Spawn a worker.
 		s.workers <- struct{}{}
 		go func() {
+			start := time.Now()
+
 			// Unordered keys can be handled immediately.
 			handle(item)
 			<-s.workers
+			fmt.Println(time.Now().Sub(start))
+
 		}()
 		return nil
 	}

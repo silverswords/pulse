@@ -46,6 +46,7 @@ func (m *Metadata) GetDriverName() string {
 	}
 	return noDriver
 }
+// todo: SetDriver() is need.
 
 func createFullName(name string) string { return fmt.Sprintf("pubsub.%s", name) }
 

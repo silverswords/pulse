@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/internal"
+	wctx "github.com/silverswords/whisper/internal/context"
 	"github.com/silverswords/whisper/internal/scheduler"
 	//"go.opencensus.io/stats"
 	//"github.com/golang/protobuf/proto"
@@ -176,7 +177,7 @@ func (t *Topic) startAck() error {
 // Publish creates goroutines for batching and sending messages. These goroutines
 // need to be stopped by calling t.Stop(). Once stopped, future calls to Publish
 // will immediately return a PublishResult with an error.
-func (t *Topic) Publish(_ context.Context, msg *Message) *PublishResult {
+func (t *Topic) Publish(ctx context.Context, msg *Message) *PublishResult {
 	r := &PublishResult{ready: make(chan struct{})}
 	if !t.EnableMessageOrdering && msg.L.OrderingKey != "" {
 		r.set(errTopicOrderingDisabled)
@@ -279,7 +280,7 @@ func (t *Topic) start() {
 	// concurrently. The default value was determined via extensive load
 	// testing (see the loadtest subdirectory).
 	if t.PublishSettings.NumGoroutines == 0 {
-		workers = 25 * runtime.GOMAXPROCS(0)
+		workers = runtime.GOMAXPROCS(0)
 	}
 
 	t.scheduler = scheduler.NewPublishScheduler(workers, func(bundle interface{}) {
@@ -362,8 +363,8 @@ var (
 
 // choose to skip ack logic. would delete key when ack.
 func (t *Topic) checkAck(m *Message) bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if !t.pendingAcks[m.L.AckID] {
 		return false
 	}
@@ -374,8 +375,9 @@ func (t *Topic) checkAck(m *Message) bool {
 // publishMessageBundle just handle the send logic
 func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage) {
 	ctx, err := tag.New(ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keyTopic, t.name))
+	log :=  wctx.LoggerFrom(ctx)
 	if err != nil {
-		log.Printf("pubsub: cannot create context with tag in publishMessageBundle: %v", err)
+		log.Errorf("pubsub: cannot create context with tag in publishMessageBundle: %v", err)
 	}
 	bm := bms[0]
 	var orderingKey = bm.msg.L.OrderingKey

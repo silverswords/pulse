@@ -119,6 +119,7 @@ func (s *Subscription) done(ackId string, ack bool, receiveTime time.Time) {
 		m := &Message{L: Logic{AckID: ackId, DeliveryAttempt: &tryTimes}}
 		err := s.d.Publish(AckTopicPrefix+s.topic, ToByte(m))
 
+		log.Println("ack message")
 		for err != nil {
 			// wait for sometime
 			err1 := s.RetryParams.Backoff(context.TODO(), *m.L.DeliveryAttempt)
@@ -146,6 +147,7 @@ func (s *Subscription) checkIfReceived(msg *Message) bool {
 	}
 }
 
+// todo: add batching iterator to batch every suber's message. that's need to store the messages in subscribers.
 // Receive is a blocking function and return error until receive the message and occurs error when handle message.
 // if error, may should call DrainAck()?
 func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *Message)) error {
@@ -170,7 +172,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	closer, err := s.d.Subscribe(s.topic, func(msg []byte) {
 		m, err := ToMessage(msg)
 		if err != nil {
-			log.Println("Error while transform the []byte to message: ", err)
+			log.Println("Error while transform the []message2byte to message: ", err)
 		}
 		// don't repeat the handle logic.
 		if s.checkIfReceived(m) {
@@ -187,6 +189,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 
 		// if no ordering, it would be concurrency handle the message.
 		err = s.scheduler.Add(m.L.OrderingKey, m, func(msg interface{}) {
+
 			// group to receive the first error and terminate all the subscribers.
 			// just hint the message is not ordering handle.
 			if s.EnableMessageOrdering && m.L.OrderingKey != "" {
@@ -201,11 +204,14 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 			}
 
 			callback(ctx2, m)
+
 		})
 		if err != nil {
 			cancel2()
 		}
 	})
+	defer closer.Close()
+	defer s.scheduler.Shutdown()
 	// sub error
 	if err != nil {
 		return err
@@ -217,8 +223,6 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 		err = ctx2.Err()
 	}
 
-	_ = closer.Close()
-	s.scheduler.Shutdown()
 
 	// if there is some error. close the suber and return the error.
 	return ctx2.Err()
