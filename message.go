@@ -52,6 +52,11 @@ type Logic struct {
 	OrderingKey string
 }
 
+func (l *Logic) String() string {
+	return fmt.Sprintf("AckID: %s PublishTime: %v ReceiveTime %v DeliveryAttempt: %d calledDone: %v doneFunc: %T size: %d OrderingKey: %s", l.AckID, l.publishTime, l.receiveTime, l.DeliveryAttempt, l.calledDone, l.doneFunc, l.size, l.OrderingKey)
+}
+
+// note that id should be uuid.
 func NewMessage(id string, data []byte) *Message {
 	return &Message{
 		Id:         id,
@@ -90,7 +95,7 @@ func (m *Message) done(ack bool) {
 }
 
 func (m *Message) String() string {
-	return fmt.Sprintf("\n Id: %s Data: %s Attributes: %v \n AckID: %s PublishTime: %v ReceiveTime %v DeliveryAttempt: %d calledDone: %v doneFunc: %T size: %d OrderingKey: %s", m.Id, m.Data, m.Attributes, m.L.AckID, m.L.publishTime, m.L.receiveTime, m.L.DeliveryAttempt, m.L.calledDone, m.L.doneFunc, m.L.size, m.L.OrderingKey)
+	return fmt.Sprintf("Id: %s Data: %s Attributes: %v ", m.Id, m.Data, m.Attributes)
 }
 
 func ToByte(m *Message) []byte {

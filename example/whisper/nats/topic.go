@@ -32,14 +32,24 @@ func main() {
 	go func() {
 		for {
 			t.Publish(context.Background(), whisper.NewMessage(strconv.FormatInt(time.Now().Unix(), 10), []byte("hello")))
-			time.Sleep(1 * time.Second)
+			log.Println("send a message")
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 
-	s, err := whisper.NewSubscription("hello", *meta, whisper.WithSubACK())
+	s, err := whisper.NewSubscription("hello", *meta, whisper.WithSubACK(), whisper.WithMiddlewares(func(ctx context.Context, m *whisper.Message) {
+		log.Println("handle the message: ", m.Id)
+	}))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
 	err = s.Receive(context.Background(), func(ctx context.Context, m *whisper.Message) {
+
 		log.Println(m)
 	})
+
 	if err != nil {
 		log.Println(err)
 		return

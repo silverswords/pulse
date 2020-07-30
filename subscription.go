@@ -85,9 +85,10 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 		return nil, err
 	}
 	s := &Subscription{
-		topic:           topicName,
-		subOptions:      options,
-		d:               d,
+		topic:      topicName,
+		subOptions: options,
+		d:          d,
+		//handlers:        make([]func(context.Context,*Message)),
 		receivedEvent:   make(map[string]bool),
 		pendingAcks:     make(map[string]bool),
 		ReceiveSettings: DefaultRecieveSettings,
@@ -225,7 +226,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 
 func WithMiddlewares(handlers ...func(context.Context, *Message)) subOption {
 	return func(s *Subscription) error {
-		s.handlers = handlers
+		s.handlers = append(s.handlers, handlers...)
 		return nil
 	}
 }
