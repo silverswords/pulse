@@ -420,13 +420,12 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 			*bm.msg.L.DeliveryAttempt++
 		}
 
-
 		//end := time.Now()
 		//stats.Record(ctx,
 		//	PublishLatency.M(float64(end.Sub(start)/time.Millisecond)),
 		//	PublishedMessages.M(int64(len(bms))))
 	}
-	NoRetry :
+NoRetry:
 	if err != nil {
 		t.scheduler.Pause(orderingKey)
 		// Update context with error tag for OpenCensus,

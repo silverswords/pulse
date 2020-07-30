@@ -31,7 +31,7 @@ type Metadata struct {
 	Properties map[string]interface{}
 }
 
-func NewMetadata() *Metadata{
+func NewMetadata() *Metadata {
 	return &Metadata{Properties: make(map[string]interface{})}
 }
 

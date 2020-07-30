@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	URL        = "natsURL"
-	Options    = "natsOptions"
+	URL     = "natsURL"
+	Options = "natsOptions"
 	//DefaultURL = "nats://39.105.141.168:4222"
 	DefaultURL = "nats://192.168.0.103:4222"
 )

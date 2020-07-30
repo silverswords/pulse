@@ -15,29 +15,29 @@ import (
 
 func main() {
 	meta := driver.NewMetadata()
-	meta.Properties[nats.URL] =nats.DefaultURL
+	meta.Properties[nats.URL] = nats.DefaultURL
 	// todo: SetDriver is need.
 	meta.Properties["DriverName"] = "nats"
 
 	// Connect to NATS
 	nc, err := test.Connect(nats.DefaultURL)
 	if err != nil {
-		log.Println(err,nc)
+		log.Println(err, nc)
 	}
-	t,err := whisper.NewTopic("hello",*meta, whisper.WithPubACK())
+	t, err := whisper.NewTopic("hello", *meta, whisper.WithPubACK())
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	go func() {
 		for {
-			t.Publish(context.Background(),whisper.NewMessage(strconv.FormatInt(time.Now().Unix(),10),[]byte("hello")))
-			time.Sleep(1*time.Second)
+			t.Publish(context.Background(), whisper.NewMessage(strconv.FormatInt(time.Now().Unix(), 10), []byte("hello")))
+			time.Sleep(1 * time.Second)
 		}
 	}()
 
-	s, err := whisper.NewSubscription("hello",*meta, whisper.WithSubACK())
-	err = s.Receive(context.Background(),func(ctx context.Context, m *whisper.Message) {
+	s, err := whisper.NewSubscription("hello", *meta, whisper.WithSubACK())
+	err = s.Receive(context.Background(), func(ctx context.Context, m *whisper.Message) {
 		log.Println(m)
 	})
 	if err != nil {
