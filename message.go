@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/silverswords/whisper/internal"
 	"time"
+
+	"github.com/nats-io/nuid"
 )
 
 //// DirectMessaging is the API interface for invoking a remote app
@@ -57,9 +59,9 @@ func (l *Logic) String() string {
 }
 
 // note that id should be uuid.
-func NewMessage(id string, data []byte) *Message {
+func NewMessage(data []byte) *Message {
 	return &Message{
-		Id:         id,
+		Id:    		nuid.Next(),
 		Data:       data,
 		Attributes: make(internal.Header),
 		L: Logic{

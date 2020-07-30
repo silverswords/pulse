@@ -8,7 +8,6 @@ import (
 	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/internal"
 	"github.com/silverswords/whisper/internal/scheduler"
-	"strconv"
 	//"go.opencensus.io/stats"
 	//"github.com/golang/protobuf/proto"
 
@@ -446,9 +445,9 @@ NoRetry:
 func WithPubACK() topicOption {
 	return func(t *Topic) error {
 		t.EnableAck = true
-		// gen AckId
+		// gen AckId, simply use msg id now because of its uuid.
 		t.endpoints = append(t.endpoints, func(m *Message) error {
-			m.L.AckID = m.Id + strconv.FormatInt(time.Now().Unix(), 10)
+			m.L.AckID = m.Id
 			return nil
 		})
 

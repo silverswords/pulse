@@ -9,7 +9,6 @@ import (
 
 	"log"
 	"runtime"
-	"strconv"
 	"time"
 )
 
@@ -31,14 +30,14 @@ func main() {
 	}
 	go func() {
 		for {
-			t.Publish(context.Background(), whisper.NewMessage(strconv.FormatInt(time.Now().Unix(), 10), []byte("hello")))
+			t.Publish(context.Background(), whisper.NewMessage( []byte("hello")))
 			log.Println("send a message")
 			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 
 	s, err := whisper.NewSubscription("hello", *meta, whisper.WithSubACK(), whisper.WithMiddlewares(func(ctx context.Context, m *whisper.Message) {
-		log.Println("handle the message: ", m.Id)
+		log.Println("handle the message:", m.Id)
 	}))
 	if err != nil {
 		log.Println(err)

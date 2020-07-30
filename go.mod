@@ -8,6 +8,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/nats-io/nats-server/v2 v2.1.6 // indirect
 	github.com/nats-io/nats.go v1.9.2
+	github.com/nats-io/nuid v1.0.1
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/cobra v1.0.0 // indirect
