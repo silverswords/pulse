@@ -3,6 +3,7 @@ package whisper
 import (
 	"bytes"
 	"encoding/gob"
+	"fmt"
 	"github.com/silverswords/whisper/internal"
 	"time"
 )
@@ -88,9 +89,13 @@ func (m *Message) done(ack bool) {
 	m.L.doneFunc(m.L.AckID, ack, m.L.receiveTime)
 }
 
+func (m *Message) String() string{
+	return fmt.Sprintf("\n Id: %s Data: %s Attributes: %v \n AckID: %s PublishTime: %v ReceiveTime %v DeliveryAttempt: %d calledDone: %v doneFunc: %T size: %d OrderingKey: %s", m.Id, m.Data, m.Attributes,m.L.AckID,m.L.publishTime,m.L.receiveTime,m.L.DeliveryAttempt,m.L.calledDone,m.L.doneFunc,m.L.size, m.L.OrderingKey)
+}
+
 func ToByte(m *Message) []byte {
-	bytes, _ := Encode(m)
-	return bytes
+	mb, _ := Encode(m)
+	return mb
 }
 
 func ToMessage(bytes []byte) (*Message, error) {

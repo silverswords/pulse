@@ -84,7 +84,7 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 	if err != nil {
 		return nil, err
 	}
-	t := &Subscription{
+	s := &Subscription{
 		topic:           topicName,
 		subOptions:      options,
 		d:               d,
@@ -93,15 +93,15 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 		ReceiveSettings: DefaultRecieveSettings,
 	}
 
-	if err := t.applyOptions(options...); err != nil {
+	if err := s.applyOptions(options...); err != nil {
 		return nil, err
 	}
 
-	if err := t.d.Init(driverMetadata); err != nil {
+	if err := s.d.Init(driverMetadata); err != nil {
 		return nil, err
 	}
 
-	return t, nil
+	return s, nil
 }
 
 // done make the message.Ack could request to send a ack event to the topic with AckTopicPrefix.
@@ -145,9 +145,10 @@ func (s *Subscription) checkIfReceived(msg *Message) bool {
 	}
 }
 
-// Receive for receive the message and return error when handle message error.
+// Receive is a blocking function and return error until receive the message and occurs error when handle message.
 // if error, may should call DrainAck()?
 func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *Message)) error {
+	log.Println("Subscription")
 	s.mu.Lock()
 	if s.receiveActive {
 		s.mu.Unlock()
@@ -229,7 +230,7 @@ func WithMiddlewares(handlers ...func(context.Context, *Message)) subOption {
 	}
 }
 
-func WithAck() subOption {
+func WithSubACK() subOption {
 	return func(s *Subscription) error {
 		s.EnableAck = true
 		return nil

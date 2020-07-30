@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"log"
 )
 
 var Registry = pubsubRegistry{
@@ -14,11 +15,12 @@ type pubsubRegistry struct {
 }
 
 func (r *pubsubRegistry) Register(name string, factory func() Driver) {
-	r.buses[createFullName(name)] = factory
+	r.buses[name] = factory
 }
 
 // Create instantiates a pub/sub based on `name`.
 func (p *pubsubRegistry) Create(name string) (Driver, error) {
+	log.Println(name, p)
 	if method, ok := p.buses[name]; ok {
 		return method(), nil
 	}
@@ -27,6 +29,10 @@ func (p *pubsubRegistry) Create(name string) (Driver, error) {
 
 type Metadata struct {
 	Properties map[string]interface{}
+}
+
+func NewMetadata() *Metadata{
+	return &Metadata{Properties: make(map[string]interface{})}
 }
 
 // todo: default change it to local eventbus

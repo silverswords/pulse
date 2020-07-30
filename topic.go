@@ -193,15 +193,18 @@ func (t *Topic) Publish(_ context.Context, msg *Message) *PublishResult {
 		}
 	}
 
+	// -------------Set the send logic parameters------------
 	// Use a PublishRequest with only the Messages field to calculate the size
 	// of an individual message. This accurately calculates the size of the
 	// encoded proto message by accounting for the length of an individual
 	// PubSubMessage and Data/Attributes field.
 	// TODO(hongalex): if this turns out to take significant time, try to approximate it.
+	// TODO: consider wrap with a newLogicFromMessage()
 	msg.L.size = len(ToByte(msg))
 	var tryTimes int
 	msg.L.DeliveryAttempt = &tryTimes
 
+	// --------------------Set Over---------------------------
 	t.start()
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -288,7 +291,7 @@ func (t *Topic) start() {
 			ctx, cancel = context.WithTimeout(ctx, timeout)
 			defer cancel()
 		}
-		t.publishMessageBundle(ctx, bundle.(*bundledMessage))
+		t.publishMessageBundle(ctx, bundle.([]*bundledMessage))
 	})
 	t.scheduler.DelayThreshold = t.PublishSettings.DelayThreshold
 	t.scheduler.BundleCountThreshold = t.PublishSettings.CountThreshold
@@ -369,59 +372,61 @@ func (t *Topic) checkAck(m *Message) bool {
 	return true
 }
 
-// publishMessageBundle handle all the logic
-func (t *Topic) publishMessageBundle(ctx context.Context, bm *bundledMessage) {
+// publishMessageBundle just handle the send logic
+func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage) {
 	ctx, err := tag.New(ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keyTopic, t.name))
 	if err != nil {
 		log.Printf("pubsub: cannot create context with tag in publishMessageBundle: %v", err)
 	}
+	bm := bms[0]
 	var orderingKey = bm.msg.L.OrderingKey
 
 	if orderingKey != "" && t.scheduler.IsPaused(orderingKey) {
 		err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", orderingKey)
 	} else {
 		// comment the trace of google api
-		//start := time.Now()
-		// err would be the connection failed.
-		// if not nil, pass to result.
 		mb := ToByte(bm.msg)
+
+		// if pub error, would return it in result.
+		// terminate the scheduler if ordering.
 		err = t.d.Publish(t.name, mb)
 		if err != nil {
-			bm.res.set(err)
+			goto NoRetry
 		}
 
 		// if no ack logic, just return
 		if !t.EnableAck {
-			bm.res.set(nil)
-			return
+			goto NoRetry
 		}
 		// todo: consider wrap it with a function.
 		// handle the retry logic.
 		ticker := time.After(t.AckTimeout)
 		<-ticker
-		for *bm.msg.L.DeliveryAttempt < t.RetryParams.MaxTries {
+		for *bm.msg.L.DeliveryAttempt+1 <= t.RetryParams.MaxTries {
+			//check if need ack. if not enabled ack. just break out of retry logic loop.
 			if t.checkAck(bm.msg) {
-				bm.msg = nil
-				bm.res.set(nil)
 				break
 			}
+			// checkAck false and need to retry.
 			err = t.d.Publish(t.name, mb)
 			if err != nil {
-				bm.res.set(err)
 				break
 			}
-			t.RetryParams.Backoff(context.TODO(), *bm.msg.L.DeliveryAttempt)
+
+			err = t.RetryParams.Backoff(context.TODO(), *bm.msg.L.DeliveryAttempt+1)
+			if err != nil {
+				break
+			}
 			*bm.msg.L.DeliveryAttempt++
 		}
-		if *bm.msg.L.DeliveryAttempt >= t.RetryParams.MaxTries {
-			bm.res.set(errors.New(fmt.Sprintf("Retry Error: Message %s retry %d times", bm.msg.Id, t.RetryParams.MaxTries)))
-		}
+
 
 		//end := time.Now()
 		//stats.Record(ctx,
 		//	PublishLatency.M(float64(end.Sub(start)/time.Millisecond)),
 		//	PublishedMessages.M(int64(len(bms))))
 	}
+	NoRetry :
 	if err != nil {
 		t.scheduler.Pause(orderingKey)
 		// Update context with error tag for OpenCensus,
@@ -433,12 +438,13 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bm *bundledMessage) {
 	if err != nil {
 		bm.res.set(err)
 	} else {
+		bm.msg = nil
 		bm.res.set(nil)
 	}
 }
 
-// WithACK would turn on the ack function.
-func WithACK() topicOption {
+// WithPubACK would turn on the ack function.
+func WithPubACK() topicOption {
 	return func(t *Topic) error {
 		t.EnableAck = true
 		// gen AckId
@@ -451,7 +457,7 @@ func WithACK() topicOption {
 	}
 }
 
-// WithACK would turn on the ack function.
+// WithPubACK would turn on the ack function.
 func WithOrdered() topicOption {
 	return func(t *Topic) error {
 		t.EnableMessageOrdering = true

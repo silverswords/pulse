@@ -10,9 +10,10 @@ import (
 )
 
 const (
-	natsURL     = "natsURL"
-	natsOptions = "natsOptions"
-	DefaultURL  = "nats://39.105.141.168:4222"
+	URL        = "natsURL"
+	Options    = "natsOptions"
+	//DefaultURL = "nats://39.105.141.168:4222"
+	DefaultURL = "nats://192.168.0.103:4222"
 )
 
 func setupConnOptions(opts []nats.Option) []nats.Option {
@@ -38,6 +39,7 @@ func init() {
 	driver.Registry.Register("nats", func() driver.Driver {
 		return NewNats()
 	})
+	log.Println("Register the nats driver")
 }
 
 type metadata struct {
@@ -126,7 +128,7 @@ func (n *NatsDriver) Close() error {
 
 func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
-	if val, ok := meta.Properties[natsURL]; ok && val != "" {
+	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.natsURL, ok = val.(string); !ok {
 			return m, errors.New("nats error: nats URL is not a string")
 		}
@@ -134,7 +136,7 @@ func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 		return m, errors.New("nats error: missing nats URL")
 	}
 
-	if val, ok := meta.Properties[natsOptions]; ok && val != nil {
+	if val, ok := meta.Properties[Options]; ok && val != nil {
 		if m.natsOpts, ok = val.([]nats.Option); !ok {
 			return m, errors.New("nats error: missing nats Options and not use default.")
 		}
