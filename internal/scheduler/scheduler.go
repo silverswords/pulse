@@ -18,7 +18,7 @@ package scheduler
 
 import (
 	"errors"
-	"fmt"
+	"log"
 	"reflect"
 	"sync"
 	"time"
@@ -122,6 +122,7 @@ func (s *PublishScheduler) Add(key string, item interface{}, size int) error {
 	if !ok {
 		s.outstanding[key] = 1
 		b = bundler.NewBundler(item, func(bundle interface{}) {
+			log.Println("add the message in the publish queue and ready to pub with handle: ",bundle)
 			s.workers <- struct{}{}
 			s.handle(bundle)
 			<-s.workers
@@ -270,12 +271,9 @@ func (s *ReceiveScheduler) Add(key string, item interface{}, handle func(item in
 		// Spawn a worker.
 		s.workers <- struct{}{}
 		go func() {
-			start := time.Now()
-
 			// Unordered keys can be handled immediately.
 			handle(item)
 			<-s.workers
-			fmt.Println(time.Now().Sub(start))
 
 		}()
 		return nil

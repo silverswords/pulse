@@ -8,8 +8,8 @@ import (
 	"github.com/silverswords/whisper/internal"
 	wctx "github.com/silverswords/whisper/internal/context"
 	"github.com/silverswords/whisper/internal/scheduler"
+	"log"
 	"sync"
-	"time"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 )
 
 type Subscription struct {
-	subOptions []subOption
+	subOptions []SubOption
 
 	d     driver.Driver
 	topic string
@@ -79,7 +79,7 @@ var DefaultRecieveSettings = ReceiveSettings{
 }
 
 // new a topic and init it with the connection options
-func NewSubscription(topicName string, driverMetadata driver.Metadata, options ...subOption) (*Subscription, error) {
+func NewSubscription(topicName string, driverMetadata driver.Metadata, options ...SubOption) (*Subscription, error) {
 	d, err := driver.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 
 // done make the message.Ack could request to send a ack event to the topic with AckTopicPrefix.
 // receiveTime is not useful now because there is no required to promise to topic that suber had handled themessage.
-func (s *Subscription) done(ackId string, ack bool, receiveTime time.Time) {
+func (s *Subscription) done(ackId string, ack bool) {
 	// No ack logic
 	if !ack {
 		s.pendingAcks[ackId] = true
@@ -116,12 +116,13 @@ func (s *Subscription) done(ackId string, ack bool, receiveTime time.Time) {
 	//	send the ack event to topic and keep retry if error if connection error.
 	go func() {
 		var tryTimes int
-		m := &Message{L: Logic{AckID: ackId, DeliveryAttempt: &tryTimes}}
+		m := &Message{Id: ackId}
 		err := s.d.Publish(AckTopicPrefix+s.topic, ToByte(m))
 
 		for err != nil {
 			// wait for sometime
-			err1 := s.RetryParams.Backoff(context.TODO(), *m.L.DeliveryAttempt)
+			err1 := s.RetryParams.Backoff(context.TODO(), tryTimes)
+			tryTimes ++
 			if err1 != nil {
 				//	retry and then handle the deadletter with s.receiveSettings.dead_letter_policy
 				if s.DeadLetterPolicy == nil {
@@ -142,6 +143,7 @@ func (s *Subscription) checkIfReceived(msg *Message) bool {
 		s.receivedEvent[msg.Id] = true
 		return false
 	} else {
+		log.Println("_______________________already received this message")
 		return true
 	}
 }
@@ -169,6 +171,8 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	ctx2, cancel2 := context.WithCancel(ctx)
 	defer cancel2()
 
+	var received int
+
 	closer, err := s.d.Subscribe(s.topic, func(msg []byte) {
 		m, err := ToMessage(msg)
 		if err != nil {
@@ -178,8 +182,9 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 		if s.checkIfReceived(m) {
 			return
 		}
-
-		m.L.doneFunc = s.done
+		received ++
+		log.Info("+++++++++++++++++++++received message", received)
+		m.doneFunc = s.done
 		// promise to ack when received a right message.
 		if s.EnableAck {
 			defer m.Ack()
@@ -188,12 +193,12 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 		}
 
 		// if no ordering, it would be concurrency handle the message.
-		err = s.scheduler.Add(m.L.OrderingKey, m, func(msg interface{}) {
+		err = s.scheduler.Add(m.OrderingKey, m, func(msg interface{}) {
 
 			// group to receive the first error and terminate all the subscribers.
 			// just hint the message is not ordering handle.
-			if s.EnableMessageOrdering && m.L.OrderingKey != "" {
-				err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", m.L.OrderingKey)
+			if s.EnableMessageOrdering && m.OrderingKey != "" {
+				err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", m.OrderingKey)
 			}
 			// handle the message until the ackTimeout is reached
 			// if cannot handle out the message
@@ -227,23 +232,23 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	return ctx2.Err()
 }
 
-func WithMiddlewares(handlers ...func(context.Context, *Message)) subOption {
+func WithMiddlewares(handlers ...func(context.Context, *Message)) SubOption {
 	return func(s *Subscription) error {
 		s.handlers = append(s.handlers, handlers...)
 		return nil
 	}
 }
 
-func WithSubACK() subOption {
+func WithSubACK() SubOption {
 	return func(s *Subscription) error {
 		s.EnableAck = true
 		return nil
 	}
 }
 
-type subOption func(*Subscription) error
+type SubOption func(*Subscription) error
 
-func (s *Subscription) applyOptions(opts ...subOption) error {
+func (s *Subscription) applyOptions(opts ...SubOption) error {
 	for _, fn := range opts {
 		if err := fn(s); err != nil {
 			return err

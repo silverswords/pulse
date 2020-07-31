@@ -15,6 +15,7 @@ require (
 	github.com/stretchr/testify v1.5.1 // indirect
 	go.opencensus.io v0.22.3
 	go.uber.org/zap v1.15.0
+	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	google.golang.org/api v0.29.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect

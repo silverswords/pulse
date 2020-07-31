@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"github.com/silverswords/whisper/internal"
-	"time"
-
 	"github.com/nats-io/nuid"
+	"github.com/silverswords/whisper/internal"
 )
 
+var uidGen = nuid.New()
+// todo: transform those message to cloudEvent specification.
 //// DirectMessaging is the API interface for invoking a remote app
 //type DirectMessaging interface {
 //	Invoke(ctx context.Context, targetAppID string, req *invokev1.InvokeMethodRequest) (*invokev1.InvokeMethodResponse, error)
@@ -24,22 +24,19 @@ import (
 //"data": { ... }
 //}
 type Message struct {
+	// did we need a ack id again? no because the message id is just for whisper.
+	// it's enough to ack.
+	// AckID string
 	Id   string
 	Data []byte // Message data
 
+
+	OrderingKey string // for example, order id, would be ordered consume by the consumer.
 	// Where the message from and to. what codec is the message have. when and why have this message.
 	Attributes internal.Header // Message Header use to specific message and how to handle it.
 
 	// Logic is represents the fields that don't need initialize by the message producer.
-	L Logic
-}
-
-type Logic struct {
-	AckID string
-	// Timestamp
-	publishTime time.Time
-	receiveTime time.Time
-
+	size        int
 	// DeliveryAttempt is the number of times a message has been delivered.
 	// This is part of the dead lettering feature that forwards messages that
 	// fail to be processed (from nack/ack deadline timeout) to a dead letter topic.
@@ -48,26 +45,27 @@ type Logic struct {
 	// This field is read-only.
 	DeliveryAttempt *int
 	calledDone      bool
-	doneFunc        func(string, bool, time.Time)
-
-	size        int
-	OrderingKey string
+	doneFunc        func(string, bool)
 }
 
-func (l *Logic) String() string {
-	return fmt.Sprintf("AckID: %s PublishTime: %v ReceiveTime %v DeliveryAttempt: %d calledDone: %v doneFunc: %T size: %d OrderingKey: %s", l.AckID, l.publishTime, l.receiveTime, l.DeliveryAttempt, l.calledDone, l.doneFunc, l.size, l.OrderingKey)
+// hint: now message string just print the event
+func (m *Message) String() string {
+	return fmt.Sprintf("Id: %s Data: %s Attributes: %v OrderingKey: %s DeliveryAttempt: %d calledDone: %v doneFunc: %T size: %d", m.Id, m.Data, m.Attributes,m.OrderingKey,m.DeliveryAttempt, m.calledDone, m.doneFunc, m.size)
 }
 
 // note that id should be uuid.
 func NewMessage(data []byte) *Message {
+	return NewEventwithOrderKey(data,"")
+}
+
+func NewEventwithOrderKey(data []byte,key string) *Message {
 	return &Message{
-		Id:    		nuid.Next(),
-		Data:       data,
-		Attributes: make(internal.Header),
-		L: Logic{
-			publishTime: time.Now(),
-		},
-	}
+			Id:    		uidGen.Next(),
+			Data:       data,
+			Attributes: make(internal.Header),
+			OrderingKey:key,
+		}
+
 }
 
 // Ack indicates successful processing of a Message passed to the Subscriber.Receive callback.
@@ -89,17 +87,17 @@ func (m *Message) Nack() {
 }
 
 func (m *Message) done(ack bool) {
-	if m.L.calledDone {
+	if m.calledDone {
 		return
 	}
-	m.L.calledDone = true
-	m.L.doneFunc(m.L.AckID, ack, m.L.receiveTime)
+	m.calledDone = true
+	m.doneFunc(m.Id, ack)
 }
 
-func (m *Message) String() string {
-	return fmt.Sprintf("Id: %s Data: %s Attributes: %v ", m.Id, m.Data, m.Attributes)
-}
 
+
+// todo: consider compile them with protobuf
+// hint: just codec the Event struct
 func ToByte(m *Message) []byte {
 	mb, _ := Encode(m)
 	return mb

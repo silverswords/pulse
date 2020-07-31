@@ -24,7 +24,8 @@ const (
 	BackoffStrategyExponential = "exponential"
 )
 
-var DefaultRetryParams = RetryParams{Strategy: BackoffStrategyLinear, MaxTries: 10, Period: 1 * time.Second}
+// DefaultRetryParams max wait time is 64 + 32 + 16 + 8 + 4 + 2 + 1 sum 123 seconds with 6 times call.
+var DefaultRetryParams = RetryParams{Strategy: BackoffStrategyLinear, MaxTries: 6, Period: 1 * time.Second}
 
 // RetryParams holds parameters applied to retries
 type RetryParams struct {
