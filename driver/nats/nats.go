@@ -39,7 +39,7 @@ func init() {
 	driver.Registry.Register("nats", func() driver.Driver {
 		return NewNats()
 	})
-	log.Println("Register the nats driver")
+	//log.Println("Register the nats driver")
 }
 
 type metadata struct {

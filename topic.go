@@ -30,7 +30,9 @@ const (
 	// in bytes, as defined by the PubSub service.
 	MaxPublishRequestBytes = 1e7 // 10m
 
+	// prefix use to specific to other client use the same MQ.
 	AckTopicPrefix = "ack_"
+	WhisperPrefix = "w_"
 )
 
 var (
@@ -124,7 +126,7 @@ func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Topic
 		return nil, err
 	}
 	t := &Topic{
-		name:            topicName,
+		name:            WhisperPrefix+ topicName,
 		topicOptions:    options,
 		d:               d,
 		PublishSettings: DefaultPublishSettings,
@@ -139,25 +141,29 @@ func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Topic
 	if err := t.d.Init(driverMetadata); err != nil {
 		return nil, err
 	}
-	if err := t.startAck(); err != nil {
+	if err := t.startAck(context.Background()); err != nil {
 		_ = t.d.Close()
 		return nil, err
 	}
 	return t, nil
 }
 
-func (t *Topic) startAck() error {
+func (t *Topic) startAck(ctx context.Context) error {
 	// todo: now the ack logic's stability rely on driver subscriber implements. but not whisper implements.
 	// open a subscriber, receive and then ack the message.
 	// message should check itself and then depend on topic RetryParams to retry.
 	if !t.EnableAck {
 		return nil
 	}
+	log := wctx.LoggerFrom(ctx)
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
 		m, err := ToMessage(out)
 		if err != nil {
-			fmt.Println("error in message decode: ", err)
+			log.Error("topic",t.name,"error in ack message decode: ", err)
+		//	 not our Whisper message, just ignore it
+		return
 		}
+		log.Debug("topic", t.name, "received ackId",m.Id)
 		t.done(m.Id, true, time.Now())
 	})
 	if err != nil {
@@ -367,6 +373,7 @@ var (
 func (t *Topic) checkAck(m *Message) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	//log.Println("checking message ", m.Id, t.pendingAcks)
 	if !t.pendingAcks[m.Id] {
 		return false
 	}
@@ -409,7 +416,7 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 // publishMessage block until ack or an error occurs and pass the error by PublishResult
 func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error{
 	log := wctx.LoggerFrom(ctx)
-	log.Info("sending: the bundle key is \"",bm.msg.OrderingKey,"\" with id", bm.msg.Id )
+	log.Debug("sending: the bundle key is ",bm.msg.OrderingKey," with id", bm.msg.Id )
 	var retryTimes = 0
 
 	// comment the trace of google api
@@ -435,6 +442,9 @@ Retry:
 	if err != nil {
 		goto NoRetry
 	}
+	if t.checkAck(bm.msg) {
+		goto NoRetry
+	}
 	log.Info("resend")
 	// checkAck false and need to retry.
 	err = t.d.Publish(t.name, mb)
@@ -455,7 +465,7 @@ NoRetry:
 	}
 	// error handle
 	if err != nil {
-		log.Error(err)
+		log.Error("error in pulishMessage:",err)
 		bm.res.set(err)
 	} else {
 		bm.msg = nil

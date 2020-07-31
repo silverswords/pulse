@@ -10,7 +10,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
-	"time"
 )
 
 func main() {
@@ -33,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Println(err, nc)
 	}
-	t, err := whisper.NewTopic("hello", *meta, whisper.WithPubACK())
+	t, err := whisper.NewTopic("hello", *meta, whisper.WithPubACK(),whisper.WithCount())
 	if err != nil {
 		log.Println(err)
 		return
@@ -49,8 +48,7 @@ func main() {
 				}
 			}()
 			//log.Println("send a message", count)
-			time.Sleep(10 * time.Millisecond)
-			if count > 1e2{
+			if count > 1e5{
 				return
 			}
 		}
@@ -66,11 +64,11 @@ func main() {
 		panic(http.ListenAndServe(":8080", nil))
 	}()
 
-	//var receiveCount int
+	var receiveCount int
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
 	err = s.Receive(context.Background(), func(ctx context.Context, m *whisper.Message) {
-		//receiveCount ++
-		//log.Println("receive the message:", m.Id, receiveCount)
+		receiveCount ++
+		log.Println("receive the message:", m.Id, receiveCount)
 	})
 
 	if err != nil {

@@ -20,7 +20,7 @@ func (r *pubsubRegistry) Register(name string, factory func() Driver) {
 
 // Create instantiates a pub/sub based on `name`.
 func (p *pubsubRegistry) Create(name string) (Driver, error) {
-	log.Println(name, p)
+	log.Println("Create a driver",name)
 	if method, ok := p.buses[name]; ok {
 		return method(), nil
 	}

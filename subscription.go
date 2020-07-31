@@ -30,9 +30,6 @@ type Subscription struct {
 	// todo: consider change it to bitmap
 	receivedEvent map[string]bool
 
-	pendingAcks map[string]bool
-	deadQueue   chan *Message
-
 	mu sync.RWMutex
 	// Settings for receiving messages. All changes must be made before the
 	// first call to Receive. The default is DefaultPublishSettings.
@@ -53,10 +50,6 @@ type ReceiveSettings struct {
 
 	EnableAck bool
 
-	// DeadLetterPolicy specifies the conditions for dead lettering messages in
-	// a subscription. If not set, dead lettering is disabled.
-	DeadLetterPolicy *internal.DeadLetterPolicy
-
 	// RetryPolicy specifies how Cloud Pub/Sub retries message delivery.
 	RetryParams *internal.RetryParams
 
@@ -73,7 +66,6 @@ var DefaultRecieveSettings = ReceiveSettings{
 	// default linear increase retry interval and 10 times.
 	RetryParams: &internal.DefaultRetryParams,
 	// default nil and drop letter.
-	DeadLetterPolicy: nil,
 
 	MaxOutstandingMessages: 1000,
 }
@@ -85,12 +77,11 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 		return nil, err
 	}
 	s := &Subscription{
-		topic:      topicName,
+		topic:      WhisperPrefix+ topicName,
 		subOptions: options,
 		d:          d,
 		//handlers:        make([]func(context.Context,*Message)),
 		receivedEvent:   make(map[string]bool),
-		pendingAcks:     make(map[string]bool),
 		ReceiveSettings: DefaultRecieveSettings,
 	}
 
@@ -110,7 +101,7 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 func (s *Subscription) done(ackId string, ack bool) {
 	// No ack logic
 	if !ack {
-		s.pendingAcks[ackId] = true
+		//s.pendingAcks[ackId] = ack
 		return
 	}
 	//	send the ack event to topic and keep retry if error if connection error.
@@ -118,19 +109,17 @@ func (s *Subscription) done(ackId string, ack bool) {
 		var tryTimes int
 		m := &Message{Id: ackId}
 		err := s.d.Publish(AckTopicPrefix+s.topic, ToByte(m))
-
+		//log.Println("suber ----------------------------- suber ack the",m.Id )
 		for err != nil {
 			// wait for sometime
 			err1 := s.RetryParams.Backoff(context.TODO(), tryTimes)
 			tryTimes ++
 			if err1 != nil {
-				//	retry and then handle the deadletter with s.receiveSettings.dead_letter_policy
-				if s.DeadLetterPolicy == nil {
-					return
-				}
+				log.Println("error retrying send ack message id:", m.Id)
 			}
 			err = s.d.Publish(AckTopicPrefix+s.topic, ToByte(m))
 		}
+		//s.pendingAcks[ackId] = true
 		//	if reached here, the message have been send ack.
 	}()
 }
@@ -143,7 +132,6 @@ func (s *Subscription) checkIfReceived(msg *Message) bool {
 		s.receivedEvent[msg.Id] = true
 		return false
 	} else {
-		log.Println("_______________________already received this message")
 		return true
 	}
 }
@@ -153,7 +141,7 @@ func (s *Subscription) checkIfReceived(msg *Message) bool {
 // if error, may should call DrainAck()?
 func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *Message)) error {
 	log := wctx.LoggerFrom(ctx)
-	log.Info("Subscription StartReceive")
+	log.Debug("Subscription Start Receive from ", s.topic)
 	s.mu.Lock()
 	if s.receiveActive {
 		s.mu.Unlock()
@@ -171,19 +159,19 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	ctx2, cancel2 := context.WithCancel(ctx)
 	defer cancel2()
 
-	var received int
-
 	closer, err := s.d.Subscribe(s.topic, func(msg []byte) {
 		m, err := ToMessage(msg)
 		if err != nil {
 			log.Error("Error while transforming the byte to message: ", err)
+			// not our whisper message. just drop it.
+			return
 		}
 		// don't repeat the handle logic.
 		if s.checkIfReceived(m) {
+			log.Debug("Subscriber with topic:", s.topic,"already received this message id:", m.Id)
 			return
 		}
-		received ++
-		log.Info("+++++++++++++++++++++received message", received)
+		log.Debug("Subscriber with topic:", s.topic,"received message id: ",m.Id)
 		m.doneFunc = s.done
 		// promise to ack when received a right message.
 		if s.EnableAck {
