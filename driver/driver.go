@@ -20,7 +20,7 @@ func (r *pubsubRegistry) Register(name string, factory func() Driver) {
 
 // Create instantiates a pub/sub based on `name`.
 func (p *pubsubRegistry) Create(name string) (Driver, error) {
-	log.Println("Create a driver",name)
+	log.Println("Create a driver", name)
 	if method, ok := p.buses[name]; ok {
 		return method(), nil
 	}
@@ -46,6 +46,7 @@ func (m *Metadata) GetDriverName() string {
 	}
 	return noDriver
 }
+
 // todo: SetDriver() is need.
 
 func createFullName(name string) string { return fmt.Sprintf("pubsub.%s", name) }

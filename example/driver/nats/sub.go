@@ -1,8 +1,8 @@
 package main
 
 import (
-na"github.com/nats-io/nats.go"
-"github.com/silverswords/whisper/driver/nats"
+	na "github.com/nats-io/nats.go"
+	"github.com/silverswords/whisper/driver/nats"
 	"log"
 	"runtime"
 )
@@ -14,8 +14,8 @@ func main() {
 	}
 	var count int
 
-	nc.Subscribe("hello",func(msg *na.Msg){
-		log.Println(msg,count)
+	nc.Subscribe("hello", func(msg *na.Msg) {
+		log.Println(msg, count)
 		count++
 	})
 

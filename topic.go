@@ -32,7 +32,7 @@ const (
 
 	// prefix use to specific to other client use the same MQ.
 	AckTopicPrefix = "ack_"
-	WhisperPrefix = "w_"
+	WhisperPrefix  = "w_"
 )
 
 var (
@@ -46,7 +46,7 @@ type Topic struct {
 	d    driver.Driver
 	name string
 
-	endpoints []func(ctx context.Context,m *Message) error
+	endpoints []func(ctx context.Context, m *Message) error
 	// Settings for publishing messages. All changes must be made before the
 	// first call to Publish. The default is DefaultPublishSettings.
 	// it means could not dynamically change and hot start.
@@ -57,7 +57,7 @@ type Topic struct {
 	scheduler *scheduler.PublishScheduler
 
 	pendingAcks map[string]bool
-	deadQueue chan *Message
+	deadQueue   chan *Message
 }
 
 // PublishSettings control the bundling of published messages.
@@ -126,7 +126,7 @@ func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Topic
 		return nil, err
 	}
 	t := &Topic{
-		name:            WhisperPrefix+ topicName,
+		name:            WhisperPrefix + topicName,
 		topicOptions:    options,
 		d:               d,
 		PublishSettings: DefaultPublishSettings,
@@ -159,11 +159,11 @@ func (t *Topic) startAck(ctx context.Context) error {
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
 		m, err := ToMessage(out)
 		if err != nil {
-			log.Error("topic",t.name,"error in ack message decode: ", err)
-		//	 not our Whisper message, just ignore it
-		return
+			log.Error("topic", t.name, "error in ack message decode: ", err)
+			//	 not our Whisper message, just ignore it
+			return
 		}
-		log.Debug("topic", t.name, "received ackId",m.Id)
+		log.Debug("topic", t.name, "received ackId", m.Id)
 		t.done(m.Id, true, time.Now())
 	})
 	if err != nil {
@@ -385,14 +385,14 @@ func (t *Topic) checkAck(m *Message) bool {
 // publishMessageBundle just handle the send logic
 func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage) {
 	ctx, err := tag.New(ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keyTopic, t.name))
-	log :=  wctx.LoggerFrom(ctx)
+	log := wctx.LoggerFrom(ctx)
 	if err != nil {
 		log.Errorf("pubsub: cannot create context with tag in publishMessageBundle: %v", err)
 	}
 	group, gCtx := errgroup.WithContext(ctx)
 
 	for _, bm := range bms {
-		if  t.scheduler.IsPaused(bm.msg.OrderingKey) {
+		if t.scheduler.IsPaused(bm.msg.OrderingKey) {
 			err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", bm.msg.OrderingKey)
 		}
 
@@ -403,20 +403,20 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 
 		if bm.msg.OrderingKey == "" {
 			group.Go(func() error {
-				return t.publishMessage(gCtx,closureBundleMessage)
+				return t.publishMessage(gCtx, closureBundleMessage)
 			})
 			// if no order, send as far as possible
 			continue
 		}
-		t.publishMessage(ctx,bm)
+		t.publishMessage(ctx, bm)
 	}
 	group.Wait()
 }
 
 // publishMessage block until ack or an error occurs and pass the error by PublishResult
-func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error{
+func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 	log := wctx.LoggerFrom(ctx)
-	log.Debug("sending: the bundle key is ",bm.msg.OrderingKey," with id", bm.msg.Id )
+	log.Debug("sending: the bundle key is ", bm.msg.OrderingKey, " with id", bm.msg.Id)
 	var retryTimes = 0
 
 	// comment the trace of google api
@@ -437,8 +437,8 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error{
 	// handle the wait ack and retry logic. note that topic set ack true in startAck() function.
 
 Retry:
-	retryTimes ++
-	err = t.RetryParams.Backoff(ctx,retryTimes)
+	retryTimes++
+	err = t.RetryParams.Backoff(ctx, retryTimes)
 	if err != nil {
 		goto NoRetry
 	}
@@ -453,7 +453,6 @@ Retry:
 	}
 	goto Retry
 
-
 	//	no error check until here
 NoRetry:
 	if err != nil {
@@ -465,7 +464,7 @@ NoRetry:
 	}
 	// error handle
 	if err != nil {
-		log.Error("error in pulishMessage:",err)
+		log.Error("error in pulishMessage:", err)
 		bm.res.set(err)
 	} else {
 		bm.msg = nil
@@ -473,8 +472,6 @@ NoRetry:
 	}
 	return err
 }
-
-
 
 // WithPubACK would turn on the ack function.
 func WithPubACK() TopicOption {
@@ -487,8 +484,8 @@ func WithPubACK() TopicOption {
 func WithCount() TopicOption {
 	return func(t *Topic) error {
 		var count = 0
-		t.endpoints = append(t.endpoints, func(ctx context.Context,m *Message) error {
-			count ++
+		t.endpoints = append(t.endpoints, func(ctx context.Context, m *Message) error {
+			count++
 			log.Println("count", count)
 			return nil
 		})

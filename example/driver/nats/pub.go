@@ -13,9 +13,9 @@ func main() {
 	}
 	var count int
 	for {
-		count ++
+		count++
 		log.Println(count)
-		nc.Publish("hello",[]byte("world"))
+		nc.Publish("hello", []byte("world"))
 	}
 
 }

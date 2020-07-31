@@ -9,6 +9,7 @@ import (
 )
 
 var uidGen = nuid.New()
+
 // todo: transform those message to cloudEvent specification.
 //// DirectMessaging is the API interface for invoking a remote app
 //type DirectMessaging interface {
@@ -30,13 +31,12 @@ type Message struct {
 	Id   string
 	Data []byte // Message data
 
-
 	OrderingKey string // for example, order id, would be ordered consume by the consumer.
 	// Where the message from and to. what codec is the message have. when and why have this message.
 	Attributes internal.Header // Message Header use to specific message and how to handle it.
 
 	// Logic is represents the fields that don't need initialize by the message producer.
-	size        int
+	size int
 	// DeliveryAttempt is the number of times a message has been delivered.
 	// This is part of the dead lettering feature that forwards messages that
 	// fail to be processed (from nack/ack deadline timeout) to a dead letter topic.
@@ -50,21 +50,21 @@ type Message struct {
 
 // hint: now message string just print the event
 func (m *Message) String() string {
-	return fmt.Sprintf("Id: %s Data: %s Attributes: %v OrderingKey: %s DeliveryAttempt: %d calledDone: %v doneFunc: %T size: %d", m.Id, m.Data, m.Attributes,m.OrderingKey,m.DeliveryAttempt, m.calledDone, m.doneFunc, m.size)
+	return fmt.Sprintf("Id: %s Data: %s Attributes: %v OrderingKey: %s DeliveryAttempt: %d calledDone: %v doneFunc: %T size: %d", m.Id, m.Data, m.Attributes, m.OrderingKey, m.DeliveryAttempt, m.calledDone, m.doneFunc, m.size)
 }
 
 // note that id should be uuid.
 func NewMessage(data []byte) *Message {
-	return NewEventwithOrderKey(data,"")
+	return NewEventwithOrderKey(data, "")
 }
 
-func NewEventwithOrderKey(data []byte,key string) *Message {
+func NewEventwithOrderKey(data []byte, key string) *Message {
 	return &Message{
-			Id:    		uidGen.Next(),
-			Data:       data,
-			Attributes: make(internal.Header),
-			OrderingKey:key,
-		}
+		Id:          uidGen.Next(),
+		Data:        data,
+		Attributes:  make(internal.Header),
+		OrderingKey: key,
+	}
 
 }
 
@@ -93,8 +93,6 @@ func (m *Message) done(ack bool) {
 	m.calledDone = true
 	m.doneFunc(m.Id, ack)
 }
-
-
 
 // todo: consider compile them with protobuf
 // hint: just codec the Event struct

@@ -22,7 +22,6 @@ func main() {
 	//pprof.WriteHeapProfile(f)
 	//f.Close()
 
-
 	meta := driver.NewMetadata()
 	meta.Properties[nats.URL] = nats.DefaultURL
 	meta.Properties["DriverName"] = "nats"
@@ -32,7 +31,7 @@ func main() {
 	if err != nil {
 		log.Println(err, nc)
 	}
-	t, err := whisper.NewTopic("hello", *meta, whisper.WithPubACK(),whisper.WithCount())
+	t, err := whisper.NewTopic("hello", *meta, whisper.WithPubACK(), whisper.WithCount())
 	if err != nil {
 		log.Println(err)
 		return
@@ -41,14 +40,14 @@ func main() {
 		var count int
 		for {
 			count++
-			res := t.Publish(context.Background(), whisper.NewMessage( []byte("hello")))
+			res := t.Publish(context.Background(), whisper.NewMessage([]byte("hello")))
 			go func() {
 				if err := res.Get(context.Background()); err != nil {
-					log.Println("----------------------",err)
+					log.Println("----------------------", err)
 				}
 			}()
 			//log.Println("send a message", count)
-			if count > 1e5{
+			if count > 1e2 {
 				return
 			}
 		}
@@ -67,7 +66,7 @@ func main() {
 	var receiveCount int
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
 	err = s.Receive(context.Background(), func(ctx context.Context, m *whisper.Message) {
-		receiveCount ++
+		receiveCount++
 		log.Println("receive the message:", m.Id, receiveCount)
 	})
 

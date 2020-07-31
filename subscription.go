@@ -77,7 +77,7 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 		return nil, err
 	}
 	s := &Subscription{
-		topic:      WhisperPrefix+ topicName,
+		topic:      WhisperPrefix + topicName,
 		subOptions: options,
 		d:          d,
 		//handlers:        make([]func(context.Context,*Message)),
@@ -113,7 +113,7 @@ func (s *Subscription) done(ackId string, ack bool) {
 		for err != nil {
 			// wait for sometime
 			err1 := s.RetryParams.Backoff(context.TODO(), tryTimes)
-			tryTimes ++
+			tryTimes++
 			if err1 != nil {
 				log.Println("error retrying send ack message id:", m.Id)
 			}
@@ -168,10 +168,10 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 		}
 		// don't repeat the handle logic.
 		if s.checkIfReceived(m) {
-			log.Debug("Subscriber with topic:", s.topic,"already received this message id:", m.Id)
+			log.Debug("Subscriber with topic:", s.topic, "already received this message id:", m.Id)
 			return
 		}
-		log.Debug("Subscriber with topic:", s.topic,"received message id: ",m.Id)
+		log.Debug("Subscriber with topic:", s.topic, "received message id: ", m.Id)
 		m.doneFunc = s.done
 		// promise to ack when received a right message.
 		if s.EnableAck {
@@ -201,7 +201,8 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 		})
 		if err != nil {
 			cancel2()
-		}	})
+		}
+	})
 	defer closer.Close()
 	defer s.scheduler.Shutdown()
 	// sub error
@@ -214,7 +215,6 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	case <-ctx2.Done():
 		err = ctx2.Err()
 	}
-
 
 	// if there is some error. close the suber and return the error.
 	return ctx2.Err()
