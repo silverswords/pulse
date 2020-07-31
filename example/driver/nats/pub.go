@@ -1,10 +1,9 @@
 package main
 
 import (
-	na"github.com/nats-io/nats.go"
+	na "github.com/nats-io/nats.go"
 	"github.com/silverswords/whisper/driver/nats"
 	"log"
-	"time"
 )
 
 func main() {
@@ -17,7 +16,6 @@ func main() {
 		count ++
 		log.Println(count)
 		nc.Publish("hello",[]byte("world"))
-		time.Sleep(time.Microsecond)
 	}
 
 }

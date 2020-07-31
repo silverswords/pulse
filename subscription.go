@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/silverswords/whisper/driver"
 	"github.com/silverswords/whisper/internal"
+	wctx "github.com/silverswords/whisper/internal/context"
 	"github.com/silverswords/whisper/internal/scheduler"
-	"log"
 	"sync"
 	"time"
 )
@@ -119,7 +119,6 @@ func (s *Subscription) done(ackId string, ack bool, receiveTime time.Time) {
 		m := &Message{L: Logic{AckID: ackId, DeliveryAttempt: &tryTimes}}
 		err := s.d.Publish(AckTopicPrefix+s.topic, ToByte(m))
 
-		log.Println("ack message")
 		for err != nil {
 			// wait for sometime
 			err1 := s.RetryParams.Backoff(context.TODO(), *m.L.DeliveryAttempt)
@@ -151,7 +150,8 @@ func (s *Subscription) checkIfReceived(msg *Message) bool {
 // Receive is a blocking function and return error until receive the message and occurs error when handle message.
 // if error, may should call DrainAck()?
 func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *Message)) error {
-	log.Println("Subscription")
+	log := wctx.LoggerFrom(ctx)
+	log.Info("Subscription StartReceive")
 	s.mu.Lock()
 	if s.receiveActive {
 		s.mu.Unlock()
@@ -172,7 +172,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	closer, err := s.d.Subscribe(s.topic, func(msg []byte) {
 		m, err := ToMessage(msg)
 		if err != nil {
-			log.Println("Error while transform the []message2byte to message: ", err)
+			log.Error("Error while transforming the byte to message: ", err)
 		}
 		// don't repeat the handle logic.
 		if s.checkIfReceived(m) {
@@ -208,8 +208,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 		})
 		if err != nil {
 			cancel2()
-		}
-	})
+		}	})
 	defer closer.Close()
 	defer s.scheduler.Shutdown()
 	// sub error

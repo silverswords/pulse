@@ -9,11 +9,12 @@ import (
 	"github.com/silverswords/whisper/internal"
 	wctx "github.com/silverswords/whisper/internal/context"
 	"github.com/silverswords/whisper/internal/scheduler"
+	"log"
+
 	//"go.opencensus.io/stats"
 	//"github.com/golang/protobuf/proto"
 
 	"go.opencensus.io/tag"
-	"log"
 	"runtime"
 	"sync"
 	"time"
@@ -44,6 +45,7 @@ type Topic struct {
 	d    driver.Driver
 	name string
 
+	// todo: consider change to func(ctx context.Context, m *Message) error
 	endpoints []func(m *Message) error
 	// Settings for publishing messages. All changes must be made before the
 	// first call to Publish. The default is DefaultPublishSettings.
@@ -106,6 +108,7 @@ var DefaultPublishSettings = PublishSettings{
 	DelayThreshold: 10 * time.Millisecond,
 	CountThreshold: 100,
 	ByteThreshold:  1e6,
+	NumGoroutines: 25 * runtime.GOMAXPROCS(0),
 	Timeout:        60 * time.Second,
 	AckTimeout:     1 * time.Second,
 	// By default, limit the bundler to 10 times the max message size. The number 10 is
@@ -184,6 +187,9 @@ func (t *Topic) Publish(ctx context.Context, msg *Message) *PublishResult {
 		return r
 	}
 
+
+
+	// -------------Set the send logic parameters------------
 	// With Chain handlers to handle.
 	for _, handler := range t.endpoints {
 		err := handler(msg)
@@ -192,8 +198,6 @@ func (t *Topic) Publish(ctx context.Context, msg *Message) *PublishResult {
 			return r
 		}
 	}
-
-	// -------------Set the send logic parameters------------
 	// Use a PublishRequest with only the Messages field to calculate the size
 	// of an individual message. This accurately calculates the size of the
 	// encoded proto message by accounting for the length of an individual
@@ -280,7 +284,7 @@ func (t *Topic) start() {
 	// concurrently. The default value was determined via extensive load
 	// testing (see the loadtest subdirectory).
 	if t.PublishSettings.NumGoroutines == 0 {
-		workers = runtime.GOMAXPROCS(0)
+		workers = 25 * runtime.GOMAXPROCS(0)
 	}
 
 	t.scheduler = scheduler.NewPublishScheduler(workers, func(bundle interface{}) {
@@ -368,6 +372,7 @@ func (t *Topic) checkAck(m *Message) bool {
 	if !t.pendingAcks[m.L.AckID] {
 		return false
 	}
+	// new a ticker delete for range with the map.
 	delete(t.pendingAcks, m.L.AckID)
 	return true
 }
@@ -382,6 +387,7 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 	bm := bms[0]
 	var orderingKey = bm.msg.L.OrderingKey
 
+	log.Info("send the message ",bm.msg.Id)
 	if orderingKey != "" && t.scheduler.IsPaused(orderingKey) {
 		err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", orderingKey)
 	} else {
@@ -404,8 +410,11 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 		ticker := time.After(t.AckTimeout)
 		<-ticker
 		for *bm.msg.L.DeliveryAttempt+1 <= t.RetryParams.MaxTries {
+
 			//check if need ack. if not enabled ack. just break out of retry logic loop.
 			if t.checkAck(bm.msg) {
+
+				log.Info("checked message ", bm.msg.Id)
 				break
 			}
 			// checkAck false and need to retry.
@@ -436,6 +445,7 @@ NoRetry:
 	}
 	// error handle
 	if err != nil {
+		log.Info(err)
 		bm.res.set(err)
 	} else {
 		bm.msg = nil
@@ -453,6 +463,18 @@ func WithPubACK() topicOption {
 			return nil
 		})
 
+		return nil
+	}
+}
+
+func WithCount() topicOption {
+	return func(t *Topic) error {
+		var count = 0
+		t.endpoints = append(t.endpoints, func(m *Message) error {
+			count ++
+			log.Println("count", count)
+			return nil
+		})
 		return nil
 	}
 }
