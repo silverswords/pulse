@@ -3,6 +3,7 @@ module github.com/silverswords/whisper
 go 1.14
 
 require (
+	github.com/asaskevich/EventBus v0.0.0-20200428142821-4fc0642a29f3
 	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/google/go-cmp v0.4.0
 	github.com/kr/text v0.2.0 // indirect

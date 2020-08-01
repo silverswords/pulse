@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+// from https://github.com/sheerun/queue
+
 const minQueueLen = 32
 
 type Queue struct {

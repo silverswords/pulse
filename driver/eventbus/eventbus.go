@@ -1,43 +1,19 @@
-package nats
+package eventbus
 
+// from https://github.com/asaskevich/EventBus/blob/master/README.md
 import (
 	"errors"
-	"fmt"
+	evb "github.com/asaskevich/EventBus"
 	"github.com/nats-io/nats.go"
 	"github.com/silverswords/whisper/driver"
-	"log"
-	"time"
 )
 
-const (
-	URL     = "natsURL"
-	Options = "natsOptions"
-	//DefaultURL = "nats://39.105.141.168:4222"
-	DefaultURL = "nats://192.168.0.103:4222"
-)
-
-func setupConnOptions(opts []nats.Option) []nats.Option {
-	totalWait := 10 * time.Minute
-	reconnectDelay := time.Second
-
-	opts = append(opts, nats.ReconnectWait(reconnectDelay))
-	opts = append(opts, nats.MaxReconnects(int(totalWait/reconnectDelay)))
-	opts = append(opts, nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
-		log.Printf("Disconnected due to:%s, will attempt reconnects for %.0fm", err, totalWait.Minutes())
-	}))
-	opts = append(opts, nats.ReconnectHandler(func(nc *nats.Conn) {
-		log.Printf("Reconnected [%s]", nc.ConnectedUrl())
-	}))
-	opts = append(opts, nats.ClosedHandler(func(nc *nats.Conn) {
-		log.Fatalf("Exiting: %v", nc.LastError())
-	}))
-	return opts
-}
+const ()
 
 func init() {
 	// use to register the nats to pubsub driver factory
-	driver.Registry.Register("nats", func() driver.Driver {
-		return NewNats()
+	driver.Registry.Register("", func() driver.Driver {
+		return NewEventBus()
 	})
 	//log.Println("Register the nats driver")
 }
@@ -50,37 +26,37 @@ type metadata struct {
 
 type Driver struct {
 	metadata
-	Conn *nats.Conn
+	eb evb.Bus
 }
 
-func NewNats() *Driver {
+func NewEventBus() *Driver {
 	return &Driver{}
 }
 
 // Init initializes the driver and init the connection to the server.
-func (n *Driver) Init(metadata driver.Metadata) error {
+func (d *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil
 	}
 
-	n.metadata = m
-	conn, err := nats.Connect(m.natsURL, m.natsOpts...)
-	if err != nil {
-		return fmt.Errorf("nats: error connecting to nats at %s: %s", m.natsURL, err)
-	}
-
-	n.Conn = conn
+	d.metadata = m
+	eb := evb.New()
+	d.eb = eb
 	return nil
 }
 
-// Publish publishes a message to Nats Server with message destination topic.
-func (n *Driver) Publish(topic string, in []byte) error {
-	err := n.Conn.Publish(topic, in)
-	if err != nil {
-		return fmt.Errorf("nats: error from publish: %s", err)
-	}
+// Publish publishes a message to EventBus with message destination topic.
+// note that there is no error to return.
+func (d *Driver) Publish(topic string, in []byte) error {
+	d.eb.Publish(topic, in)
 	return nil
+}
+
+type SuberCloser func() error
+
+func (c SuberCloser) Close() error {
+	return c()
 }
 
 // Subscribe handle message from specific topic.
@@ -88,22 +64,18 @@ func (n *Driver) Publish(topic string, in []byte) error {
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
 // handler use to receive the message and move to top level subscriber.
-func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
+func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	var (
-		sub        *nats.Subscription
+		sub SuberCloser = func() {
+
+		}
 		err        error
 		MsgHandler = func(m *nats.Msg) {
 			handler(m.Data)
 		}
 	)
 
-	if n.metadata.queueGroupName == "" {
-		sub, err = n.Conn.Subscribe(topic, MsgHandler)
-
-	} else {
-		sub, err = n.Conn.QueueSubscribe(topic, n.metadata.queueGroupName, MsgHandler)
-	}
-
+	err = d.eb.Subscribe(topic, handler)
 	if err != nil {
 		//n.logger.Warnf("nats: error subscribe: %s", err)
 		return nil, err
@@ -121,7 +93,7 @@ func (s *subscriber) Close() error {
 	return s.sub.Drain()
 }
 
-func (n *Driver) Close() error {
+func (n *NatsDriver) Close() error {
 	n.Conn.Close()
 	return nil
 }
@@ -147,5 +119,5 @@ func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 	return m, nil
 }
 
-var _ driver.Driver = (*Driver)(nil)
+var _ driver.Driver = (*NatsDriver)(nil)
 var _ driver.Closer = (*subscriber)(nil)
