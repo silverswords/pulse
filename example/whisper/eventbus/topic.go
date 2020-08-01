@@ -12,10 +12,10 @@ import (
 	. "time"
 )
 
-func main(){
+func main() {
 	meta := driver.NewMetadata()
 
-	t, err := whisper.NewTopic("eventbus:hello",*meta,whisper.WithPubACK(), whisper.WithCount())
+	t, err := whisper.NewTopic("eventbus:hello", *meta, whisper.WithPubACK(), whisper.WithCount())
 	if err != nil {
 		log.Fatal(err)
 	}

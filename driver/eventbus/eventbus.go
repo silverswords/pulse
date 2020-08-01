@@ -25,7 +25,7 @@ type metadata struct {
 
 type Driver struct {
 	metadata
-	eb evb.Bus
+	eb      evb.Bus
 	stopped bool
 }
 
@@ -66,13 +66,13 @@ func (c Closer) Close() error {
 // handler use to receive the message and move to top level subscriber.
 func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	if d.stopped {
-		return nil ,errors.New("draining")
+		return nil, errors.New("draining")
 	}
 	var (
 		closer Closer = func() error {
 			return d.eb.Unsubscribe(topic, handler)
 		}
-		err        error
+		err error
 	)
 
 	err = d.eb.Subscribe(topic, handler)

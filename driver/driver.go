@@ -22,7 +22,7 @@ func (r *pubsubRegistry) Register(name string, factory func() Driver) {
 func (p *pubsubRegistry) Create(name string) (Driver, error) {
 	if name == "" {
 		log.Println("Create default in-process driver")
-	}else {
+	} else {
 		log.Println("Create a driver", name)
 	}
 	if method, ok := p.buses[name]; ok {
