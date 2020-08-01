@@ -20,7 +20,11 @@ func (r *pubsubRegistry) Register(name string, factory func() Driver) {
 
 // Create instantiates a pub/sub based on `name`.
 func (p *pubsubRegistry) Create(name string) (Driver, error) {
-	log.Println("Create a driver", name)
+	if name == "" {
+		log.Println("Create default in-process driver")
+	}else {
+		log.Println("Create a driver", name)
+	}
 	if method, ok := p.buses[name]; ok {
 		return method(), nil
 	}
@@ -35,7 +39,7 @@ func NewMetadata() *Metadata {
 	return &Metadata{Properties: make(map[string]interface{})}
 }
 
-// todo: default change it to local eventbus
+// if driverName is empty, use default local driver. which couldn't cross process
 func (m *Metadata) GetDriverName() string {
 	var noDriver = ""
 	if driverName, ok := m.Properties["DriverName"]; ok {
@@ -47,7 +51,9 @@ func (m *Metadata) GetDriverName() string {
 	return noDriver
 }
 
-// todo: SetDriver() is need.
+func (m *Metadata) SetDriver(driverName string) {
+	m.Properties["DriverName"] = driverName
+}
 
 func createFullName(name string) string { return fmt.Sprintf("pubsub.%s", name) }
 

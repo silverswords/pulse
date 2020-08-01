@@ -156,6 +156,7 @@ func (t *Topic) startAck(ctx context.Context) error {
 		return nil
 	}
 	log := wctx.LoggerFrom(ctx)
+
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
 		m, err := ToMessage(out)
 		if err != nil {
@@ -166,6 +167,7 @@ func (t *Topic) startAck(ctx context.Context) error {
 		log.Debug("topic", t.name, "received ackId", m.Id)
 		t.done(m.Id, true, time.Now())
 	})
+	log.Debug("try to subscribe the ack topic")
 	if err != nil {
 		_ = subCloser.Close()
 		return err

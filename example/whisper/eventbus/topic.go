@@ -4,23 +4,22 @@ import (
 	"context"
 	"github.com/silverswords/whisper"
 	"github.com/silverswords/whisper/driver"
-	"github.com/silverswords/whisper/driver/nats"
+	_ "github.com/silverswords/whisper/driver/eventbus"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
+	. "time"
 )
 
-func main() {
+func main(){
 	meta := driver.NewMetadata()
-	meta.Properties[nats.URL] = nats.DefaultURL
-	meta.Properties["DriverName"] = "nats"
 
-	t, err := whisper.NewTopic("hello", *meta, whisper.WithPubACK(), whisper.WithCount())
+	t, err := whisper.NewTopic("eventbus:hello",*meta,whisper.WithPubACK(), whisper.WithCount())
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
+
 	go func() {
 		var count int
 		for {
@@ -32,13 +31,14 @@ func main() {
 				}
 			}()
 			//log.Println("send a message", count)
+			Sleep(Second)
 			if count > 1e2 {
 				return
 			}
 		}
 	}()
 
-	s, err := whisper.NewSubscription("hello", *meta, whisper.WithSubACK())
+	s, err := whisper.NewSubscription("eventbus:hello", *meta, whisper.WithSubACK())
 	if err != nil {
 		log.Println(err)
 		return
@@ -60,5 +60,4 @@ func main() {
 		return
 	}
 	runtime.Goexit()
-
 }
