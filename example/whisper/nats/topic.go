@@ -32,7 +32,7 @@ func main() {
 				}
 			}()
 			//log.Println("send a message", count)
-			if count > 1e2 {
+			if count > 1e5 {
 				return
 			}
 		}
