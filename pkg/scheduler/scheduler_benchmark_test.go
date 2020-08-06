@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/silverswords/whisper/internal/scheduler"
+	"github.com/silverswords/whisper/pkg/scheduler"
 )
 
 const pubSchedulerWorkers = 100

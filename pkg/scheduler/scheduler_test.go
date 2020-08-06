@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/silverswords/whisper/internal/scheduler"
+	"github.com/silverswords/whisper/pkg/scheduler"
 )
 
 type pair struct {

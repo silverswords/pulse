@@ -1,14 +1,16 @@
-package whisper
+package topic
 
 // below code change from github.com/googleapi/google-cloud-go
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/silverswords/whisper/driver"
-	"github.com/silverswords/whisper/internal"
-	wctx "github.com/silverswords/whisper/internal/context"
-	"github.com/silverswords/whisper/internal/scheduler"
+	wctx "github.com/silverswords/whisper/pkg/context"
+	"github.com/silverswords/whisper/pkg/deadpolicy"
+	"github.com/silverswords/whisper/pkg/driver"
+	"github.com/silverswords/whisper/pkg/message"
+	"github.com/silverswords/whisper/pkg/retry"
+	"github.com/silverswords/whisper/pkg/scheduler"
 	"golang.org/x/sync/errgroup"
 	"log"
 
@@ -46,7 +48,7 @@ type Topic struct {
 	d    driver.Driver
 	name string
 
-	endpoints []func(ctx context.Context, m *Message) error
+	endpoints []func(ctx context.Context, m *message.Message) error
 	// Settings for publishing messages. All changes must be made before the
 	// first call to Publish. The default is DefaultPublishSettings.
 	// it means could not dynamically change and hot start.
@@ -57,7 +59,7 @@ type Topic struct {
 	scheduler *scheduler.PublishScheduler
 
 	pendingAcks map[string]bool
-	deadQueue   chan *Message
+	deadQueue   chan *message.Message
 }
 
 // PublishSettings control the bundling of published messages.
@@ -96,9 +98,9 @@ type PublishSettings struct {
 	BufferedByteLimit int
 
 	// if nil, no retry if no ack.
-	RetryParams *internal.RetryParams
+	RetryParams *retry.RetryParams
 	// if nil, drop deadletter.
-	DeadLetterPolicy *internal.DeadLetterPolicy
+	DeadLetterPolicy *deadpolicy.DeadLetterPolicy
 }
 
 // DefaultPublishSettings holds the default values for topics' PublishSettings.
@@ -114,7 +116,7 @@ var DefaultPublishSettings = PublishSettings{
 	// capping the number to a low enough value to not OOM users.
 	BufferedByteLimit: 10 * MaxPublishRequestBytes,
 	// default linear increase retry interval and 10 times.
-	RetryParams: &internal.DefaultRetryParams,
+	RetryParams: &retry.DefaultRetryParams,
 	// default nil and drop letter.
 	DeadLetterPolicy: nil,
 }
@@ -158,7 +160,7 @@ func (t *Topic) startAck(ctx context.Context) error {
 	log := wctx.LoggerFrom(ctx)
 
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
-		m, err := ToMessage(out)
+		m, err := message.ToMessage(out)
 		if err != nil {
 			log.Error("topic", t.name, "error in ack message decode: ", err)
 			//	 not our Whisper message, just ignore it
@@ -189,7 +191,7 @@ func (t *Topic) startAck(ctx context.Context) error {
 //
 // Warning: do not use incoming message pointer again that if message had been successfully
 // add in the scheduler, message would be equal nil to gc.
-func (t *Topic) Publish(ctx context.Context, msg *Message) *PublishResult {
+func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResult {
 	r := &PublishResult{ready: make(chan struct{})}
 	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
 		r.set(errTopicOrderingDisabled)
@@ -211,7 +213,7 @@ func (t *Topic) Publish(ctx context.Context, msg *Message) *PublishResult {
 	// PubSubMessage and Data/Attributes field.
 	// TODO(hongalex): if this turns out to take significant time, try to approximate it.
 	// TODO: consider wrap with a newLogicFromMessage()
-	msg.size = len(ToByte(msg))
+	msg.Size = len(message.ToByte(msg))
 	// --------------------Set Over---------------------------
 
 	t.start()
@@ -225,7 +227,7 @@ func (t *Topic) Publish(ctx context.Context, msg *Message) *PublishResult {
 
 	// TODO(jba) [from bcmills] consider using a shared channel per bundle
 	// (requires Bundler API changes; would reduce allocations)
-	err := t.scheduler.Add(msg.OrderingKey, &bundledMessage{msg, r}, msg.size)
+	err := t.scheduler.Add(msg.OrderingKey, &bundledMessage{msg, r}, msg.Size)
 	if err != nil {
 		t.scheduler.Pause(msg.OrderingKey)
 		r.set(err)
@@ -323,7 +325,7 @@ func (t *Topic) start() {
 }
 
 type bundledMessage struct {
-	msg *Message
+	msg *message.Message
 	res *PublishResult
 }
 
@@ -372,7 +374,7 @@ var (
 )
 
 // choose to skip ack logic. would delete key when ack.
-func (t *Topic) checkAck(m *Message) bool {
+func (t *Topic) checkAck(m *message.Message) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	//log.Println("checking message ", m.Id, t.pendingAcks)
@@ -422,7 +424,7 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 	var retryTimes = 0
 
 	// comment the trace of google api
-	mb := ToByte(bm.msg)
+	mb := message.ToByte(bm.msg)
 
 	// if pub error, would return it in result.
 	// terminate the scheduler if ordering.
@@ -486,7 +488,7 @@ func WithPubACK() TopicOption {
 func WithCount() TopicOption {
 	return func(t *Topic) error {
 		var count = 0
-		t.endpoints = append(t.endpoints, func(ctx context.Context, m *Message) error {
+		t.endpoints = append(t.endpoints, func(ctx context.Context, m *message.Message) error {
 			count++
 			log.Println("count", count)
 			return nil

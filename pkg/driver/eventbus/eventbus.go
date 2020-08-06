@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	evb "github.com/asaskevich/EventBus"
-	"github.com/silverswords/whisper/driver"
+	"github.com/silverswords/whisper/pkg/driver"
 )
 
 const ()

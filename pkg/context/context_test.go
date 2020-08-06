@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	cecontext "github.com/silverswords/whisper/internal/context"
+	cecontext "github.com/silverswords/whisper/pkg/context"
 )
 
 func TestTargetContext(t *testing.T) {

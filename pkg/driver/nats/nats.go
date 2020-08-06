@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper/driver"
+	"github.com/silverswords/whisper/pkg/driver"
 	"log"
 	"time"
 )

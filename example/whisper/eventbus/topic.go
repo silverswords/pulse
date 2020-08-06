@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/whisper"
-	"github.com/silverswords/whisper/driver"
-	_ "github.com/silverswords/whisper/driver/eventbus"
+	"github.com/silverswords/whisper/pkg/driver"
+	_ "github.com/silverswords/whisper/pkg/driver/eventbus"
+	"github.com/silverswords/whisper/pkg/message"
+	"github.com/silverswords/whisper/pkg/subscription"
+	"github.com/silverswords/whisper/pkg/topic"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -15,7 +17,7 @@ import (
 func main() {
 	meta := driver.NewMetadata()
 
-	t, err := whisper.NewTopic("eventbus:hello", *meta, whisper.WithPubACK(), whisper.WithCount())
+	t, err := topic.NewTopic("eventbus:hello", *meta, topic.WithPubACK(), topic.WithCount())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,7 +26,7 @@ func main() {
 		var count int
 		for {
 			count++
-			res := t.Publish(context.Background(), whisper.NewMessage([]byte("hello")))
+			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 			go func() {
 				if err := res.Get(context.Background()); err != nil {
 					log.Println("----------------------", err)
@@ -38,7 +40,7 @@ func main() {
 		}
 	}()
 
-	s, err := whisper.NewSubscription("eventbus:hello", *meta, whisper.WithSubACK())
+	s, err := subscription.NewSubscription("eventbus:hello", *meta, subscription.WithSubACK())
 	if err != nil {
 		log.Println(err)
 		return
@@ -50,7 +52,7 @@ func main() {
 
 	var receiveCount int
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
-	err = s.Receive(context.Background(), func(ctx context.Context, m *whisper.Message) {
+	err = s.Receive(context.Background(), func(ctx context.Context, m *message.Message) {
 		receiveCount++
 		log.Println("receive the message:", m.Id, receiveCount)
 	})

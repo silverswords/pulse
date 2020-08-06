@@ -1,13 +1,15 @@
-package whisper
+package subscription
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/silverswords/whisper/driver"
-	"github.com/silverswords/whisper/internal"
-	wctx "github.com/silverswords/whisper/internal/context"
-	"github.com/silverswords/whisper/internal/scheduler"
+	wctx "github.com/silverswords/whisper/pkg/context"
+	"github.com/silverswords/whisper/pkg/driver"
+	"github.com/silverswords/whisper/pkg/message"
+	"github.com/silverswords/whisper/pkg/retry"
+	"github.com/silverswords/whisper/pkg/scheduler"
+	"github.com/silverswords/whisper/pkg/topic"
 	"log"
 	"sync"
 )
@@ -24,7 +26,7 @@ type Subscription struct {
 	// the messages which received by the driver.
 	scheduler *scheduler.ReceiveScheduler
 
-	handlers []func(ctx context.Context, msg *Message)
+	handlers []func(ctx context.Context, msg *message.Message)
 
 	// the received message so the repeated message not handle again.
 	// todo: consider change it to bitmap
@@ -51,7 +53,7 @@ type ReceiveSettings struct {
 	EnableAck bool
 
 	// RetryPolicy specifies how Cloud Pub/Sub retries message delivery.
-	RetryParams *internal.RetryParams
+	RetryParams *retry.RetryParams
 
 	// MaxOutstandingMessages is the maximum number of unprocessed messages
 	// (unacknowledged but not yet expired). If MaxOutstandingMessages is 0, it
@@ -64,7 +66,7 @@ type ReceiveSettings struct {
 // DefaultPublishSettings holds the default values for topics' PublishSettings.
 var DefaultRecieveSettings = ReceiveSettings{
 	// default linear increase retry interval and 10 times.
-	RetryParams: &internal.DefaultRetryParams,
+	RetryParams: &retry.DefaultRetryParams,
 	// default nil and drop letter.
 
 	MaxOutstandingMessages: 1000,
@@ -77,7 +79,7 @@ func NewSubscription(topicName string, driverMetadata driver.Metadata, options .
 		return nil, err
 	}
 	s := &Subscription{
-		topic:      WhisperPrefix + topicName,
+		topic:      topic.WhisperPrefix + topicName,
 		subOptions: options,
 		d:          d,
 		//handlers:        make([]func(context.Context,*Message)),
@@ -107,8 +109,8 @@ func (s *Subscription) done(ackId string, ack bool) {
 	//	send the ack event to topic and keep retry if error if connection error.
 	go func() {
 		var tryTimes int
-		m := &Message{Id: ackId}
-		err := s.d.Publish(AckTopicPrefix+s.topic, ToByte(m))
+		m := &message.Message{Id: ackId}
+		err := s.d.Publish(topic.AckTopicPrefix+s.topic, message.ToByte(m))
 		//log.Println("suber ----------------------------- suber ack the",m.Id )
 		for err != nil {
 			// wait for sometime
@@ -117,7 +119,7 @@ func (s *Subscription) done(ackId string, ack bool) {
 			if err1 != nil {
 				log.Println("error retrying send ack message id:", m.Id)
 			}
-			err = s.d.Publish(AckTopicPrefix+s.topic, ToByte(m))
+			err = s.d.Publish(topic.AckTopicPrefix+s.topic, message.ToByte(m))
 		}
 		//s.pendingAcks[ackId] = true
 		//	if reached here, the message have been send ack.
@@ -125,7 +127,7 @@ func (s *Subscription) done(ackId string, ack bool) {
 }
 
 // checkIfReceived checkd and set true if not true previous. It returns true when subscription had received the message.
-func (s *Subscription) checkIfReceived(msg *Message) bool {
+func (s *Subscription) checkIfReceived(msg *message.Message) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.receivedEvent[msg.Id] {
@@ -139,7 +141,7 @@ func (s *Subscription) checkIfReceived(msg *Message) bool {
 // todo: add batching iterator to batch every suber's message. that's need to store the messages in subscribers.
 // Receive is a blocking function and return error until receive the message and occurs error when handle message.
 // if error, may should call DrainAck()?
-func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *Message)) error {
+func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *message.Message)) error {
 	log := wctx.LoggerFrom(ctx)
 	log.Debug("Subscription Start Receive from ", s.topic)
 	s.mu.Lock()
@@ -160,7 +162,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	defer cancel2()
 
 	closer, err := s.d.Subscribe(s.topic, func(msg []byte) {
-		m, err := ToMessage(msg)
+		m, err := message.ToMessage(msg)
 		if err != nil {
 			log.Error("Error while transforming the byte to message: ", err)
 			// not our whisper message. just drop it.
@@ -172,7 +174,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 			return
 		}
 		log.Debug("Subscriber with topic:", s.topic, "received message id: ", m.Id)
-		m.doneFunc = s.done
+		m.DoneFunc = s.done
 		// promise to ack when received a right message.
 		if s.EnableAck {
 			defer m.Ack()
@@ -220,7 +222,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	return ctx2.Err()
 }
 
-func WithMiddlewares(handlers ...func(context.Context, *Message)) SubOption {
+func WithMiddlewares(handlers ...func(context.Context, *message.Message)) SubOption {
 	return func(s *Subscription) error {
 		s.handlers = append(s.handlers, handlers...)
 		return nil

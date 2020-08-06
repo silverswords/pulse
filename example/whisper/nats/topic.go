@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/whisper"
-	"github.com/silverswords/whisper/driver"
-	"github.com/silverswords/whisper/driver/nats"
+	"github.com/silverswords/whisper/pkg/driver"
+	"github.com/silverswords/whisper/pkg/driver/nats"
+	"github.com/silverswords/whisper/pkg/message"
+	"github.com/silverswords/whisper/pkg/subscription"
+	"github.com/silverswords/whisper/pkg/topic"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -16,7 +18,7 @@ func main() {
 	meta.Properties[nats.URL] = nats.DefaultURL
 	meta.Properties["DriverName"] = "nats"
 
-	t, err := whisper.NewTopic("hello", *meta, whisper.WithPubACK(), whisper.WithCount())
+	t, err := topic.NewTopic("hello", *meta, topic.WithPubACK(), topic.WithCount())
 	if err != nil {
 		log.Println(err)
 		return
@@ -25,7 +27,7 @@ func main() {
 		var count int
 		for {
 			count++
-			res := t.Publish(context.Background(), whisper.NewMessage([]byte("hello")))
+			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 			go func() {
 				if err := res.Get(context.Background()); err != nil {
 					log.Println("----------------------", err)
@@ -38,7 +40,7 @@ func main() {
 		}
 	}()
 
-	s, err := whisper.NewSubscription("hello", *meta, whisper.WithSubACK())
+	s, err := subscription.NewSubscription("hello", *meta, subscription.WithSubACK())
 	if err != nil {
 		log.Println(err)
 		return
@@ -50,7 +52,7 @@ func main() {
 
 	var receiveCount int
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
-	err = s.Receive(context.Background(), func(ctx context.Context, m *whisper.Message) {
+	err = s.Receive(context.Background(), func(ctx context.Context, m *message.Message) {
 		receiveCount++
 		log.Println("receive the message:", m.Id, receiveCount)
 	})

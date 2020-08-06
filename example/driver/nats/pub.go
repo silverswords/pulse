@@ -2,7 +2,7 @@ package main
 
 import (
 	na "github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper/driver/nats"
+	"github.com/silverswords/whisper/pkg/driver/nats"
 	"log"
 )
 

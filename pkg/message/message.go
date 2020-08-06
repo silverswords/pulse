@@ -1,11 +1,11 @@
-package whisper
+package message
 
 import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
 	"github.com/nats-io/nuid"
-	"github.com/silverswords/whisper/internal"
+	"github.com/silverswords/whisper/pkg/internal"
 )
 
 var uidGen = nuid.New()
@@ -36,7 +36,7 @@ type Message struct {
 	Attributes internal.Header // Message Header use to specific message and how to handle it.
 
 	// Logic is represents the fields that don't need initialize by the message producer.
-	size int
+	Size int
 	// DeliveryAttempt is the number of times a message has been delivered.
 	// This is part of the dead lettering feature that forwards messages that
 	// fail to be processed (from nack/ack deadline timeout) to a dead letter topic.
@@ -45,12 +45,12 @@ type Message struct {
 	// This field is read-only.
 	DeliveryAttempt *int
 	calledDone      bool
-	doneFunc        func(string, bool)
+	DoneFunc        func(string, bool)
 }
 
 // hint: now message string just print the event
 func (m *Message) String() string {
-	return fmt.Sprintf("Id: %s Data: %s Attributes: %v OrderingKey: %s DeliveryAttempt: %d calledDone: %v doneFunc: %T size: %d", m.Id, m.Data, m.Attributes, m.OrderingKey, m.DeliveryAttempt, m.calledDone, m.doneFunc, m.size)
+	return fmt.Sprintf("Id: %s Data: %s Attributes: %v OrderingKey: %s DeliveryAttempt: %d calledDone: %v doneFunc: %T size: %d", m.Id, m.Data, m.Attributes, m.OrderingKey, m.DeliveryAttempt, m.calledDone, m.DoneFunc, m.Size)
 }
 
 // note that id should be uuid.
@@ -91,7 +91,7 @@ func (m *Message) done(ack bool) {
 		return
 	}
 	m.calledDone = true
-	m.doneFunc(m.Id, ack)
+	m.DoneFunc(m.Id, ack)
 }
 
 // todo: consider compile them with protobuf
