@@ -1,4 +1,4 @@
-package driver
+package mq
 
 import (
 	"context"
@@ -19,13 +19,13 @@ func (r *pubsubRegistry) Register(name string, factory func() Driver) {
 }
 
 // Create instantiates a pub/sub based on `name`.
-func (p *pubsubRegistry) Create(name string) (Driver, error) {
+func (r *pubsubRegistry) Create(name string) (Driver, error) {
 	if name == "" {
-		log.Println("Create default in-process driver")
+		log.Println("Create default in-process mq")
 	} else {
-		log.Println("Create a driver", name)
+		log.Println("Create a mq", name)
 	}
-	if method, ok := p.buses[name]; ok {
+	if method, ok := r.buses[name]; ok {
 		return method(), nil
 	}
 	return nil, fmt.Errorf("couldn't find message bus %s", name)
@@ -39,7 +39,7 @@ func NewMetadata() *Metadata {
 	return &Metadata{Properties: make(map[string]interface{})}
 }
 
-// if driverName is empty, use default local driver. which couldn't cross process
+// if driverName is empty, use default local mq. which couldn't cross process
 func (m *Metadata) GetDriverName() string {
 	var noDriver = ""
 	if driverName, ok := m.Properties["DriverName"]; ok {
@@ -54,8 +54,6 @@ func (m *Metadata) GetDriverName() string {
 func (m *Metadata) SetDriver(driverName string) {
 	m.Properties["DriverName"] = driverName
 }
-
-func createFullName(name string) string { return fmt.Sprintf("pubsub.%s", name) }
 
 type Initer interface {
 	Init(Metadata) error

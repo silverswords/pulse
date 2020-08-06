@@ -5,9 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/silverswords/whisper/pkg/components/mq"
 	wctx "github.com/silverswords/whisper/pkg/context"
 	"github.com/silverswords/whisper/pkg/deadpolicy"
-	"github.com/silverswords/whisper/pkg/driver"
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/retry"
 	"github.com/silverswords/whisper/pkg/scheduler"
@@ -45,7 +45,7 @@ var (
 type Topic struct {
 	topicOptions []TopicOption
 
-	d    driver.Driver
+	d    mq.Driver
 	name string
 
 	endpoints []func(ctx context.Context, m *message.Message) error
@@ -98,7 +98,7 @@ type PublishSettings struct {
 	BufferedByteLimit int
 
 	// if nil, no retry if no ack.
-	RetryParams *retry.RetryParams
+	RetryParams *retry.Params
 	// if nil, drop deadletter.
 	DeadLetterPolicy *deadpolicy.DeadLetterPolicy
 }
@@ -122,8 +122,8 @@ var DefaultPublishSettings = PublishSettings{
 }
 
 // new a topic and init it with the connection options
-func NewTopic(topicName string, driverMetadata driver.Metadata, options ...TopicOption) (*Topic, error) {
-	d, err := driver.Registry.Create(driverMetadata.GetDriverName())
+func NewTopic(topicName string, driverMetadata mq.Metadata, options ...TopicOption) (*Topic, error) {
+	d, err := mq.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Topic
 }
 
 func (t *Topic) startAck(ctx context.Context) error {
-	// todo: now the ack logic's stability rely on driver subscriber implements. but not whisper implements.
+	// todo: now the ack logic's stability rely on mq subscriber implements. but not whisper implements.
 	// open a subscriber, receive and then ack the message.
 	// message should check itself and then depend on topic RetryParams to retry.
 	if !t.EnableAck {

@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/whisper/pkg/driver"
-	"github.com/silverswords/whisper/pkg/driver/nats"
+	"github.com/silverswords/whisper/mq/nats"
+	"github.com/silverswords/whisper/pkg/components/mq"
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/subscription"
 	"github.com/silverswords/whisper/pkg/topic"
@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	meta := driver.NewMetadata()
+	meta := mq.NewMetadata()
 	meta.Properties[nats.URL] = nats.DefaultURL
 	meta.Properties["DriverName"] = "nats"
 

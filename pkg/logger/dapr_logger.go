@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// daprLogger is the implemention for logrus
+// daprLogger is the implementation for logrus
 type daprLogger struct {
 	// name is the name of logger that is published to log as a scope
 	name string

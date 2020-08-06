@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper/pkg/driver"
+	"github.com/silverswords/whisper/pkg/components/mq"
 	"log"
 	"time"
 )
@@ -35,11 +35,11 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 }
 
 func init() {
-	// use to register the nats to pubsub driver factory
-	driver.Registry.Register("nats", func() driver.Driver {
+	// use to register the nats to pubsub mq factory
+	mq.Registry.Register("nats", func() mq.Driver {
 		return NewNats()
 	})
-	//log.Println("Register the nats driver")
+	//log.Println("Register the nats mq")
 }
 
 type metadata struct {
@@ -57,8 +57,8 @@ func NewNats() *Driver {
 	return &Driver{}
 }
 
-// Init initializes the driver and init the connection to the server.
-func (n *Driver) Init(metadata driver.Metadata) error {
+// Init initializes the mq and init the connection to the server.
+func (n *Driver) Init(metadata mq.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil
@@ -88,7 +88,7 @@ func (n *Driver) Publish(topic string, in []byte) error {
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
 // handler use to receive the message and move to top level subscriber.
-func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
+func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, error) {
 	var (
 		sub        *nats.Subscription
 		err        error
@@ -126,7 +126,7 @@ func (n *Driver) Close() error {
 	return nil
 }
 
-func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
+func parseNATSMetadata(meta mq.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.natsURL, ok = val.(string); !ok {
@@ -138,7 +138,7 @@ func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 
 	if val, ok := meta.Properties[Options]; ok && val != nil {
 		if m.natsOpts, ok = val.([]nats.Option); !ok {
-			return m, errors.New("nats error: missing nats Options and not use default.")
+			return m, errors.New("nats error: missing nats Options and not use default")
 		}
 	} else {
 		m.natsOpts = setupConnOptions(m.natsOpts)
@@ -147,5 +147,5 @@ func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 	return m, nil
 }
 
-var _ driver.Driver = (*Driver)(nil)
-var _ driver.Closer = (*subscriber)(nil)
+var _ mq.Driver = (*Driver)(nil)
+var _ mq.Closer = (*subscriber)(nil)

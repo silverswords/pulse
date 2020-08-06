@@ -25,10 +25,10 @@ const (
 )
 
 // DefaultRetryParams max wait time is 64 + 32 + 16 + 8 + 4 + 2 + 1 sum 123 seconds with 6 times call.
-var DefaultRetryParams = RetryParams{Strategy: BackoffStrategyLinear, MaxTries: 6, Period: 500 * time.Millisecond}
+var DefaultRetryParams = Params{Strategy: BackoffStrategyLinear, MaxTries: 6, Period: 500 * time.Millisecond}
 
 // RetryParams holds parameters applied to retries
-type RetryParams struct {
+type Params struct {
 	// Strategy is the backoff strategy to applies between retries
 	Strategy BackoffStrategy
 
@@ -46,7 +46,7 @@ type RetryParams struct {
 // BackoffFor tries will return the time duration that should be used for this
 // current try count.
 // `tries` is assumed to be the number of times the caller has already retried.
-func (r *RetryParams) BackoffFor(tries int) time.Duration {
+func (r *Params) BackoffFor(tries int) time.Duration {
 	switch r.Strategy {
 	case BackoffStrategyConstant:
 		return r.Period
@@ -64,7 +64,7 @@ func (r *RetryParams) BackoffFor(tries int) time.Duration {
 
 // Backoff is a blocking call to wait for the correct amount of time for the retry.
 // `tries` is assumed to be the number of times the caller has already retried.
-func (r *RetryParams) Backoff(ctx context.Context, tries int) error {
+func (r *Params) Backoff(ctx context.Context, tries int) error {
 	if tries > r.MaxTries {
 		return errors.New("too many retries")
 	}

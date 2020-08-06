@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/whisper/pkg/driver"
-	_ "github.com/silverswords/whisper/pkg/driver/eventbus"
+	"github.com/silverswords/whisper/pkg/components/mq"
+	_ "github.com/silverswords/whisper/mq/eventbus"
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/subscription"
 	"github.com/silverswords/whisper/pkg/topic"
@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	meta := driver.NewMetadata()
+	meta := mq.NewMetadata()
 
 	t, err := topic.NewTopic("eventbus:hello", *meta, topic.WithPubACK(), topic.WithCount())
 	if err != nil {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/silverswords/whisper/pkg/components/mq"
 	wctx "github.com/silverswords/whisper/pkg/context"
-	"github.com/silverswords/whisper/pkg/driver"
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/retry"
 	"github.com/silverswords/whisper/pkg/scheduler"
@@ -21,9 +21,9 @@ var (
 type Subscription struct {
 	subOptions []SubOption
 
-	d     driver.Driver
+	d     mq.Driver
 	topic string
-	// the messages which received by the driver.
+	// the messages which received by the mq.
 	scheduler *scheduler.ReceiveScheduler
 
 	handlers []func(ctx context.Context, msg *message.Message)
@@ -53,7 +53,7 @@ type ReceiveSettings struct {
 	EnableAck bool
 
 	// RetryPolicy specifies how Cloud Pub/Sub retries message delivery.
-	RetryParams *retry.RetryParams
+	RetryParams *retry.Params
 
 	// MaxOutstandingMessages is the maximum number of unprocessed messages
 	// (unacknowledged but not yet expired). If MaxOutstandingMessages is 0, it
@@ -73,8 +73,8 @@ var DefaultRecieveSettings = ReceiveSettings{
 }
 
 // new a topic and init it with the connection options
-func NewSubscription(topicName string, driverMetadata driver.Metadata, options ...SubOption) (*Subscription, error) {
-	d, err := driver.Registry.Create(driverMetadata.GetDriverName())
+func NewSubscription(topicName string, driverMetadata mq.Metadata, options ...SubOption) (*Subscription, error) {
+	d, err := mq.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
 	}
