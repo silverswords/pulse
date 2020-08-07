@@ -6,38 +6,34 @@ could define the handler to process messages simply.
 Could be eventbus with more decorating.
 
 ## Usage
+### New Topic & Subscription
 ```go
-	meta := driver.NewMetadata()
+meta := driver.NewMetadata()
 
-	t, err := whisper.NewTopic("eventbus:hello",*meta,whisper.WithPubACK(), whisper.WithCount())
-	if err != nil {
-		log.Fatal(err)
+t, err := whisper.NewTopic("eventbus:hello",*meta,whisper.WithPubACK(), whisper.WithCount())
+if err != nil {
+	log.Fatal(err)
+}
+
+s, err := whisper.NewSubscription("eventbus:hello", *meta, whisper.WithSubACK())
+if err != nil {
+	log.Println(err)
+	return
+}
+```
+
+### Publish & Receive
+Publish
+```go
+res := t.Publish(context.Background(), whisper.NewMessage([]byte("hello")))
+go func() {
+	if err := res.Get(context.Background()); err != nil {
+		log.Println("----------------------", err)
 	}
-  
-  s, err := whisper.NewSubscription("eventbus:hello", *meta, whisper.WithSubACK())
-	if err != nil {
-		log.Println(err)
-		return
-	}
-  
-  go func() {
-		var count int
-		for {
-			count++
-			res := t.Publish(context.Background(), whisper.NewMessage([]byte("hello")))
-			go func() {
-				if err := res.Get(context.Background()); err != nil {
-					log.Println("----------------------", err)
-				}
-			}()
-			//log.Println("send a message", count)
-			Sleep(Second)
-			if count > 1e2 {
-				return
-			}
-		}
-	}()
-  
+}()
+```
+Receive
+```go
   //ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
 	err = s.Receive(context.Background(), func(ctx context.Context, m *whisper.Message) {
 		receiveCount++
