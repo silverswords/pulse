@@ -1,18 +1,16 @@
 package topic
 
-// below code change from github.com/googleapi/google-cloud-go
 import (
 	"context"
 	"errors"
 	"fmt"
 	"github.com/silverswords/whisper/pkg/components/mq"
-	wctx "github.com/silverswords/whisper/pkg/context"
 	"github.com/silverswords/whisper/pkg/deadpolicy"
+	"github.com/silverswords/whisper/pkg/logger"
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/retry"
 	"github.com/silverswords/whisper/pkg/scheduler"
 	"golang.org/x/sync/errgroup"
-	"log"
 
 	//"go.opencensus.io/stats"
 	//"github.com/golang/protobuf/proto"
@@ -38,6 +36,8 @@ const (
 )
 
 var (
+	log = logger.NewLogger("whisper")
+
 	errTopicOrderingDisabled = errors.New("Topic.EnableMessageOrdering=false, but an OrderingKey was set in Message. Please remove the OrderingKey or turn on Topic.EnableMessageOrdering")
 	errTopicStopped          = errors.New("pubsub: Stop has been called for this topic")
 )
@@ -157,7 +157,6 @@ func (t *Topic) startAck(ctx context.Context) error {
 	if !t.EnableAck {
 		return nil
 	}
-	log := wctx.LoggerFrom(ctx)
 
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
 		m, err := message.ToMessage(out)
@@ -171,7 +170,9 @@ func (t *Topic) startAck(ctx context.Context) error {
 	})
 	log.Debug("try to subscribe the ack topic")
 	if err != nil {
-		_ = subCloser.Close()
+		if subCloser != nil{
+			_ = subCloser.Close()
+		}
 		return err
 	}
 	return nil
@@ -377,7 +378,7 @@ var (
 func (t *Topic) checkAck(m *message.Message) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	//log.Println("checking message ", m.Id, t.pendingAcks)
+	//log.Info("checking message ", m.Id, t.pendingAcks)
 	if !t.pendingAcks[m.Id] {
 		return false
 	}
@@ -389,7 +390,6 @@ func (t *Topic) checkAck(m *message.Message) bool {
 // publishMessageBundle just handle the send logic
 func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage) {
 	ctx, err := tag.New(ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keyTopic, t.name))
-	log := wctx.LoggerFrom(ctx)
 	if err != nil {
 		log.Errorf("pubsub: cannot create context with tag in publishMessageBundle: %v", err)
 	}
@@ -412,14 +412,13 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 			// if no order, send as far as possible
 			continue
 		}
-		t.publishMessage(ctx, bm)
+		_ = t.publishMessage(ctx, bm)
 	}
-	group.Wait()
+	_ = group.Wait()
 }
 
 // publishMessage block until ack or an error occurs and pass the error by PublishResult
 func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
-	log := wctx.LoggerFrom(ctx)
 	log.Debug("sending: the bundle key is ", bm.msg.OrderingKey, " with id", bm.msg.Id)
 	var retryTimes = 0
 
@@ -490,7 +489,7 @@ func WithCount() TopicOption {
 		var count = 0
 		t.endpoints = append(t.endpoints, func(ctx context.Context, m *message.Message) error {
 			count++
-			log.Println("count", count)
+			log.Info("count", count)
 			return nil
 		})
 		return nil

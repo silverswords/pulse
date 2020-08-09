@@ -11,11 +11,6 @@ import (
 var uidGen = nuid.New()
 
 // todo: transform those message to cloudEvent specification.
-//// DirectMessaging is the API interface for invoking a remote app
-//type DirectMessaging interface {
-//	Invoke(ctx context.Context, targetAppID string, req *invokev1.InvokeMethodRequest) (*invokev1.InvokeMethodResponse, error)
-//}
-
 // Message format maybe below
 //{
 //"specversion": "1.x-wip",

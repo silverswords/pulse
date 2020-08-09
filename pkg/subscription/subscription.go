@@ -5,16 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"github.com/silverswords/whisper/pkg/components/mq"
-	wctx "github.com/silverswords/whisper/pkg/context"
+	"github.com/silverswords/whisper/pkg/logger"
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/retry"
 	"github.com/silverswords/whisper/pkg/scheduler"
 	"github.com/silverswords/whisper/pkg/topic"
-	"log"
 	"sync"
 )
 
 var (
+	log                      = logger.NewLogger("whisper")
+
 	errReceiveInProgress = errors.New("pubsub: Receive already in progress for this subscription")
 )
 
@@ -117,7 +118,7 @@ func (s *Subscription) done(ackId string, ack bool) {
 			err1 := s.RetryParams.Backoff(context.TODO(), tryTimes)
 			tryTimes++
 			if err1 != nil {
-				log.Println("error retrying send ack message id:", m.Id)
+				log.Info("error retrying send ack message id:", m.Id)
 			}
 			err = s.d.Publish(topic.AckTopicPrefix+s.topic, message.ToByte(m))
 		}
@@ -142,7 +143,6 @@ func (s *Subscription) checkIfReceived(msg *message.Message) bool {
 // Receive is a blocking function and return error until receive the message and occurs error when handle message.
 // if error, may should call DrainAck()?
 func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *message.Message)) error {
-	log := wctx.LoggerFrom(ctx)
 	log.Debug("Subscription Start Receive from ", s.topic)
 	s.mu.Lock()
 	if s.receiveActive {
@@ -205,7 +205,9 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 			cancel2()
 		}
 	})
-	defer closer.Close()
+	if closer != nil {
+		defer closer.Close()
+	}
 	defer s.scheduler.Shutdown()
 	// sub error
 	if err != nil {

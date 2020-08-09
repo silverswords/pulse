@@ -15,7 +15,7 @@ import (
 
 const fakeLoggerName = "fakeLogger"
 
-func getTestLogger(buf io.Writer) *daprLogger {
+func getTestLogger(buf io.Writer) *whisperLogger {
 	l := newDaprLogger(fakeLoggerName)
 	l.logger.Logger.SetOutput(buf)
 
@@ -52,7 +52,7 @@ func TestJSONLoggerFields(t *testing.T) {
 		appID       string
 		message     string
 		instance    string
-		fn          func(*daprLogger, string)
+		fn          func(*whisperLogger, string)
 	}{
 		{
 			"info()",
@@ -61,7 +61,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *daprLogger, msg string) {
+			func(l *whisperLogger, msg string) {
 				l.Info(msg)
 			},
 		},
@@ -72,7 +72,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *daprLogger, msg string) {
+			func(l *whisperLogger, msg string) {
 				l.Infof("%s", msg)
 			},
 		},
@@ -83,7 +83,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *daprLogger, msg string) {
+			func(l *whisperLogger, msg string) {
 				l.Debug(msg)
 			},
 		},
@@ -94,7 +94,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *daprLogger, msg string) {
+			func(l *whisperLogger, msg string) {
 				l.Debugf("%s", msg)
 			},
 		},
@@ -105,7 +105,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *daprLogger, msg string) {
+			func(l *whisperLogger, msg string) {
 				l.Error(msg)
 			},
 		},
@@ -116,7 +116,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *daprLogger, msg string) {
+			func(l *whisperLogger, msg string) {
 				l.Errorf("%s", msg)
 			},
 		},

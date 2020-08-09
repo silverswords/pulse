@@ -3,8 +3,10 @@ package mq
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/silverswords/whisper/pkg/logger"
 )
+
+var log = logger.NewLogger("whisper.mq")
 
 var Registry = pubsubRegistry{
 	buses: make(map[string]func() Driver),
@@ -21,9 +23,9 @@ func (r *pubsubRegistry) Register(name string, factory func() Driver) {
 // Create instantiates a pub/sub based on `name`.
 func (r *pubsubRegistry) Create(name string) (Driver, error) {
 	if name == "" {
-		log.Println("Create default in-process mq")
+		log.Info("Create default in-process mq")
 	} else {
-		log.Println("Create a mq", name)
+		log.Infof("Create a mq %s", name)
 	}
 	if method, ok := r.buses[name]; ok {
 		return method(), nil
@@ -55,15 +57,15 @@ func (m *Metadata) SetDriver(driverName string) {
 	m.Properties["DriverName"] = driverName
 }
 
-type Initer interface {
-	Init(Metadata) error
-}
-
 type Driver interface {
 	Initer
 	Publisher
 	Subscriber
 	Closer
+}
+
+type Initer interface {
+	Init(Metadata) error
 }
 
 // Publisher should realize the retry by themselves..
@@ -84,6 +86,7 @@ type Closer interface {
 	Close() error
 }
 
+// deprecated
 type Client interface {
 	Sender
 

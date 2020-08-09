@@ -1,3 +1,4 @@
+// use dapr logger https://github.com/dapr/dapr
 package logger
 
 import (
@@ -8,19 +9,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// daprLogger is the implementation for logrus
-type daprLogger struct {
+// whisperLogger is the implementation for logrus
+type whisperLogger struct {
 	// name is the name of logger that is published to log as a scope
 	name string
 	// loger is the instance of logrus logger
 	logger *logrus.Entry
 }
 
-func newDaprLogger(name string) *daprLogger {
+func newDaprLogger(name string) *whisperLogger {
 	newLogger := logrus.New()
 	newLogger.SetOutput(os.Stdout)
 
-	dl := &daprLogger{
+	dl := &whisperLogger{
 		name: name,
 		logger: newLogger.WithFields(logrus.Fields{
 			logFieldScope: name,
@@ -34,7 +35,7 @@ func newDaprLogger(name string) *daprLogger {
 }
 
 // EnableJSONOutput enables JSON formatted output log
-func (l *daprLogger) EnableJSONOutput(enabled bool) {
+func (l *whisperLogger) EnableJSONOutput(enabled bool) {
 	var formatter logrus.Formatter
 
 	fieldMap := logrus.FieldMap{
@@ -69,7 +70,7 @@ func (l *daprLogger) EnableJSONOutput(enabled bool) {
 }
 
 // SetAppID sets app_id field in log. Default value is empty string
-func (l *daprLogger) SetAppID(id string) {
+func (l *whisperLogger) SetAppID(id string) {
 	l.logger = l.logger.WithField(logFieldAppID, id)
 }
 
@@ -80,64 +81,64 @@ func toLogrusLevel(lvl LogLevel) logrus.Level {
 }
 
 // SetOutputLevel sets log output level
-func (l *daprLogger) SetOutputLevel(outputLevel LogLevel) {
+func (l *whisperLogger) SetOutputLevel(outputLevel LogLevel) {
 	l.logger.Logger.SetLevel(toLogrusLevel(outputLevel))
 }
 
 // WithLogType specify the log_type field in log. Default value is LogTypeLog
-func (l *daprLogger) WithLogType(logType string) Logger {
-	return &daprLogger{
+func (l *whisperLogger) WithLogType(logType string) Logger {
+	return &whisperLogger{
 		name:   l.name,
 		logger: l.logger.WithField(logFieldType, logType),
 	}
 }
 
 // Info logs a message at level Info.
-func (l *daprLogger) Info(args ...interface{}) {
+func (l *whisperLogger) Info(args ...interface{}) {
 	l.logger.Log(logrus.InfoLevel, args...)
 }
 
 // Infof logs a message at level Info.
-func (l *daprLogger) Infof(format string, args ...interface{}) {
+func (l *whisperLogger) Infof(format string, args ...interface{}) {
 	l.logger.Logf(logrus.InfoLevel, format, args...)
 }
 
 // Debug logs a message at level Debug.
-func (l *daprLogger) Debug(args ...interface{}) {
+func (l *whisperLogger) Debug(args ...interface{}) {
 	l.logger.Log(logrus.DebugLevel, args...)
 }
 
 // Debugf logs a message at level Debug.
-func (l *daprLogger) Debugf(format string, args ...interface{}) {
+func (l *whisperLogger) Debugf(format string, args ...interface{}) {
 	l.logger.Logf(logrus.DebugLevel, format, args...)
 }
 
 // Warn logs a message at level Warn.
-func (l *daprLogger) Warn(args ...interface{}) {
+func (l *whisperLogger) Warn(args ...interface{}) {
 	l.logger.Log(logrus.WarnLevel, args...)
 }
 
 // Warnf logs a message at level Warn.
-func (l *daprLogger) Warnf(format string, args ...interface{}) {
+func (l *whisperLogger) Warnf(format string, args ...interface{}) {
 	l.logger.Logf(logrus.WarnLevel, format, args...)
 }
 
 // Error logs a message at level Error.
-func (l *daprLogger) Error(args ...interface{}) {
+func (l *whisperLogger) Error(args ...interface{}) {
 	l.logger.Log(logrus.ErrorLevel, args...)
 }
 
 // Errorf logs a message at level Error.
-func (l *daprLogger) Errorf(format string, args ...interface{}) {
+func (l *whisperLogger) Errorf(format string, args ...interface{}) {
 	l.logger.Logf(logrus.ErrorLevel, format, args...)
 }
 
 // Fatal logs a message at level Fatal then the process will exit with status set to 1.
-func (l *daprLogger) Fatal(args ...interface{}) {
+func (l *whisperLogger) Fatal(args ...interface{}) {
 	l.logger.Fatal(args...)
 }
 
 // Fatalf logs a message at level Fatal then the process will exit with status set to 1.
-func (l *daprLogger) Fatalf(format string, args ...interface{}) {
+func (l *whisperLogger) Fatalf(format string, args ...interface{}) {
 	l.logger.Fatalf(format, args...)
 }
