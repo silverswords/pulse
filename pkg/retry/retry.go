@@ -25,7 +25,7 @@ const (
 )
 
 // DefaultRetryParams max wait time is 64 + 32 + 16 + 8 + 4 + 2 + 1 sum 123 seconds with 6 times call.
-var DefaultRetryParams = Params{Strategy: BackoffStrategyLinear, MaxTries: 6, Period: 500 * time.Millisecond}
+var DefaultRetryParams = Params{Strategy: BackoffStrategyLinear, MaxTries: 3, Period: 1000 * time.Millisecond}
 
 // RetryParams holds parameters applied to retries
 type Params struct {

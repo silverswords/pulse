@@ -13,7 +13,7 @@ const (
 	URL     = "natsURL"
 	Options = "natsOptions"
 	//DefaultURL = "nats://39.105.141.168:4222"
-	DefaultURL = "nats://192.168.0.103:4222"
+	DefaultURL = "nats://192.168.0.123:4222"
 )
 
 func setupConnOptions(opts []nats.Option) []nats.Option {

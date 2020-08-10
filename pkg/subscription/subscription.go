@@ -30,7 +30,7 @@ type Subscription struct {
 	handlers []func(ctx context.Context, msg *message.Message)
 
 	// the received message so the repeated message not handle again.
-	// todo: consider change it to bitmap
+	// todo: consider change it to bitmap or expired when over 60 seconds
 	receivedEvent map[string]bool
 
 	mu sync.RWMutex

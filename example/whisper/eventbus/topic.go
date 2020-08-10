@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/whisper/pkg/components/mq"
 	_ "github.com/silverswords/whisper/mq/eventbus"
+	"github.com/silverswords/whisper/pkg/components/mq"
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/subscription"
 	"github.com/silverswords/whisper/pkg/topic"
@@ -11,7 +11,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
-	. "time"
 )
 
 func main() {
@@ -33,8 +32,8 @@ func main() {
 				}
 			}()
 			//log.Println("send a message", count)
-			Sleep(Second)
-			if count > 1e2 {
+			//Sleep(Second)
+			if count > 1e4 {
 				return
 			}
 		}
