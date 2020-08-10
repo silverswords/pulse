@@ -170,7 +170,7 @@ func (t *Topic) startAck(ctx context.Context) error {
 	})
 	log.Debug("try to subscribe the ack topic")
 	if err != nil {
-		if subCloser != nil{
+		if subCloser != nil {
 			_ = subCloser.Close()
 		}
 		return err

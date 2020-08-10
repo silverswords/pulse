@@ -24,7 +24,6 @@ func init() {
 	//log.Println("Register the nats mq")
 }
 
-
 func setupConnOptions(opts []nats.Option) []nats.Option {
 	totalWait := 10 * time.Minute
 	reconnectDelay := time.Second
@@ -43,13 +42,11 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 	return opts
 }
 
-
 type metadata struct {
 	natsURL        string
 	natsOpts       []nats.Option
 	queueGroupName string
 }
-
 
 func parseNATSMetadata(meta mq.Metadata) (metadata, error) {
 	m := metadata{}
@@ -71,7 +68,6 @@ func parseNATSMetadata(meta mq.Metadata) (metadata, error) {
 
 	return m, nil
 }
-
 
 type Driver struct {
 	metadata

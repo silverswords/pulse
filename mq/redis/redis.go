@@ -1,4 +1,5 @@
 package redis
+
 //https://redis.io/topics/pubsub
 import (
 	"context"
@@ -8,11 +9,10 @@ import (
 )
 
 const (
-	URL     = "redisURL"
+	URL = "redisURL"
 
 	DefaultURL = "redis://@192.168.0.253:6379/0"
 )
-
 
 func init() {
 	// use to register the nats to pubsub mq factory
@@ -29,31 +29,29 @@ type metadata struct {
 func parseNATSMetadata(meta mq.Metadata) (m metadata, err error) {
 	m = metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
-		if s, ok := val.(string); ok{
+		if s, ok := val.(string); ok {
 			m.options, err = redis.ParseURL(s)
 			if err != nil {
 				return m, err
 			}
-		}else {
+		} else {
 			return m, errors.New("redis init error: redis URL is not a string")
 		}
 	} else {
 		return m, errors.New("redis init error: missing redis URL: Try redis://localhost:6379/0 if you have a local redis server")
 	}
 
-
 	return m, nil
 }
-
 
 type Driver struct {
 	metadata
 	redisClient *redis.Client
-	stopped bool
+	stopped     bool
 }
 
 func NewRedis() *Driver {
-	return &Driver {}
+	return &Driver{}
 }
 
 // Init initializes the mq and init the connection to the server.
@@ -75,7 +73,7 @@ func (d *Driver) Publish(topic string, in []byte) error {
 	if d.stopped {
 		return errors.New("draining")
 	}
-	d.redisClient.Publish(context.Background(),topic, in)
+	d.redisClient.Publish(context.Background(), topic, in)
 	return nil
 }
 
@@ -96,7 +94,7 @@ func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, e
 	}
 
 	ctx := context.Background()
-	sub := d.redisClient.Subscribe(ctx,topic)
+	sub := d.redisClient.Subscribe(ctx, topic)
 	iface, err := sub.Receive(ctx)
 	if err != nil {
 		_ = sub.Close()
@@ -149,7 +147,5 @@ func (d *Driver) Close() error {
 	return d.redisClient.Close()
 }
 
-
 var _ mq.Driver = (*Driver)(nil)
 var _ mq.Closer = (*Driver)(nil)
-

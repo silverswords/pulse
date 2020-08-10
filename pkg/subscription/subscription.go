@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	log                      = logger.NewLogger("whisper")
+	log = logger.NewLogger("whisper")
 
 	errReceiveInProgress = errors.New("pubsub: Receive already in progress for this subscription")
 )

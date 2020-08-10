@@ -1,42 +1,43 @@
-# whisper
+# pulse
 an eventbus made on portable MQ.
 
-simple communicate like async discrete real world.
+an eventsource pattern simple to communicate like async discrete real world.
 
 ## Usage
 ### New Topic & Subscription
 ```go
-meta := driver.NewMetadata()
+meta := mq.NewMetadata()
+meta.Properties[nats.URL] = nats.DefaultURL
+meta.Properties["DriverName"] = "nats"
 
-t, err := whisper.NewTopic("eventbus:hello",*meta,whisper.WithPubACK(), whisper.WithCount())
+t, err := topic.NewTopic("hello", *meta, topic.WithPubACK(), topic.WithCount())
 if err != nil {
-	log.Fatal(err)
+    log.Println(err)
+    return
 }
 
-s, err := whisper.NewSubscription("eventbus:hello", *meta, whisper.WithSubACK())
+s, err := subscription.NewSubscription("hello", *meta, subscription.WithSubACK())
 if err != nil {
-	log.Println(err)
-	return
+    log.Println(err)
+    return
 }
 ```
 
 ### Publish & Receive
 Publish
 ```go
-res := t.Publish(context.Background(), whisper.NewMessage([]byte("hello")))
+res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 go func() {
-	if err := res.Get(context.Background()); err != nil {
-		log.Println("----------------------", err)
-	}
+    if err := res.Get(context.Background()); err != nil {
+        log.Println("----------------------", err)
+    }
 }()
 ```
 Receive
 ```go
-  //ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
-	err = s.Receive(context.Background(), func(ctx context.Context, m *whisper.Message) {
-		receiveCount++
-		log.Println("receive the message:", m.Id, receiveCount)
-	})
+err = s.Receive(context.Background(), func(ctx context.Context, m *message.Message) {
+    log.Println("receive the message:", m.Id)
+})
 ```
 
 
@@ -54,6 +55,7 @@ Receive
   - ![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fcomputer%2FWOjfpzAWwh.png?alt=media&token=376cb2ea-ab64-4887-9366-c1e23891cdcd)
    
   - ![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fcomputer%2FiPkp26NkMs.png?alt=media&token=432e16bb-ea5e-4faf-96ae-466924a3f932)
+
 ## Concepts
 ### Driver
 Driver is the realization of various protocol like Nats, http etc.
@@ -95,4 +97,6 @@ Message is the object transport from the whisper endpoint. It's format as CloudE
     - Kong: siprit on extension.
 
     - Kafka: log
+    
+    - axon: event source DDD CQRS
 
