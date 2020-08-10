@@ -1,9 +1,5 @@
 # whisper
-send and receive messages with any protocol like nats etc.
-
-could define the handler to process messages simply.
-
-Could be eventbus with more decorating.
+simple communicate like async discrete real world.
 
 ## Usage
 ### New Topic & Subscription
