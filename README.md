@@ -1,4 +1,6 @@
 # whisper
+an eventbus made on portable MQ.
+
 simple communicate like async discrete real world.
 
 ## Usage
