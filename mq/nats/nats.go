@@ -13,8 +13,17 @@ const (
 	URL     = "natsURL"
 	Options = "natsOptions"
 	//DefaultURL = "nats://39.105.141.168:4222"
-	DefaultURL = "nats://192.168.0.123:4222"
+	DefaultURL = "nats://192.168.0.252:4222"
 )
+
+func init() {
+	// use to register the nats to pubsub mq factory
+	mq.Registry.Register("nats", func() mq.Driver {
+		return NewNats()
+	})
+	//log.Println("Register the nats mq")
+}
+
 
 func setupConnOptions(opts []nats.Option) []nats.Option {
 	totalWait := 10 * time.Minute
@@ -34,19 +43,35 @@ func setupConnOptions(opts []nats.Option) []nats.Option {
 	return opts
 }
 
-func init() {
-	// use to register the nats to pubsub mq factory
-	mq.Registry.Register("nats", func() mq.Driver {
-		return NewNats()
-	})
-	//log.Println("Register the nats mq")
-}
 
 type metadata struct {
 	natsURL        string
 	natsOpts       []nats.Option
 	queueGroupName string
 }
+
+
+func parseNATSMetadata(meta mq.Metadata) (metadata, error) {
+	m := metadata{}
+	if val, ok := meta.Properties[URL]; ok && val != "" {
+		if m.natsURL, ok = val.(string); !ok {
+			return m, errors.New("nats error: nats URL is not a string")
+		}
+	} else {
+		return m, errors.New("nats error: missing nats URL")
+	}
+
+	if val, ok := meta.Properties[Options]; ok && val != nil {
+		if m.natsOpts, ok = val.([]nats.Option); !ok {
+			return m, errors.New("nats error: missing nats Options and not use default")
+		}
+	} else {
+		m.natsOpts = setupConnOptions(m.natsOpts)
+	}
+
+	return m, nil
+}
+
 
 type Driver struct {
 	metadata
@@ -124,27 +149,6 @@ func (s *subscriber) Close() error {
 func (n *Driver) Close() error {
 	n.Conn.Close()
 	return nil
-}
-
-func parseNATSMetadata(meta mq.Metadata) (metadata, error) {
-	m := metadata{}
-	if val, ok := meta.Properties[URL]; ok && val != "" {
-		if m.natsURL, ok = val.(string); !ok {
-			return m, errors.New("nats error: nats URL is not a string")
-		}
-	} else {
-		return m, errors.New("nats error: missing nats URL")
-	}
-
-	if val, ok := meta.Properties[Options]; ok && val != nil {
-		if m.natsOpts, ok = val.([]nats.Option); !ok {
-			return m, errors.New("nats error: missing nats Options and not use default")
-		}
-	} else {
-		m.natsOpts = setupConnOptions(m.natsOpts)
-	}
-
-	return m, nil
 }
 
 var _ mq.Driver = (*Driver)(nil)

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/whisper/mq/nats"
+	"github.com/silverswords/whisper/mq/redis"
 	"github.com/silverswords/whisper/pkg/components/mq"
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/subscription"
@@ -11,12 +11,13 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
+	"time"
 )
 
 func main() {
 	meta := mq.NewMetadata()
-	meta.Properties[nats.URL] = nats.DefaultURL
-	meta.Properties["DriverName"] = "nats"
+	meta.Properties[redis.URL] = redis.DefaultURL
+	meta.Properties["DriverName"] = "redis"
 
 	t, err := topic.NewTopic("hello", *meta, topic.WithPubACK(), topic.WithCount())
 	if err != nil {
@@ -34,7 +35,8 @@ func main() {
 				}
 			}()
 			//log.Println("send a message", count)
-			if count > 1e7 {
+			time.Sleep(time.Second)
+			if count > 1e6 {
 				return
 			}
 		}

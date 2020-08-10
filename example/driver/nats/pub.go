@@ -9,6 +9,7 @@ import (
 func main() {
 	nc, err := na.Connect(nats.DefaultURL)
 	if err != nil {
+		log.Println(err)
 		return
 	}
 	var count int

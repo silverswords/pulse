@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/nats-io/nuid"
-	"github.com/silverswords/whisper/pkg/internal"
+	"github.com/silverswords/whisper/utils"
 )
 
 var uidGen = nuid.New()
@@ -28,7 +28,7 @@ type Message struct {
 
 	OrderingKey string // for example, order id, would be ordered consume by the consumer.
 	// Where the message from and to. what codec is the message have. when and why have this message.
-	Attributes internal.Header // Message Header use to specific message and how to handle it.
+	Attributes utils.Header // Message Header use to specific message and how to handle it.
 
 	// Logic is represents the fields that don't need initialize by the message producer.
 	Size int
@@ -57,7 +57,7 @@ func NewEventwithOrderKey(data []byte, key string) *Message {
 	return &Message{
 		Id:          uidGen.Next(),
 		Data:        data,
-		Attributes:  make(internal.Header),
+		Attributes:  make(utils.Header),
 		OrderingKey: key,
 	}
 
