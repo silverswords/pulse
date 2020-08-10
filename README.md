@@ -40,14 +40,19 @@ Receive
 		log.Println("receive the message:", m.Id, receiveCount)
 	})
 ```
-### 
-## feature
-- [[uuid]]: 现在使用 nats 的 nuid 进行 uuid 的生成
-  - 通过 nuid 生成的 id 的记录保证幂等性
-- 通过在同一个 orderingKey 下本身有序的消息添加行为.保证发送和处理和添加行为顺序一样.
-    - 如果有序的消息发送失败, 在 Result 会有提示,调用 t.Resume 并重新有序发送错误的信息即可.
-- topic 和 subscription 均支持并发处理, 注意如果有 callback 和 middleware 需要注意用户自定义的处理中是否有临界区资源.
-- # Architecture
+
+
+## **feature**
+
+   - 幂等性: 简单记录在每个 Subscription 的 map 中, 避免单消费者重复处理. nats 可以提供 queueSubscribe
+
+   - 有序性: message 使用 OrderingKey 保证接发有序. 如果出错会暂停某一个 OrderingKey 的发送, 空 key 不暂停
+
+   - 并发处理: topic 和 Subscription 均使用并发处理. 注意中间件是否有临界资源
+
+   - 可靠性: 独立实现了 ack, 保证消息至少一次的投递.
+    
+# Architecture
     - ![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fcomputer%2FWOjfpzAWwh.png?alt=media&token=376cb2ea-ab64-4887-9366-c1e23891cdcd)
    
     - ![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fcomputer%2FiPkp26NkMs.png?alt=media&token=432e16bb-ea5e-4faf-96ae-466924a3f932)
@@ -66,17 +71,30 @@ Message is the object transport from the whisper endpoint. It's format as CloudE
                   "data": { ... }
                 }
  
-## Progress
-  - [x] completed basic function and framework.
-  - [x] find google cloud-go logic with scheduler [[July 27th, 2020]] 
-  - [x] 增加 example , new topic and send message
-  - EventBus = CloudState(MQ)
-  - 增加本地 eventbus 实现
-  - 边车功能 Add Endpoint to receive eventSource  GRPC and http
-  - 持久订阅功能log 用于恢复 subscribe 的 event = Kafka 
+## **Process**
+- [x] 增加本地 eventbus 实现
+- [x] EventBus = (MQ)
+- [x] copy google cloud-go logic to my topic logic with scheduler [[July 27th, 2020]] 
+- [x] 添加 logger 
+- [x] 增加 example , new topic and send messagehttps://sourcegraph.com/github.com/GoogleCloudPlatform/golang-samples@master/-/blob/pubsub/subscriptions/pull_concurrency.go#L27
+ - 边车功能 Add Endpoint to receive eventSource  GRPC and http
+ - 持久订阅功能log 用于恢复 subscribe 的 event = Kafka 
   
 ## Reference
-        - CloudEvent: a CNCF project
-        - Cloud State: sidecar project to move state out of application
-        - GoogleCloud Pub sub : use to get a new driver
-        - Dapr: sidecar Synthesizer
+
+    - nuid: 现在使用 nats 的 nuid 进行 uuid的生成
+
+    - CloudEvent: a CNCF project
+
+    - Cloud State: sidecar project to move state out of application
+
+    - GoogleCloud Pub sub : use to get a new driver
+
+    - Dapr: sidecar Synthesizer
+
+    - Saga: whisper usage.
+
+    - Kong: siprit on extension.
+
+    - Kafka: log
+
