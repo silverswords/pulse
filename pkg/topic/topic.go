@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	log = logger.NewLogger("whisper")
+	log = logger.NewLogger("pulse")
 
 	errTopicOrderingDisabled = errors.New("Topic.EnableMessageOrdering=false, but an OrderingKey was set in Message. Please remove the OrderingKey or turn on Topic.EnableMessageOrdering")
 	errTopicStopped          = errors.New("pubsub: Stop has been called for this topic")
@@ -151,7 +151,7 @@ func NewTopic(topicName string, driverMetadata mq.Metadata, options ...TopicOpti
 }
 
 func (t *Topic) startAck(ctx context.Context) error {
-	// todo: now the ack logic's stability rely on mq subscriber implements. but not whisper implements.
+	// todo: now the ack logic's stability rely on mq subscriber implements. but not pulse implements.
 	// open a subscriber, receive and then ack the message.
 	// message should check itself and then depend on topic RetryParams to retry.
 	if !t.EnableAck {

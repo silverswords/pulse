@@ -8,6 +8,7 @@ import (
 	"github.com/silverswords/whisper/pkg/components/mq"
 )
 
+// todo: https://github.com/dapr/components-contrib/blob/master/pubsub/redis/redis.go
 const (
 	URL = "redisURL"
 

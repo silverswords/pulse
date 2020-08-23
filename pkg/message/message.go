@@ -10,17 +10,29 @@ import (
 
 var uidGen = nuid.New()
 
+const (
+	// DefaultCloudEventType is the default event type for an Dapr published event
+	DefaultCloudEventType = "com.pulse.event.sent"
+	// CloudEventsSpecVersion is the specversion used by Dapr for the cloud events implementation
+	CloudEventsSpecVersion = "1.0"
+	//ContentType is the Cloud Events HTTP content type
+	ContentType = "application/cloudevents+json"
+	// DefaultCloudEventSource is the default event source
+	DefaultCloudEventSource = "pulse"
+)
+
 // todo: transform those message to cloudEvent specification.
 // Message format maybe below
 //{
-//"specversion": "1.x-wip",
-//"type": "coolevent",
+//"specversion": "1.0",
+//"type": "com.pulse.event.sent",
 //"id": "xxxx-xxxx-xxxx",
-//"source": "bigco.com",
+//"source": "pulse",
 //"data": { ... }
+//"datacontenttype":"application/cloudevents+json"
 //}
 type Message struct {
-	// did we need a ack id again? no because the message id is just for whisper.
+	// did we need a ack id again? no because the message id is just for pulse.
 	// it's enough to ack.
 	// AckID string
 	Id   string

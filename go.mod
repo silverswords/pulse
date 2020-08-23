@@ -5,6 +5,8 @@ go 1.14
 require (
 	github.com/asaskevich/EventBus v0.0.0-20200428142821-4fc0642a29f3
 	github.com/go-redis/redis/v8 v8.0.0-beta.7
+	github.com/google/uuid v1.1.1
+	github.com/json-iterator/go v1.1.10
 	github.com/kr/text v0.2.0 // indirect
 	github.com/nats-io/nats-server/v2 v2.1.6 // indirect
 	github.com/nats-io/nats.go v1.9.2

@@ -6,7 +6,7 @@ import (
 	"github.com/silverswords/whisper/pkg/logger"
 )
 
-var log = logger.NewLogger("whisper.mq")
+var log = logger.NewLogger("pulse.mq")
 
 var Registry = pubsubRegistry{
 	buses: make(map[string]func() Driver),

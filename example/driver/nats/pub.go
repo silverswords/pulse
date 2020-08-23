@@ -2,12 +2,11 @@ package main
 
 import (
 	na "github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper/mq/nats"
 	"log"
 )
 
 func main() {
-	nc, err := na.Connect(nats.DefaultURL)
+	nc, err := na.Connect("nats_client:W64f8c6vG6@192.168.0.253:31476")
 	if err != nil {
 		log.Println(err)
 		return

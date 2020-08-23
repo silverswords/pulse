@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	log = logger.NewLogger("whisper")
+	log = logger.NewLogger("pulse")
 
 	errReceiveInProgress = errors.New("pubsub: Receive already in progress for this subscription")
 )
@@ -165,7 +165,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 		m, err := message.ToMessage(msg)
 		if err != nil {
 			log.Error("Error while transforming the byte to message: ", err)
-			// not our whisper message. just drop it.
+			// not our pulse message. just drop it.
 			return
 		}
 		// don't repeat the handle logic.
