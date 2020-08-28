@@ -19,6 +19,7 @@ func main() {
 	meta.Properties[nsq.URL] = nsq.DefaultURL
 	meta.Properties["DriverName"] = "nsq"
 
+	//create a topic whose name is  "hello"
 	t, err := topic.NewTopic("hello", *meta, topic.WithPubACK(), topic.WithCount())
 	if err != nil {
 		log.Println(err)
@@ -29,10 +30,11 @@ func main() {
 		var count int
 		for {
 			count++
+			//publish message to topic
 			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 			go func() {
 				if err := res.Get(context.Background()); err != nil {
-					log.Println("----------------------", err)
+					log.Println(err)
 				}
 			}()
 			log.Println("send a message", count)
@@ -43,6 +45,7 @@ func main() {
 		}
 	}()
 
+	//create a subscription to receive message
 	s, err := subscription.NewSubscription("hello", *meta, subscription.WithSubACK())
 	if err != nil {
 		log.Println(err)

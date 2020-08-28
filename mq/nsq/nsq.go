@@ -10,12 +10,13 @@ import (
 )
 
 const (
+	DriverName = "nsq"
 	URL        = "nsqURL"
 	DefaultURL = "127.0.0.1:4150"
 )
 
 func init() {
-	mq.Registry.Register("nsq", func() mq.Driver {
+	mq.Registry.Register(DriverName, func() mq.Driver {
 		return NewNsq()
 	})
 }
@@ -89,7 +90,6 @@ func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, e
 	}
 
 	return &consumer{con: con}, nil
-
 }
 
 type consumer struct {
