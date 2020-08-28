@@ -5,8 +5,6 @@
 
 an eventbus made on portable MQ.
 
-an eventsource pattern simple to communicate like async discrete real world.
-
 ## Usage
 ### New Topic & Subscription
 ```go
