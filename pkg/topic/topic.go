@@ -10,7 +10,6 @@ import (
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/retry"
 	"github.com/silverswords/whisper/pkg/scheduler"
-	"github.com/silverswords/whisper/pkg/timingwheel"
 	"golang.org/x/sync/errgroup"
 
 	//"go.opencensus.io/stats"
@@ -277,22 +276,6 @@ func (t *Topic) done(ackId string, ack bool, _ time.Time) {
 	}
 }
 
-func (t *Topic) deleteAck() {
-	for {
-		select{
-		case _ = <-timingwheel.After(t.Timeout):
-			t.mu.Lock()
-			for ackId, ack := range t.pendingAcks {
-				if ack {
-					delete(t.pendingAcks, ackId)
-				}
-			}
-			t.mu.Unlock()
-		}
-	}
-
-}
-
 // use to start the topic sender and acker
 func (t *Topic) start() {
 	t.mu.RLock()
@@ -343,8 +326,6 @@ func (t *Topic) start() {
 	// The maximum number of bytes that the Bundler will keep in memory before
 	// returning ErrOverflow. The default is DefaultBufferedByteLimit.
 	t.scheduler.BundleByteLimit = MaxPublishRequestBytes // - calcFieldSizeString(t.name)
-
-	go t.deleteAck()
 }
 
 type bundledMessage struct {
@@ -400,13 +381,14 @@ var (
 
 // choose to skip ack logic. would delete key when ack.
 func (t *Topic) checkAck(m *message.Message) bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	//log.Info("checking message ", m.Id, t.pendingAcks)
 	if !t.pendingAcks[m.Id] {
 		return false
 	}
-	// new a ticker delete for range with the map.
+	// clear the map
+	delete(t.pendingAcks, m.Id)
 	return true
 }
 
