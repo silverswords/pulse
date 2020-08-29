@@ -20,7 +20,7 @@ func main() {
 	meta.Properties["DriverName"] = "nsq"
 
 	//create a topic whose name is  "hello"
-	t, err := topic.NewTopic("hello", *meta, topic.WithPubACK(), topic.WithCount())
+	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithDebugCount())
 	if err != nil {
 		log.Println(err)
 		return
@@ -46,7 +46,7 @@ func main() {
 	}()
 
 	//create a subscription to receive message
-	s, err := subscription.NewSubscription("hello", *meta, subscription.WithSubACK())
+	s, err := subscription.NewSubscription("hello", *meta, subscription.WithAutoACK())
 	if err != nil {
 		log.Println(err)
 		return

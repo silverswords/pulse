@@ -20,16 +20,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="82ff2b64-e9fb-43d2-9b06-f91d49c8e2f1" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/pkg/runtime/runtime.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/driver/nats/pub.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/driver/nats/pub.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/whisper/eventbus/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/eventbus/topic.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/whisper/nats/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/nats/topic.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/whisper/redis/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/redis/topic.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/example/pulse/eventbus/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/eventbus/topic.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/example/pulse/nats/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/nats/topic.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/example/pulse/nsq/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/nsq/topic.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/example/pulse/redis/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/redis/topic.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mq/nats/nats.go" beforeDir="false" afterPath="$PROJECT_DIR$/mq/nats/nats.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mq/redis/redis.go" beforeDir="false" afterPath="$PROJECT_DIR$/mq/redis/redis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/components/mq/driver.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/components/mq/driver.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/message/message.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/message/message.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pkg/subscription/subscription.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/subscription/subscription.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pkg/topic/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/topic/topic.go" afterDir="false" />
     </list>
@@ -69,7 +65,7 @@
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
     <property name="last_opened_file_path" value="$USER_HOME$" />
   </component>
-  <component name="RunManager" selected="Go Build.go build github.com/silverswords/whisper/example/driver/nats">
+  <component name="RunManager" selected="Go Build.go build github.com/silverswords/whisper/example/pulse/nats">
     <configuration name="go build github.com/silverswords/whisper/example/driver/nats" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
       <module name="pulse" />
       <working_directory value="$PROJECT_DIR$" />
@@ -90,8 +86,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Go Build.go build github.com/silverswords/whisper/example/driver/nats" />
         <item itemvalue="Go Build.go build github.com/silverswords/whisper/example/pulse/nats" />
+        <item itemvalue="Go Build.go build github.com/silverswords/whisper/example/driver/nats" />
       </list>
     </recent_temporary>
   </component>
@@ -119,21 +115,49 @@
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
     <state x="447" y="373" key="#Go_Modules/0.0.1920.1080/0.-1080.1920.1080@0.0.1920.1080" timestamp="1597067196587" />
-    <state width="1215" height="292" key="GridCell.Tab.0.bottom" timestamp="1598019069177">
+    <state x="989" y="369" key="#Notifications" timestamp="1598666535451">
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
+    <state x="989" y="369" key="#Notifications/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598666535451" />
+    <state width="1877" height="292" key="GridCell.Tab.0.bottom" timestamp="1598668718735">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1877" height="292" key="GridCell.Tab.0.bottom/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598668718735" />
     <state width="1215" height="292" key="GridCell.Tab.0.bottom/0.0.1920.1080@0.0.1920.1080" timestamp="1598019069177" />
-    <state width="1215" height="292" key="GridCell.Tab.0.center" timestamp="1598019069177">
+    <state width="1877" height="292" key="GridCell.Tab.0.center" timestamp="1598668718734">
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
+    <state width="1877" height="292" key="GridCell.Tab.0.center/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598668718734" />
     <state width="1215" height="292" key="GridCell.Tab.0.center/0.0.1920.1080@0.0.1920.1080" timestamp="1598019069177" />
-    <state width="1215" height="292" key="GridCell.Tab.0.left" timestamp="1598019069177">
+    <state width="1877" height="292" key="GridCell.Tab.0.left" timestamp="1598668718734">
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
+    <state width="1877" height="292" key="GridCell.Tab.0.left/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598668718734" />
     <state width="1215" height="292" key="GridCell.Tab.0.left/0.0.1920.1080@0.0.1920.1080" timestamp="1598019069177" />
-    <state width="1215" height="292" key="GridCell.Tab.0.right" timestamp="1598019069177">
+    <state width="1877" height="292" key="GridCell.Tab.0.right" timestamp="1598668718735">
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
+    <state width="1877" height="292" key="GridCell.Tab.0.right/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598668718735" />
     <state width="1215" height="292" key="GridCell.Tab.0.right/0.0.1920.1080@0.0.1920.1080" timestamp="1598019069177" />
+    <state width="1215" height="360" key="GridCell.Tab.1.bottom" timestamp="1598666826503">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1215" height="360" key="GridCell.Tab.1.bottom/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598666826503" />
+    <state width="1215" height="360" key="GridCell.Tab.1.center" timestamp="1598666826503">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1215" height="360" key="GridCell.Tab.1.center/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598666826503" />
+    <state width="1215" height="360" key="GridCell.Tab.1.left" timestamp="1598666826503">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1215" height="360" key="GridCell.Tab.1.left/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598666826503" />
+    <state width="1215" height="360" key="GridCell.Tab.1.right" timestamp="1598666826503">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="1215" height="360" key="GridCell.Tab.1.right/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598666826503" />
+    <state x="950" y="145" width="596" height="804" key="find.popup" timestamp="1598668379335">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state x="950" y="145" width="596" height="804" key="find.popup/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598668379335" />
   </component>
 </project>

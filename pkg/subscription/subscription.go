@@ -170,16 +170,16 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 		}
 		// don't repeat the handle logic.
 		if s.checkIfReceived(m) {
-			log.Debug("Subscriber with topic:", s.topic, "already received this message id:", m.Id)
+			log.Error("Subscriber with topic: ", s.topic, " already received this message id:", m.Id)
 			return
 		}
-		log.Debug("Subscriber with topic:", s.topic, "received message id: ", m.Id)
+		log.Debug("Subscriber with topic: ", s.topic, " received message id: ", m.Id)
 		m.DoneFunc = s.done
+
+		// if not EnableAck, Please use m.Ack() manually to ack the message.
 		// promise to ack when received a right message.
 		if s.EnableAck {
 			defer m.Ack()
-		} else {
-			defer m.Nack()
 		}
 
 		// if no ordering, it would be concurrency handle the message.
@@ -231,7 +231,7 @@ func WithMiddlewares(handlers ...func(context.Context, *message.Message)) SubOpt
 	}
 }
 
-func WithSubACK() SubOption {
+func WithAutoACK() SubOption {
 	return func(s *Subscription) error {
 		s.EnableAck = true
 		return nil

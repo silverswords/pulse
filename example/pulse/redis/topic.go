@@ -19,7 +19,7 @@ func main() {
 	meta.Properties[redis.URL] = redis.DefaultURL
 	meta.Properties["DriverName"] = "redis"
 
-	t, err := topic.NewTopic("hello", *meta, topic.WithPubACK(), topic.WithCount())
+	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithDebugCount())
 	if err != nil {
 		log.Println(err)
 		return
@@ -42,7 +42,7 @@ func main() {
 		}
 	}()
 
-	s, err := subscription.NewSubscription("hello", *meta, subscription.WithSubACK())
+	s, err := subscription.NewSubscription("hello", *meta, subscription.WithAutoACK())
 	if err != nil {
 		log.Println(err)
 		return

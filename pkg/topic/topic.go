@@ -165,7 +165,7 @@ func (t *Topic) startAck(ctx context.Context) error {
 			//	 not our Whisper message, just ignore it
 			return
 		}
-		log.Debug("topic", t.name, "received ackId", m.Id)
+		log.Debug("ACK: topic ", t.name, " received ackId ", m.Id)
 		t.done(m.Id, true, time.Now())
 	})
 	log.Debug("try to subscribe the ack topic")
@@ -429,12 +429,12 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 	// terminate the scheduler if ordering.
 	err := t.d.Publish(t.name, mb)
 	if err != nil {
-		goto NoRetry
+		goto CheckError
 	}
 
 	// if no ack logic, just return
 	if !t.EnableAck {
-		goto NoRetry
+		goto CheckError
 	}
 
 	// handle the wait ack and retry logic. note that topic set ack true in startAck() function.
@@ -443,21 +443,21 @@ Retry:
 	retryTimes++
 	err = t.RetryParams.Backoff(ctx, retryTimes)
 	if err != nil {
-		goto NoRetry
+		goto CheckError
 	}
 	if t.checkAck(bm.msg) {
-		goto NoRetry
+		goto CheckError
 	}
-	log.Info("resend")
+	log.Debug("resend")
 	// checkAck false and need to retry.
 	err = t.d.Publish(t.name, mb)
 	if err != nil {
-		goto NoRetry
+		goto CheckError
 	}
 	goto Retry
 
 	//	no error check until here
-NoRetry:
+CheckError:
 	if err != nil {
 		t.scheduler.Pause(bm.msg.OrderingKey)
 		// Update context with error tag for OpenCensus,
@@ -476,27 +476,27 @@ NoRetry:
 	return err
 }
 
-// WithPubACK would turn on the ack function.
-func WithPubACK() TopicOption {
+// WithRequiredACK would turn on the ack function.
+func WithRequiredACK() TopicOption {
 	return func(t *Topic) error {
 		t.EnableAck = true
 		return nil
 	}
 }
 
-func WithCount() TopicOption {
+func WithDebugCount() TopicOption {
 	return func(t *Topic) error {
 		var count = 0
 		t.endpoints = append(t.endpoints, func(ctx context.Context, m *message.Message) error {
 			count++
-			log.Info("count", count)
+			log.Debug("count", count)
 			return nil
 		})
 		return nil
 	}
 }
 
-// WithPubACK would turn on the ack function.
+// WithRequiredACK would turn on the ack function.
 func WithOrdered() TopicOption {
 	return func(t *Topic) error {
 		t.EnableMessageOrdering = true

@@ -16,7 +16,7 @@ import (
 func main() {
 	meta := mq.NewMetadata()
 
-	t, err := topic.NewTopic("eventbus:hello", *meta, topic.WithPubACK(), topic.WithCount())
+	t, err := topic.NewTopic("eventbus:hello", *meta, topic.WithRequiredACK(), topic.WithDebugCount())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func main() {
 		}
 	}()
 
-	s, err := subscription.NewSubscription("eventbus:hello", *meta, subscription.WithSubACK())
+	s, err := subscription.NewSubscription("eventbus:hello", *meta, subscription.WithAutoACK())
 	if err != nil {
 		log.Println(err)
 		return
