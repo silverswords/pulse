@@ -195,6 +195,8 @@ func (t *Topic) startAck(_ context.Context) error {
 //
 // Warning: do not use incoming message pointer again that if message had been successfully
 // add in the scheduler, message would be equal nil to gc.
+//
+// Warning: when use ordering feature, recommend to limit the QPS to 100, or use synchronous
 func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResult {
 	r := &PublishResult{ready: make(chan struct{})}
 	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
@@ -417,8 +419,10 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 	group, gCtx := errgroup.WithContext(ctx)
 
 	for _, bm := range bms {
-		if t.scheduler.IsPaused(bm.msg.OrderingKey) {
+		if bm.msg.OrderingKey != "" && t.scheduler.IsPaused(bm.msg.OrderingKey) {
 			err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", bm.msg.OrderingKey)
+			bm.res.set("",err)
+			continue
 		}
 
 		closureBundleMessage := &bundledMessage{
@@ -443,7 +447,6 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 	log.Debug("sending: the bundle key is ", bm.msg.OrderingKey, " with id", bm.msg.Id)
 	// comment the trace of google api
 	mb := message.ToByte(bm.msg)
-
 	// todo: make this id ordered or generated on mq
 	id := bm.msg.Id
 	// if pub error, would return it in result.
@@ -480,7 +483,7 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 			}
 		}
 		err = t.d.Publish(t.name, mb)
-		fmt.Println("resend")
+		log.Error("Resend message: ",bm.msg.Id)
 		if err != nil {
 			goto CheckError
 		}
