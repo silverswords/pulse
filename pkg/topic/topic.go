@@ -195,7 +195,7 @@ func (t *Topic) startAck(ctx context.Context) error {
 func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResult {
 	r := &PublishResult{ready: make(chan struct{})}
 	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
-		r.set(errTopicOrderingDisabled)
+		r.set("",errTopicOrderingDisabled)
 		return r
 	}
 
@@ -204,7 +204,7 @@ func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResul
 	for _, handler := range t.endpoints {
 		err := handler(ctx, msg)
 		if err != nil {
-			r.set(err)
+			r.set("",err)
 			return r
 		}
 	}
@@ -222,7 +222,7 @@ func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResul
 	defer t.mu.RUnlock()
 	// TODO(aboulhosn) [from bcmills] consider changing the semantics of bundler to perform this logic so we don't have to do it here
 	if t.stopped {
-		r.set(errTopicStopped)
+		r.set("",errTopicStopped)
 		return r
 	}
 
@@ -231,7 +231,7 @@ func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResul
 	err := t.scheduler.Add(msg.OrderingKey, &bundledMessage{msg, r}, msg.Size)
 	if err != nil {
 		t.scheduler.Pause(msg.OrderingKey)
-		r.set(err)
+		r.set("",err)
 	}
 	return r
 }
@@ -333,6 +333,7 @@ type bundledMessage struct {
 // PublishResult help to know error because of sending goroutine is another goroutine.
 type PublishResult struct {
 	ready chan struct{}
+	serverID string
 	err   error
 }
 
@@ -342,22 +343,23 @@ func (r *PublishResult) Ready() <-chan struct{} { return r.ready }
 
 // Get returns the server-generated message ID and/or error result of a Publish call.
 // Get blocks until the Publish call completes or the context is done.
-func (r *PublishResult) Get(ctx context.Context) (err error) {
+func (r *PublishResult) Get(ctx context.Context) (serverID string,err error) {
 	// If the result is already ready, return it even if the context is done.
 	select {
 	case <-r.Ready():
-		return r.err
+		return r.serverID, r.err
 	default:
 	}
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return "", ctx.Err()
 	case <-r.Ready():
-		return r.err
+		return r.serverID, r.err
 	}
 }
 
-func (r *PublishResult) set(err error) {
+func (r *PublishResult) set(sid string,err error) {
+	r.serverID = sid
 	r.err = err
 	close(r.ready)
 }
@@ -425,6 +427,8 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 	// comment the trace of google api
 	mb := message.ToByte(bm.msg)
 
+	// todo: make this id ordered or generated on mq
+	id := bm.msg.Id
 	// if pub error, would return it in result.
 	// terminate the scheduler if ordering.
 	err := t.d.Publish(t.name, mb)
@@ -468,10 +472,10 @@ CheckError:
 	// error handle
 	if err != nil {
 		log.Error("error in pulishMessage:", err)
-		bm.res.set(err)
+		bm.res.set("",err)
 	} else {
 		bm.msg = nil
-		bm.res.set(nil)
+		bm.res.set(id,nil)
 	}
 	return err
 }
