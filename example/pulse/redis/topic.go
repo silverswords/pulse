@@ -11,7 +11,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
-	"time"
+	"strconv"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 	meta.Properties[redis.URL] = redis.DefaultURL
 	meta.Properties["DriverName"] = "redis"
 
-	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithCount())
+	t, err := topic.NewTopic("hello", *meta,topic.WithRequiredACK(), topic.WithOrdered())
 	if err != nil {
 		log.Println(err)
 		return
@@ -28,21 +28,20 @@ func main() {
 		var count int
 		for {
 			count++
-			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
+			res := t.Publish(context.Background(), message.NewEventwithOrderKey([]byte(strconv.Itoa(count)),"1"))
 			go func() {
 				if _, err := res.Get(context.Background()); err != nil {
-					log.Println("----------------------", err)
+					log.Println(err)
 				}
 			}()
 			//log.Println("send a message", count)
-			time.Sleep(time.Second)
-			if count > 1e6 {
+			if count > 1e7 {
 				return
 			}
 		}
 	}()
 
-	s, err := subscription.NewSubscription("hello", *meta, subscription.WithAutoACK())
+	s, err := subscription.NewSubscription("hello", *meta,subscription.WithCount(), subscription.WithAutoACK())
 	if err != nil {
 		log.Println(err)
 		return
@@ -52,11 +51,9 @@ func main() {
 		panic(http.ListenAndServe(":8080", nil))
 	}()
 
-	var receiveCount int
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
 	err = s.Receive(context.Background(), func(ctx context.Context, m *message.Message) {
-		receiveCount++
-		log.Println("receive the message:", m.Id, receiveCount)
+
 	})
 
 	if err != nil {
@@ -64,5 +61,4 @@ func main() {
 		return
 	}
 	runtime.Goexit()
-
 }

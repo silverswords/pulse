@@ -12,7 +12,7 @@ import (
 const (
 	URL = "redisURL"
 
-	DefaultURL = "redis://@192.168.0.253:6379/0"
+	DefaultURL = "redis://:123456@192.168.0.253:32220/0"
 )
 
 func init() {

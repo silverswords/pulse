@@ -35,7 +35,7 @@ func main() {
 			}()
 			//log.Println("send a message", count)
 			//Sleep(Second)
-			if count > 1e3 {
+			if count > 1e5 {
 				return
 			}
 		}

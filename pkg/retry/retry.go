@@ -24,8 +24,12 @@ const (
 	BackoffStrategyExponential = "exponential"
 )
 
-// DefaultRetryParams max wait time is 64 + 32 + 16 + 8 + 4 + 2 + 1 sum 123 seconds with 6 times call.
-var DefaultRetryParams = Params{Strategy: BackoffStrategyLinear, MaxTries: 3, Period: 1000 * time.Millisecond}
+// DefaultRetryParams retry max 30 times, internal time serial: 10ms, 20ms ... 290ms, 300ms.
+var (
+	ErrCancel          = errors.New("context has been cancelled")
+	ErrMaxRetry        = errors.New("too many retries")
+	DefaultRetryParams = Params{Strategy: BackoffStrategyLinear, MaxTries: 30, Period: 10 * time.Millisecond}
+)
 
 // RetryParams holds parameters applied to retries
 type Params struct {
@@ -66,13 +70,13 @@ func (r *Params) BackoffFor(tries int) time.Duration {
 // `tries` is assumed to be the number of times the caller has already retried.
 func (r *Params) Backoff(ctx context.Context, tries int) error {
 	if tries > r.MaxTries {
-		return errors.New("too many retries")
+		return ErrMaxRetry
 	}
 	ticker := time.NewTicker(r.BackoffFor(tries))
 	select {
 	case <-ctx.Done():
 		ticker.Stop()
-		return errors.New("context has been cancelled")
+		return ErrCancel
 	case <-ticker.C:
 		ticker.Stop()
 	}

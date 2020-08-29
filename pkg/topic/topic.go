@@ -10,6 +10,7 @@ import (
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/retry"
 	"github.com/silverswords/whisper/pkg/scheduler"
+	"github.com/silverswords/whisper/pkg/timingwheel"
 	"golang.org/x/sync/errgroup"
 
 	//"go.opencensus.io/stats"
@@ -89,9 +90,9 @@ type PublishSettings struct {
 	// The maximum time that the client will attempt to publish a bundle of messages.
 	Timeout time.Duration
 
-	// After AckTimeout to confirm if message has been acknowledged, and decide whether to retry.
-	AckTimeout time.Duration
 
+	AckMapTicker time.Duration
+	MaxRetryTimes int
 	// The maximum number of bytes that the Bundler will keep in memory before
 	// returning ErrOverflow.
 	//
@@ -109,9 +110,10 @@ var DefaultPublishSettings = PublishSettings{
 	DelayThreshold: 10 * time.Millisecond,
 	CountThreshold: 100,
 	ByteThreshold:  1e6,
-	NumGoroutines:  25 * runtime.GOMAXPROCS(0),
+	NumGoroutines:  100 * runtime.GOMAXPROCS(0),
 	Timeout:        60 * time.Second,
-	AckTimeout:     1 * time.Second,
+	AckMapTicker:   5 * time.Second,
+	MaxRetryTimes:  3,
 	// By default, limit the bundler to 10 times the max message size. The number 10 is
 	// chosen as a reasonable amount of messages in the worst case whilst still
 	// capping the number to a low enough value to not OOM users.
@@ -273,6 +275,22 @@ func (t *Topic) done(ackId string, ack bool, _ time.Time) {
 	}
 }
 
+func (t *Topic) deleteAck() {
+	for {
+		select{
+		case _ = <-timingwheel.After(t.Timeout):
+			t.mu.Lock()
+			for ackId, ack := range t.pendingAcks {
+				if ack {
+					delete(t.pendingAcks, ackId)
+				}
+			}
+			t.mu.Unlock()
+		}
+	}
+
+}
+
 // use to start the topic sender and acker
 func (t *Topic) start() {
 	t.mu.RLock()
@@ -324,6 +342,7 @@ func (t *Topic) start() {
 	// returning ErrOverflow. The default is DefaultBufferedByteLimit.
 	t.scheduler.BundleByteLimit = MaxPublishRequestBytes // - calcFieldSizeString(t.name)
 
+	go t.deleteAck()
 }
 
 type bundledMessage struct {
@@ -379,14 +398,13 @@ var (
 
 // choose to skip ack logic. would delete key when ack.
 func (t *Topic) checkAck(m *message.Message) bool {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	//log.Info("checking message ", m.Id, t.pendingAcks)
 	if !t.pendingAcks[m.Id] {
 		return false
 	}
 	// new a ticker delete for range with the map.
-	delete(t.pendingAcks, m.Id)
 	return true
 }
 
@@ -423,8 +441,6 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 // publishMessage block until ack or an error occurs and pass the error by PublishResult
 func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 	log.Debug("sending: the bundle key is ", bm.msg.OrderingKey, " with id", bm.msg.Id)
-	var retryTimes = 0
-
 	// comment the trace of google api
 	mb := message.ToByte(bm.msg)
 
@@ -432,6 +448,7 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 	id := bm.msg.Id
 	// if pub error, would return it in result.
 	// terminate the scheduler if ordering.
+
 	err := t.d.Publish(t.name, mb)
 	if err != nil {
 		goto CheckError
@@ -443,23 +460,33 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 	}
 
 	// handle the wait ack and retry logic. note that topic set ack true in startAck() function.
+	// until the t.Timeout(default: 60s) cancel the ctx.
+	for i:= 0; i < t.MaxRetryTimes; i++ {
+		checkTimes := 0
+		// check loop
+		for {
+			checkTimes++
+			// check on every loop until retry max times.
+			if t.checkAck(bm.msg) {
+				goto CheckError
+			}
 
-Retry:
-	retryTimes++
-	err = t.RetryParams.Backoff(ctx, retryTimes)
-	if err != nil {
-		goto CheckError
+			// every internal time
+			err = t.RetryParams.Backoff(ctx, checkTimes)
+			if err != nil && err == retry.ErrCancel{
+				goto CheckError
+			}else if err == retry.ErrMaxRetry {
+				break
+			}
+		}
+		err = t.d.Publish(t.name, mb)
+		fmt.Println("resend")
+		if err != nil {
+			goto CheckError
+		}
 	}
-	if t.checkAck(bm.msg) {
-		goto CheckError
-	}
-	log.Debug("resend")
-	// checkAck false and need to retry.
-	err = t.d.Publish(t.name, mb)
-	if err != nil {
-		goto CheckError
-	}
-	goto Retry
+	// if reach here, run out of the retry times.
+	err = errors.New(fmt.Sprint("over the retry times limit: ", t.MaxRetryTimes))
 
 	//	no error check until here
 CheckError:
@@ -472,12 +499,13 @@ CheckError:
 	}
 	// error handle
 	if err != nil {
-		log.Error("error in pulishMessage:", err)
+		log.Error("error in publish message:", err)
 		bm.res.set("",err)
 	} else {
 		bm.msg = nil
 		bm.res.set(id,nil)
 	}
+	// this error return to cancel the group of sending goroutines if not nil.
 	return err
 }
 
@@ -494,7 +522,7 @@ func WithCount() Option {
 		var count uint64
 		t.endpoints = append(t.endpoints, func(ctx context.Context, m *message.Message) error {
 			atomic.AddUint64(&count,1)
-			log.Info("count", count)
+			log.Info("count: ", count)
 			return nil
 		})
 		return nil

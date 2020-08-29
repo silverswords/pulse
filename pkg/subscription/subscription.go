@@ -11,6 +11,7 @@ import (
 	"github.com/silverswords/whisper/pkg/scheduler"
 	"github.com/silverswords/whisper/pkg/topic"
 	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -20,7 +21,7 @@ var (
 )
 
 type Subscription struct {
-	subOptions []SubOption
+	subOptions []Option
 
 	d     mq.Driver
 	topic string
@@ -74,7 +75,7 @@ var DefaultRecieveSettings = ReceiveSettings{
 }
 
 // new a topic and init it with the connection options
-func NewSubscription(topicName string, driverMetadata mq.Metadata, options ...SubOption) (*Subscription, error) {
+func NewSubscription(topicName string, driverMetadata mq.Metadata, options ...Option) (*Subscription, error) {
 	d, err := mq.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
@@ -174,17 +175,18 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 			return
 		}
 		log.Debug("Subscriber with topic: ", s.topic, " received message id: ", m.Id)
-		m.DoneFunc = s.done
 
+		// done is async function
+		m.DoneFunc = s.done
 		// if not EnableAck, Please use m.Ack() manually to ack the message.
 		// promise to ack when received a right message.
 		if s.EnableAck {
-			defer m.Ack()
+			// m.Ack() is async function.
+			m.Ack()
 		}
 
 		// if no ordering, it would be concurrency handle the message.
 		err = s.scheduler.Add(m.OrderingKey, m, func(msg interface{}) {
-
 			// group to receive the first error and terminate all the subscribers.
 			// just hint the message is not ordering handle.
 			if s.EnableMessageOrdering && m.OrderingKey != "" {
@@ -199,8 +201,8 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 			}
 
 			callback(ctx2, m)
-
 		})
+
 		if err != nil {
 			cancel2()
 		}
@@ -224,23 +226,34 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	return ctx2.Err()
 }
 
-func WithMiddlewares(handlers ...func(context.Context, *message.Message)) SubOption {
+func WithMiddlewares(handlers ...func(context.Context, *message.Message)) Option {
 	return func(s *Subscription) error {
 		s.handlers = append(s.handlers, handlers...)
 		return nil
 	}
 }
 
-func WithAutoACK() SubOption {
+func WithCount() Option {
+	return func(s *Subscription) error {
+		var count uint64
+		s.handlers = append(s.handlers, func(ctx context.Context, m *message.Message)  {
+			atomic.AddUint64(&count,1)
+			log.Info("count: ", count)
+		})
+		return nil
+	}
+}
+
+func WithAutoACK() Option {
 	return func(s *Subscription) error {
 		s.EnableAck = true
 		return nil
 	}
 }
 
-type SubOption func(*Subscription) error
+type Option func(*Subscription) error
 
-func (s *Subscription) applyOptions(opts ...SubOption) error {
+func (s *Subscription) applyOptions(opts ...Option) error {
 	for _, fn := range opts {
 		if err := fn(s); err != nil {
 			return err

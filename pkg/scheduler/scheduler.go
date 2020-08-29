@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// from the https://github.com/googleapis/google-cloud-go
+//edited from the https://github.com/googleapis/google-cloud-go
+
 
 package scheduler
 
