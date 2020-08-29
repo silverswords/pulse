@@ -20,7 +20,7 @@ func main() {
 	meta.Properties["DriverName"] = "nsq"
 
 	//create a topic whose name is  "hello"
-	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithDebugCount())
+	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithCount())
 	if err != nil {
 		log.Println(err)
 		return
@@ -33,7 +33,7 @@ func main() {
 			//publish message to topic
 			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 			go func() {
-				if err := res.Get(context.Background()); err != nil {
+				if _, err := res.Get(context.Background()); err != nil {
 					log.Println(err)
 				}
 			}()

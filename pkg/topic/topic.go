@@ -18,6 +18,7 @@ import (
 	"go.opencensus.io/tag"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -43,7 +44,7 @@ var (
 )
 
 type Topic struct {
-	topicOptions []TopicOption
+	topicOptions []Option
 
 	d    mq.Driver
 	name string
@@ -122,7 +123,7 @@ var DefaultPublishSettings = PublishSettings{
 }
 
 // new a topic and init it with the connection options
-func NewTopic(topicName string, driverMetadata mq.Metadata, options ...TopicOption) (*Topic, error) {
+func NewTopic(topicName string, driverMetadata mq.Metadata, options ...Option) (*Topic, error) {
 	d, err := mq.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
@@ -150,7 +151,7 @@ func NewTopic(topicName string, driverMetadata mq.Metadata, options ...TopicOpti
 	return t, nil
 }
 
-func (t *Topic) startAck(ctx context.Context) error {
+func (t *Topic) startAck(_ context.Context) error {
 	// todo: now the ack logic's stability rely on mq subscriber implements. but not pulse implements.
 	// open a subscriber, receive and then ack the message.
 	// message should check itself and then depend on topic RetryParams to retry.
@@ -264,7 +265,7 @@ func (t *Topic) Stop() {
 	t.scheduler.FlushAndStop()
 }
 
-func (t *Topic) done(ackId string, ack bool, receiveTime time.Time) {
+func (t *Topic) done(ackId string, ack bool, _ time.Time) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if ack {
@@ -367,7 +368,7 @@ func (r *PublishResult) set(sid string,err error) {
 // The following keys are used to tag requests with a specific topic/subscription ID.
 var (
 	keyTopic        = tag.MustNewKey("topic")
-	keySubscription = tag.MustNewKey("subscription")
+	//keySubscription = tag.MustNewKey("subscription")
 )
 
 // In the following, errors are used if status is not "OK".
@@ -481,19 +482,19 @@ CheckError:
 }
 
 // WithRequiredACK would turn on the ack function.
-func WithRequiredACK() TopicOption {
+func WithRequiredACK() Option {
 	return func(t *Topic) error {
 		t.EnableAck = true
 		return nil
 	}
 }
 
-func WithDebugCount() TopicOption {
+func WithCount() Option {
 	return func(t *Topic) error {
-		var count = 0
+		var count uint64
 		t.endpoints = append(t.endpoints, func(ctx context.Context, m *message.Message) error {
-			count++
-			log.Debug("count", count)
+			atomic.AddUint64(&count,1)
+			log.Info("count", count)
 			return nil
 		})
 		return nil
@@ -501,16 +502,16 @@ func WithDebugCount() TopicOption {
 }
 
 // WithRequiredACK would turn on the ack function.
-func WithOrdered() TopicOption {
+func WithOrdered() Option {
 	return func(t *Topic) error {
 		t.EnableMessageOrdering = true
 		return nil
 	}
 }
 
-type TopicOption func(*Topic) error
+type Option func(*Topic) error
 
-func (t *Topic) applyOptions(opts ...TopicOption) error {
+func (t *Topic) applyOptions(opts ...Option) error {
 	for _, fn := range opts {
 		if err := fn(t); err != nil {
 			return err

@@ -21,7 +21,7 @@ func main() {
 	meta.Properties["DriverName"] = "nats"
 
 	start := time.Now()
-	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithDebugCount())
+	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithCount())
 	if err != nil {
 		log.Println(err)
 		return
@@ -32,7 +32,7 @@ func main() {
 			count++
 			res := t.Publish(context.Background(), message.NewMessage([]byte(strconv.Itoa(count))))
 			go func() {
-				if err := res.Get(context.Background()); err != nil {
+				if _, err := res.Get(context.Background()); err != nil {
 					log.Println(err)
 				}
 			}()
@@ -60,7 +60,7 @@ func main() {
 		if receiveCount == 1e5-1000 {
 			log.Println(time.Now().Sub(start))
 		}
-		log.Println("receive the message:", string(m.Data), receiveCount)
+		log.Println("receive the message:", string(m.Data), receiveCount,"1")
 	})
 
 	if err != nil {

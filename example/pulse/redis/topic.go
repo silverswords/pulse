@@ -19,7 +19,7 @@ func main() {
 	meta.Properties[redis.URL] = redis.DefaultURL
 	meta.Properties["DriverName"] = "redis"
 
-	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithDebugCount())
+	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithCount())
 	if err != nil {
 		log.Println(err)
 		return
@@ -30,7 +30,7 @@ func main() {
 			count++
 			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 			go func() {
-				if err := res.Get(context.Background()); err != nil {
+				if _, err := res.Get(context.Background()); err != nil {
 					log.Println("----------------------", err)
 				}
 			}()
