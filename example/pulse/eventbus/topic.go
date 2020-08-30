@@ -17,7 +17,7 @@ import (
 func main() {
 	meta := mq.NewMetadata()
 
-	t, err := topic.NewTopic("eventbus:hello", *meta,topic.WithOrdered(), topic.WithRequiredACK(), topic.WithCount())
+	t, err := topic.NewTopic("eventbus:hello", *meta, topic.WithOrdered(), topic.WithRequiredACK(), topic.WithCount())
 	//t, err := topic.NewTopic("eventbus:hello", *meta, topic.WithRequiredACK(), topic.WithCount())
 	if err != nil {
 		log.Fatal(err)
@@ -27,7 +27,7 @@ func main() {
 		var count int
 		for {
 			count++
-			res := t.Publish(context.Background(), message.NewEventwithOrderKey([]byte(strconv.Itoa(count)),""))
+			res := t.Publish(context.Background(), message.NewEventwithOrderKey([]byte(strconv.Itoa(count)), ""))
 			go func() {
 				if _, err := res.Get(context.Background()); err != nil {
 					log.Println(err)

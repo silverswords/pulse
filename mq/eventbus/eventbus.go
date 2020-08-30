@@ -3,6 +3,7 @@ package eventbus
 // from https://github.com/asaskevich/EventBus/blob/master/README.md
 import (
 	"errors"
+
 	evb "github.com/asaskevich/EventBus"
 	"github.com/silverswords/whisper/pkg/components/mq"
 )
@@ -20,12 +21,14 @@ func init() {
 type metadata struct {
 }
 
+// Driver -
 type Driver struct {
 	metadata
 	eb      evb.Bus
 	stopped bool
 }
 
+// NewEventBus -
 func NewEventBus() *Driver {
 	return eventbus
 }
@@ -50,8 +53,10 @@ func (d *Driver) Publish(topic string, in []byte) error {
 	return nil
 }
 
+// Closer -
 type Closer func() error
 
+// Close -
 func (c Closer) Close() error {
 	return c()
 }
@@ -82,6 +87,7 @@ func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, e
 	return closer, nil
 }
 
+// Close -
 func (d *Driver) Close() error {
 	d.stopped = true
 	return nil

@@ -31,7 +31,7 @@ func main() {
 		var count int
 		for {
 			count++
-			_ = t.Publish(context.Background(), message.NewEventwithOrderKey([]byte(strconv.Itoa(count)),"1"))
+			_ = t.Publish(context.Background(), message.NewEventwithOrderKey([]byte(strconv.Itoa(count)), "1"))
 			//go func() {
 			//	if _, err := res.Get(context.Background()); err != nil {
 			//		log.Println(err)
@@ -47,7 +47,7 @@ func main() {
 
 	s, err := subscription.NewSubscription("hello", *meta,
 		//subscription.WithCount(),
-	subscription.WithAutoACK())
+		subscription.WithAutoACK())
 	if err != nil {
 		log.Println(err)
 		return

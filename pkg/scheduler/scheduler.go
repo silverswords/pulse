@@ -14,7 +14,6 @@
 
 //edited from the https://github.com/googleapis/google-cloud-go
 
-
 package scheduler
 
 import (

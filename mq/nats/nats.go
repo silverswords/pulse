@@ -3,13 +3,15 @@ package nats
 import (
 	"errors"
 	"fmt"
-	"github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper/pkg/components/mq"
 	"log"
 	"time"
+
+	"github.com/nats-io/nats.go"
+	"github.com/silverswords/whisper/pkg/components/mq"
 )
 
 const (
+	// URL -
 	URL     = "natsURL"
 	Options = "natsOptions"
 	//DefaultURL = "nats://39.105.141.168:4222"
@@ -69,11 +71,13 @@ func parseNATSMetadata(meta mq.Metadata) (metadata, error) {
 	return m, nil
 }
 
+// Driver -
 type Driver struct {
 	metadata
 	Conn *nats.Conn
 }
 
+// NewNats -
 func NewNats() *Driver {
 	return &Driver{}
 }
@@ -142,6 +146,7 @@ func (s *subscriber) Close() error {
 	return s.sub.Drain()
 }
 
+// Close -
 func (n *Driver) Close() error {
 	n.Conn.Close()
 	return nil

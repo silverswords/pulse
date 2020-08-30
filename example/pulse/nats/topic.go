@@ -19,7 +19,7 @@ func main() {
 	meta.Properties[nats.URL] = nats.DefaultURL
 	meta.Properties["DriverName"] = "nats"
 
-	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(),topic.WithOrdered())
+	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithOrdered())
 	if err != nil {
 		log.Println(err)
 		return
@@ -28,7 +28,7 @@ func main() {
 		var count int
 		for {
 			count++
-			res := t.Publish(context.Background(), message.NewEventwithOrderKey([]byte(strconv.Itoa(count)),"1"))
+			res := t.Publish(context.Background(), message.NewEventwithOrderKey([]byte(strconv.Itoa(count)), "1"))
 			go func() {
 				if _, err := res.Get(context.Background()); err != nil {
 					log.Println(err)
@@ -41,7 +41,7 @@ func main() {
 		}
 	}()
 
-	s, err := subscription.NewSubscription("hello", *meta,subscription.WithCount(), subscription.WithAutoACK())
+	s, err := subscription.NewSubscription("hello", *meta, subscription.WithCount(), subscription.WithAutoACK())
 	if err != nil {
 		log.Println(err)
 		return

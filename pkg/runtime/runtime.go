@@ -1,7 +1,8 @@
 package runtime
 
-type Runtimm struct {
-	Config string
+// Runtime -
+type Runtime struct {
+	Config     string
 	Components []string
-	Server string
+	Server     string
 }

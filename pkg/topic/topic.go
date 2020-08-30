@@ -89,8 +89,7 @@ type PublishSettings struct {
 	// The maximum time that the client will attempt to publish a bundle of messages.
 	Timeout time.Duration
 
-
-	AckMapTicker time.Duration
+	AckMapTicker  time.Duration
 	MaxRetryTimes int
 	// The maximum number of bytes that the Bundler will keep in memory before
 	// returning ErrOverflow.
@@ -199,7 +198,7 @@ func (t *Topic) startAck(_ context.Context) error {
 func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResult {
 	r := &PublishResult{ready: make(chan struct{})}
 	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
-		r.set("",errTopicOrderingDisabled)
+		r.set("", errTopicOrderingDisabled)
 		return r
 	}
 
@@ -208,7 +207,7 @@ func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResul
 	for _, handler := range t.endpoints {
 		err := handler(ctx, msg)
 		if err != nil {
-			r.set("",err)
+			r.set("", err)
 			return r
 		}
 	}
@@ -226,7 +225,7 @@ func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResul
 	defer t.mu.RUnlock()
 	// TODO(aboulhosn) [from bcmills] consider changing the semantics of bundler to perform this logic so we don't have to do it here
 	if t.stopped {
-		r.set("",errTopicStopped)
+		r.set("", errTopicStopped)
 		return r
 	}
 
@@ -235,7 +234,7 @@ func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResul
 	err := t.scheduler.Add(msg.OrderingKey, &bundledMessage{msg, r}, msg.Size)
 	if err != nil {
 		t.scheduler.Pause(msg.OrderingKey)
-		r.set("",err)
+		r.set("", err)
 	}
 	return r
 }
@@ -335,9 +334,9 @@ type bundledMessage struct {
 
 // PublishResult help to know error because of sending goroutine is another goroutine.
 type PublishResult struct {
-	ready chan struct{}
+	ready    chan struct{}
 	serverID string
-	err   error
+	err      error
 }
 
 // Ready returns a channel that is closed when the result is ready.
@@ -346,7 +345,7 @@ func (r *PublishResult) Ready() <-chan struct{} { return r.ready }
 
 // Get returns the server-generated message ID and/or error result of a Publish call.
 // Get blocks until the Publish call completes or the context is done.
-func (r *PublishResult) Get(ctx context.Context) (serverID string,err error) {
+func (r *PublishResult) Get(ctx context.Context) (serverID string, err error) {
 	// If the result is already ready, return it even if the context is done.
 	select {
 	case <-r.Ready():
@@ -361,7 +360,7 @@ func (r *PublishResult) Get(ctx context.Context) (serverID string,err error) {
 	}
 }
 
-func (r *PublishResult) set(sid string,err error) {
+func (r *PublishResult) set(sid string, err error) {
 	r.serverID = sid
 	r.err = err
 	close(r.ready)
@@ -369,7 +368,7 @@ func (r *PublishResult) set(sid string,err error) {
 
 // The following keys are used to tag requests with a specific topic/subscription ID.
 var (
-	keyTopic        = tag.MustNewKey("topic")
+	keyTopic = tag.MustNewKey("topic")
 	//keySubscription = tag.MustNewKey("subscription")
 )
 
@@ -403,7 +402,7 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 	for _, bm := range bms {
 		if bm.msg.OrderingKey != "" && t.scheduler.IsPaused(bm.msg.OrderingKey) {
 			err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", bm.msg.OrderingKey)
-			bm.res.set("",err)
+			bm.res.set("", err)
 			continue
 		}
 
@@ -446,7 +445,7 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 
 	// handle the wait ack and retry logic. note that topic set ack true in startAck() function.
 	// until the t.Timeout(default: 60s) cancel the ctx.
-	for i:= 0; i < t.MaxRetryTimes; i++ {
+	for i := 0; i < t.MaxRetryTimes; i++ {
 		checkTimes := 0
 		// check loop
 		for {
@@ -458,14 +457,14 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 
 			// every internal time
 			err = t.RetryParams.Backoff(ctx, checkTimes)
-			if err != nil && err == retry.ErrCancel{
+			if err != nil && err == retry.ErrCancel {
 				goto CheckError
-			}else if err == retry.ErrMaxRetry {
+			} else if err == retry.ErrMaxRetry {
 				break
 			}
 		}
 		err = t.d.Publish(t.name, mb)
-		log.Error("Resend message: ",bm.msg.Id)
+		log.Error("Resend message: ", bm.msg.Id)
 		if err != nil {
 			goto CheckError
 		}
@@ -485,10 +484,10 @@ CheckError:
 	// error handle
 	if err != nil {
 		log.Error("error in publish message:", err)
-		bm.res.set("",err)
+		bm.res.set("", err)
 	} else {
 		bm.msg = nil
-		bm.res.set(id,nil)
+		bm.res.set(id, nil)
 	}
 	// this error return to cancel the group of sending goroutines if not nil.
 	return err
@@ -506,7 +505,7 @@ func WithCount() Option {
 	return func(t *Topic) error {
 		var count uint64
 		t.endpoints = append(t.endpoints, func(ctx context.Context, m *message.Message) error {
-			atomic.AddUint64(&count,1)
+			atomic.AddUint64(&count, 1)
 			log.Info("count: ", count)
 			return nil
 		})

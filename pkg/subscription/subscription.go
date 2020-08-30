@@ -236,8 +236,8 @@ func WithMiddlewares(handlers ...func(context.Context, *message.Message)) Option
 func WithCount() Option {
 	return func(s *Subscription) error {
 		var count uint64
-		s.handlers = append(s.handlers, func(ctx context.Context, m *message.Message)  {
-			atomic.AddUint64(&count,1)
+		s.handlers = append(s.handlers, func(ctx context.Context, m *message.Message) {
+			atomic.AddUint64(&count, 1)
 			log.Info("count: ", count)
 		})
 		return nil
