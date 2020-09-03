@@ -20,20 +20,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="82ff2b64-e9fb-43d2-9b06-f91d49c8e2f1" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/doc.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/driver/nsq/pub.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/driver/nsq/pub.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/driver/nsq/sub.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/driver/nsq/sub.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/pulse/eventbus/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/eventbus/topic.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/pulse/nats/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/nats/topic.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/pulse/redis/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/redis/topic.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mq/nsq/nsq.go" beforeDir="false" afterPath="$PROJECT_DIR$/mq/nsq/nsq.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/logger/logger.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/logger/logger.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/message/envelope.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/message/envelope.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/message/envelope_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/message/envelope_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/runtime/runtime.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/runtime/runtime.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/scheduler/scheduler.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/scheduler/scheduler.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/subscription/subscription.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/subscription/subscription.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/topic/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/topic/topic.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -63,6 +53,7 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="DefaultGoTemplateProperty" value="Go File" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
@@ -70,6 +61,7 @@
     <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
     <property name="last_opened_file_path" value="$USER_HOME$" />
+    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
   </component>
   <component name="RunManager" selected="Go Build.go build github.com/silverswords/whisper/example/pulse/redis">
     <configuration name="go build github.com/silverswords/whisper/example/driver/nats" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
@@ -133,6 +125,9 @@
     </option>
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+  </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>
   </component>
@@ -145,6 +140,10 @@
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
     <state x="989" y="369" key="#Notifications/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598666535451" />
+    <state x="579" y="336" key="Github.CreateGistDialog" timestamp="1598771062087">
+      <screen x="0" y="0" width="1536" height="864" />
+    </state>
+    <state x="579" y="336" key="Github.CreateGistDialog/0.0.1536.864/1920.0.1920.1080@0.0.1536.864" timestamp="1598771062087" />
     <state width="1215" height="360" key="GridCell.Tab.0.bottom" timestamp="1598763367391">
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
@@ -185,6 +184,10 @@
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
     <state width="1215" height="360" key="GridCell.Tab.1.right/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598763367391" />
+    <state x="459" y="189" key="SettingsEditor" timestamp="1598968859795">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state x="459" y="189" key="SettingsEditor/0.0.1920.1080/1920.0.1536.864@0.0.1920.1080" timestamp="1598968859795" />
     <state x="2870" y="145" width="596" height="804" key="find.popup" timestamp="1598718144319">
       <screen x="1920" y="0" width="1920" height="1080" />
     </state>
