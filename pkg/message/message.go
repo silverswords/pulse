@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/nats-io/nuid"
-	"github.com/silverswords/whisper/utils"
+	"github.com/silverswords/pulse/utils"
 )
 
 var uidGen = nuid.New()

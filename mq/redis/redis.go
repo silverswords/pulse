@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"github.com/go-redis/redis/v8"
-	"github.com/silverswords/whisper/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/components/mq"
 )
 
 // todo: https://github.com/dapr/components-contrib/blob/master/pubsub/redis/redis.go

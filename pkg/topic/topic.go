@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/silverswords/whisper/pkg/components/mq"
-	"github.com/silverswords/whisper/pkg/deadpolicy"
-	"github.com/silverswords/whisper/pkg/logger"
-	"github.com/silverswords/whisper/pkg/message"
-	"github.com/silverswords/whisper/pkg/retry"
-	"github.com/silverswords/whisper/pkg/scheduler"
+	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/deadpolicy"
+	"github.com/silverswords/pulse/pkg/logger"
+	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/retry"
+	"github.com/silverswords/pulse/pkg/scheduler"
 	"golang.org/x/sync/errgroup"
 
 	//"go.opencensus.io/stats"
@@ -33,7 +33,7 @@ const (
 
 	// prefix use to specific to other client use the same MQ.
 	AckTopicPrefix = "ack_"
-	WhisperPrefix  = "w_"
+	PulsePrefix  = "p_"
 )
 
 var (
@@ -129,7 +129,7 @@ func NewTopic(topicName string, driverMetadata mq.Metadata, options ...Option) (
 		return nil, err
 	}
 	t := &Topic{
-		name:            WhisperPrefix + topicName,
+		name:            PulsePrefix + topicName,
 		topicOptions:    options,
 		d:               d,
 		PublishSettings: DefaultPublishSettings,
@@ -163,7 +163,7 @@ func (t *Topic) startAck(_ context.Context) error {
 		m, err := message.ToMessage(out)
 		if err != nil {
 			log.Error("topic", t.name, "error in ack message decode: ", err)
-			//	 not our Whisper message, just ignore it
+			//	 not our pulse message, just ignore it
 			return
 		}
 		log.Debug("ACK: topic ", t.name, " received ackId ", m.Id)

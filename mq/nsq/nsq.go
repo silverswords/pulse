@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/nsqio/go-nsq"
-	"github.com/silverswords/whisper/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/components/mq"
 )
 
 const (

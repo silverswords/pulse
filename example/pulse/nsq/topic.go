@@ -7,11 +7,11 @@ import (
 	_ "net/http/pprof"
 	"runtime"
 
-	"github.com/silverswords/whisper/mq/nsq"
-	"github.com/silverswords/whisper/pkg/components/mq"
-	"github.com/silverswords/whisper/pkg/message"
-	"github.com/silverswords/whisper/pkg/subscription"
-	"github.com/silverswords/whisper/pkg/topic"
+	"github.com/silverswords/pulse/mq/nsq"
+	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/subscription"
+	"github.com/silverswords/pulse/pkg/topic"
 )
 
 func main() {

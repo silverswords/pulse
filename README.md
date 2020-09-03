@@ -63,7 +63,7 @@ err = s.Receive(context.Background(), func(ctx context.Context, m *message.Messa
 Driver is the realization of various protocol like Nats, http etc.
 
 ### Message Format
-Message is the object transport from the whisper endpoint. It's format as CloudEvents.
+Message is the object transport from the pulse endpoint. It's format as CloudEvents.
                 
                 {
                   "specversion": "1.x-wip",
@@ -94,7 +94,7 @@ Message is the object transport from the whisper endpoint. It's format as CloudE
 
     - Dapr: sidecar Synthesizer
 
-    - Saga: whisper usage.
+    - Saga: pulse usage.
 
     - Kong: siprit on extension.
 

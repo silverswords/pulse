@@ -3,7 +3,7 @@ package mq
 import (
 	"context"
 	"fmt"
-	"github.com/silverswords/whisper/pkg/logger"
+	"github.com/silverswords/pulse/pkg/logger"
 )
 
 var log = logger.NewLogger("pulse.mq")

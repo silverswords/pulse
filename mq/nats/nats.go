@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/components/mq"
 )
 
 const (

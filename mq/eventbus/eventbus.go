@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	evb "github.com/asaskevich/EventBus"
-	"github.com/silverswords/whisper/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/components/mq"
 )
 
 var eventbus = &Driver{eb: evb.New()}

@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/silverswords/whisper/pkg/version"
+	"github.com/silverswords/pulse/pkg/version"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 const fakeLoggerName = "fakeLogger"
 
-func getTestLogger(buf io.Writer) *whisperLogger {
+func getTestLogger(buf io.Writer) *pulseLogger {
 	l := newDaprLogger(fakeLoggerName)
 	l.logger.Logger.SetOutput(buf)
 
@@ -52,7 +52,7 @@ func TestJSONLoggerFields(t *testing.T) {
 		appID       string
 		message     string
 		instance    string
-		fn          func(*whisperLogger, string)
+		fn          func(*pulseLogger, string)
 	}{
 		{
 			"info()",
@@ -61,7 +61,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *whisperLogger, msg string) {
+			func(l *pulseLogger, msg string) {
 				l.Info(msg)
 			},
 		},
@@ -72,7 +72,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *whisperLogger, msg string) {
+			func(l *pulseLogger, msg string) {
 				l.Infof("%s", msg)
 			},
 		},
@@ -83,7 +83,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *whisperLogger, msg string) {
+			func(l *pulseLogger, msg string) {
 				l.Debug(msg)
 			},
 		},
@@ -94,7 +94,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *whisperLogger, msg string) {
+			func(l *pulseLogger, msg string) {
 				l.Debugf("%s", msg)
 			},
 		},
@@ -105,7 +105,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *whisperLogger, msg string) {
+			func(l *pulseLogger, msg string) {
 				l.Error(msg)
 			},
 		},
@@ -116,7 +116,7 @@ func TestJSONLoggerFields(t *testing.T) {
 			"dapr_app",
 			"King Dapr",
 			"dapr-pod",
-			func(l *whisperLogger, msg string) {
+			func(l *pulseLogger, msg string) {
 				l.Errorf("%s", msg)
 			},
 		},

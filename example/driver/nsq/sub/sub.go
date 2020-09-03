@@ -5,7 +5,7 @@ import (
 	"runtime"
 
 	ns "github.com/nsqio/go-nsq"
-	"github.com/silverswords/whisper/mq/nsq"
+	"github.com/silverswords/pulse/mq/nsq"
 )
 
 func main() {

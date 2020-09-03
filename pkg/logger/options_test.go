@@ -76,10 +76,10 @@ func TestApplyOptionsToLoggers(t *testing.T) {
 		assert.Equal(
 			t,
 			"dapr-app",
-			(l.(*whisperLogger)).logger.Data[logFieldAppID])
+			(l.(*pulseLogger)).logger.Data[logFieldAppID])
 		assert.Equal(
 			t,
 			toLogrusLevel(DebugLevel),
-			(l.(*whisperLogger)).logger.Logger.GetLevel())
+			(l.(*pulseLogger)).logger.Logger.GetLevel())
 	}
 }

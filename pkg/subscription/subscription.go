@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/silverswords/whisper/pkg/components/mq"
-	"github.com/silverswords/whisper/pkg/logger"
-	"github.com/silverswords/whisper/pkg/message"
-	"github.com/silverswords/whisper/pkg/retry"
-	"github.com/silverswords/whisper/pkg/scheduler"
-	"github.com/silverswords/whisper/pkg/topic"
+	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/logger"
+	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/retry"
+	"github.com/silverswords/pulse/pkg/scheduler"
+	"github.com/silverswords/pulse/pkg/topic"
 	"sync"
 	"sync/atomic"
 )
@@ -81,7 +81,7 @@ func NewSubscription(topicName string, driverMetadata mq.Metadata, options ...Op
 		return nil, err
 	}
 	s := &Subscription{
-		topic:      topic.WhisperPrefix + topicName,
+		topic:      topic.PulsePrefix + topicName,
 		subOptions: options,
 		d:          d,
 		//handlers:        make([]func(context.Context,*Message)),

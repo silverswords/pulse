@@ -1,6 +1,6 @@
 package main
 
-import "github.com/silverswords/whisper/pkg/logger"
+import "github.com/silverswords/pulse/pkg/logger"
 
 var (
 	log                      = logger.NewLogger("dapr.runtime")

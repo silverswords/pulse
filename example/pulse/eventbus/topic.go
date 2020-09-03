@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	_ "github.com/silverswords/whisper/mq/eventbus"
-	"github.com/silverswords/whisper/pkg/components/mq"
-	"github.com/silverswords/whisper/pkg/message"
-	"github.com/silverswords/whisper/pkg/subscription"
-	"github.com/silverswords/whisper/pkg/topic"
+	_ "github.com/silverswords/pulse/mq/eventbus"
+	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/subscription"
+	"github.com/silverswords/pulse/pkg/topic"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
