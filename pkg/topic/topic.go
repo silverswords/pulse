@@ -161,14 +161,12 @@ func (t *Topic) startAck(ctx context.Context) error {
 	}
 
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
-		fmt.Println("a")
 		m, err := message.ToMessage(out)
 		if err != nil {
 			log.Error("topic", t.name, "error in ack message decode: ", err)
 			//	 not our Whisper message, just ignore it
 			return
 		}
-		fmt.Println("------------------------------------4")
 		log.Debug("topic", t.name, "received ackId", m.Id)
 		t.done(m.Id, true, time.Now())
 	})

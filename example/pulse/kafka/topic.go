@@ -21,7 +21,6 @@ func main() {
 	meta := mq.NewMetadata()
 	meta.Properties[kafka.URL] = kafka.DefaultURL
 	meta.Properties["DriverName"] = "kafka"
-	fmt.Println("1")
 	t, err := topic.NewTopic("hello", *meta, topic.WithPubACK(), topic.WithCount())
 	if err != nil {
 		log.Println(err)
