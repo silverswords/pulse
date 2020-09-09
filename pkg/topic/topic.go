@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/silverswords/pulse/pkg/components/mq"
 	"github.com/silverswords/pulse/pkg/deadpolicy"
 	"github.com/silverswords/pulse/pkg/logger"
@@ -15,11 +16,12 @@ import (
 	//"go.opencensus.io/stats"
 	//"github.com/golang/protobuf/proto"
 
-	"go.opencensus.io/tag"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"go.opencensus.io/tag"
 )
 
 const (
@@ -33,7 +35,7 @@ const (
 
 	// prefix use to specific to other client use the same MQ.
 	AckTopicPrefix = "ack_"
-	PulsePrefix  = "p_"
+	PulsePrefix    = "p_"
 )
 
 var (

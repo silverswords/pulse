@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/pulse/mq/nats"
-	"github.com/silverswords/pulse/pkg/components/mq"
-	"github.com/silverswords/pulse/pkg/message"
-	"github.com/silverswords/pulse/pkg/subscription"
-	"github.com/silverswords/pulse/pkg/topic"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
 	"strconv"
+
+	"github.com/silverswords/pulse/mq/nats"
+	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/subscription"
+	"github.com/silverswords/pulse/pkg/topic"
 )
 
 func main() {
