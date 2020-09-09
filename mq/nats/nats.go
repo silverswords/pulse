@@ -3,17 +3,18 @@ package nats
 import (
 	"errors"
 	"fmt"
-	"github.com/nats-io/nats.go"
-	"github.com/silverswords/whisper/pkg/components/mq"
 	"log"
 	"time"
+
+	"github.com/nats-io/nats.go"
+	"github.com/silverswords/whisper/pkg/components/mq"
 )
 
 const (
 	URL     = "natsURL"
 	Options = "natsOptions"
 	//DefaultURL = "nats://39.105.141.168:4222"
-	DefaultURL = "nats://nats_client:R8yFtRly0f@192.168.0.253:30377"
+	DefaultURL = "nats://nats_client:W64f8c6vG6@192.168.0.253:31476"
 )
 
 func init() {

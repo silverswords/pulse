@@ -39,7 +39,7 @@ func main() {
 			}()
 			log.Println("send a message", count)
 			//time.Sleep(time.Second)
-			if count > 1e3 {
+			if count > 1e7 {
 				return
 			}
 		}

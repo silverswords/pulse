@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"runtime"
+
 	"github.com/silverswords/whisper/mq/nats"
 	"github.com/silverswords/whisper/pkg/components/mq"
 	"github.com/silverswords/whisper/pkg/message"
 	"github.com/silverswords/whisper/pkg/subscription"
 	"github.com/silverswords/whisper/pkg/topic"
-	"log"
-	"net/http"
-	_ "net/http/pprof"
-	"runtime"
 )
 
 func main() {

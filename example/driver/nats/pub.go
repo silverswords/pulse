@@ -3,6 +3,7 @@ package main
 import (
 	na "github.com/nats-io/nats.go"
 	"log"
+	"net"
 )
 
 func main() {

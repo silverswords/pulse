@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/silverswords/whisper/pkg/components/mq"
 	"github.com/silverswords/whisper/pkg/deadpolicy"
 	"github.com/silverswords/whisper/pkg/logger"
@@ -15,10 +16,11 @@ import (
 	//"go.opencensus.io/stats"
 	//"github.com/golang/protobuf/proto"
 
-	"go.opencensus.io/tag"
 	"runtime"
 	"sync"
 	"time"
+
+	"go.opencensus.io/tag"
 )
 
 const (
@@ -159,12 +161,14 @@ func (t *Topic) startAck(ctx context.Context) error {
 	}
 
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
+		fmt.Println("a")
 		m, err := message.ToMessage(out)
 		if err != nil {
 			log.Error("topic", t.name, "error in ack message decode: ", err)
 			//	 not our Whisper message, just ignore it
 			return
 		}
+		fmt.Println("------------------------------------4")
 		log.Debug("topic", t.name, "received ackId", m.Id)
 		t.done(m.Id, true, time.Now())
 	})
