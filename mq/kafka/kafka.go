@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/Shopify/sarama"
-	"github.com/silverswords/whisper/pkg/components/mq"
-	"github.com/silverswords/whisper/pkg/logger"
+	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/logger"
 )
 
 const (

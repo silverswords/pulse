@@ -2,26 +2,25 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
 	"time"
 
-	_ "github.com/silverswords/whisper/mq/eventbus"
-	"github.com/silverswords/whisper/mq/kafka"
-	"github.com/silverswords/whisper/pkg/components/mq"
-	"github.com/silverswords/whisper/pkg/message"
-	"github.com/silverswords/whisper/pkg/subscription"
-	"github.com/silverswords/whisper/pkg/topic"
+	_ "github.com/silverswords/pulse/mq/eventbus"
+	"github.com/silverswords/pulse/mq/kafka"
+	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/subscription"
+	"github.com/silverswords/pulse/pkg/topic"
 )
 
 func main() {
 	meta := mq.NewMetadata()
 	meta.Properties[kafka.URL] = kafka.DefaultURL
 	meta.Properties["DriverName"] = "kafka"
-	t, err := topic.NewTopic("hello", *meta, topic.WithPubACK(), topic.WithCount())
+	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithCount())
 	if err != nil {
 		log.Println(err)
 		return
@@ -32,7 +31,7 @@ func main() {
 			count++
 			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 			go func() {
-				if err := res.Get(context.Background()); err != nil {
+				if _ ,err := res.Get(context.Background()); err != nil {
 					log.Println("----------------------", err)
 				}
 			}()
@@ -44,7 +43,7 @@ func main() {
 		}
 	}()
 
-	s, err := subscription.NewSubscription("hello", *meta, subscription.WithSubACK())
+	s, err := subscription.NewSubscription("hello", *meta, subscription.WithAutoACK())
 	if err != nil {
 		log.Println(err)
 		return

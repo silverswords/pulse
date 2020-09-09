@@ -20,31 +20,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="82ff2b64-e9fb-43d2-9b06-f91d49c8e2f1" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmd/whisperd/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/whisperd/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/driver/nats/sub/sub.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/driver/nats/sub/sub.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/driver/nsq/pub/pub.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/driver/nsq/pub/pub.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/driver/nsq/sub/sub.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/driver/nsq/sub/sub.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/pulse/eventbus/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/eventbus/topic.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/pulse/nats/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/nats/topic.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/pulse/nsq/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/nsq/topic.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/pulse/redis/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/redis/topic.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/example/pulse/kafka/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/pulse/kafka/topic.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mq/eventbus/eventbus.go" beforeDir="false" afterPath="$PROJECT_DIR$/mq/eventbus/eventbus.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mq/nats/nats.go" beforeDir="false" afterPath="$PROJECT_DIR$/mq/nats/nats.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mq/nsq/nsq.go" beforeDir="false" afterPath="$PROJECT_DIR$/mq/nsq/nsq.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mq/redis/redis.go" beforeDir="false" afterPath="$PROJECT_DIR$/mq/redis/redis.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/components/mq/driver.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/components/mq/driver.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/logger/options_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/logger/options_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/logger/whisper_logger.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/logger/whisper_logger.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/logger/whisper_logger_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/logger/whisper_logger_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/message/message.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/message/message.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/scheduler/scheduler_benchmark_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/scheduler/scheduler_benchmark_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/scheduler/scheduler_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/scheduler/scheduler_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/subscription/subscription.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/subscription/subscription.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/topic/topic.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/topic/topic.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mq/kafka/kafka.go" beforeDir="false" afterPath="$PROJECT_DIR$/mq/kafka/kafka.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -81,7 +61,7 @@
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
     <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
-    <property name="last_opened_file_path" value="$USER_HOME$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../../gopath/src/github.com/abserari/quicksilver" />
     <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
   </component>
   <component name="RunManager" selected="Go Build.go build github.com/silverswords/whisper/example/pulse/redis">
@@ -161,6 +141,11 @@
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
     <state x="989" y="369" key="#Notifications/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598666535451" />
+    <state x="793" y="297" key="FileChooserDialogImpl" timestamp="1599670061430">
+      <screen x="87" y="0" width="1833" height="1080" />
+    </state>
+    <state x="740" y="297" key="FileChooserDialogImpl/0.0.1920.1080/1920.0.1536.864@0.0.1920.1080" timestamp="1599133981593" />
+    <state x="793" y="297" key="FileChooserDialogImpl/87.0.1833.1080/1982.0.1474.864@87.0.1833.1080" timestamp="1599670061430" />
     <state x="579" y="336" key="Github.CreateGistDialog" timestamp="1598771062087">
       <screen x="0" y="0" width="1536" height="864" />
     </state>
@@ -209,12 +194,13 @@
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
     <state x="459" y="189" key="SettingsEditor/0.0.1920.1080/1920.0.1536.864@0.0.1920.1080" timestamp="1598968859795" />
-    <state x="950" y="145" width="596" height="804" key="find.popup" timestamp="1599117625646">
-      <screen x="0" y="0" width="1920" height="1080" />
+    <state x="994" y="145" width="569" height="804" key="find.popup" timestamp="1599670506044">
+      <screen x="87" y="0" width="1833" height="1080" />
     </state>
     <state x="950" y="145" width="596" height="804" key="find.popup/0.0.1920.1080/1920.0.1536.864@0.0.1920.1080" timestamp="1599117625646" />
     <state x="950" y="145" width="596" height="804" key="find.popup/0.0.1920.1080/1920.0.1920.1080@0.0.1920.1080" timestamp="1598698849195" />
     <state x="2870" y="145" width="596" height="804" key="find.popup/0.0.1920.1080/1920.0.1920.1080@1920.0.1920.1080" timestamp="1598718144319" />
+    <state x="994" y="145" width="569" height="804" key="find.popup/87.0.1833.1080/1982.0.1474.864@87.0.1833.1080" timestamp="1599670506044" />
     <state x="1629" y="239" width="672" height="678" key="search.everywhere.popup" timestamp="1598710330517">
       <screen x="1920" y="0" width="1920" height="1080" />
     </state>
