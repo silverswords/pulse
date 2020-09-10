@@ -223,7 +223,7 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	}
 
 	// if there is some error. close the suber and return the error.
-	return ctx2.Err()
+	return err
 }
 
 func WithMiddlewares(handlers ...func(context.Context, *message.Message)) Option {

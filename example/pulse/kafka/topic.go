@@ -31,7 +31,7 @@ func main() {
 			count++
 			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 			go func() {
-				if _ ,err := res.Get(context.Background()); err != nil {
+				if _, err := res.Get(context.Background()); err != nil {
 					log.Println("----------------------", err)
 				}
 			}()

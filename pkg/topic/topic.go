@@ -480,7 +480,7 @@ CheckError:
 		t.scheduler.Pause(bm.msg.OrderingKey)
 		// Update context with error tag for OpenCensus,
 		// using same stats.Record() call as success case.
-		ctx, _ = tag.New(ctx, tag.Upsert(keyStatus, "ERROR"),
+		_, _ = tag.New(ctx, tag.Upsert(keyStatus, "ERROR"),
 			tag.Upsert(keyError, err.Error()))
 	}
 	// error handle
