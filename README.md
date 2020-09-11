@@ -6,28 +6,25 @@
 an eventbus made on portable MQ.
 
 ## Usage
-### New Topic & Subscription
+Check the example/pulse and find an example for supported MQ.
+
+### Use MQ as broker
+example for nats.
 ```go
 meta := mq.NewMetadata()
 meta.Properties[nats.URL] = nats.DefaultURL
 meta.Properties["DriverName"] = "nats"
-
-t, err := topic.NewTopic("hello", *meta, topic.WithPubACK(), topic.WithCount())
-if err != nil {
-    log.Println(err)
-    return
-}
-
-s, err := subscription.NewSubscription("hello", *meta, subscription.WithSubACK())
-if err != nil {
-    log.Println(err)
-    return
-}
 ```
 
-### Publish & Receive
-Publish
+### Publisher
+Publisher is asynchronously and could get result about the success or failure to send the event.
 ```go
+t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithOrdered())
+if err != nil {
+    log.Println(err)
+    return
+}
+
 res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 go func() {
     if err := res.Get(context.Background()); err != nil {
@@ -35,8 +32,16 @@ go func() {
     }
 }()
 ```
-Receive
+
+### Subscirbe
+Receive is a synchronous function and blocks until have an err set by like ctx.Done() or other error.
 ```go
+s, err := subscription.NewSubscription("hello", *meta, subscription.WithCount(), subscription.WithAutoACK())
+if err != nil {
+    log.Println(err)
+    return
+}
+
 err = s.Receive(context.Background(), func(ctx context.Context, m *message.Message) {
     log.Println("receive the message:", m.Id)
 })
@@ -45,14 +50,14 @@ err = s.Receive(context.Background(), func(ctx context.Context, m *message.Messa
 
 ## **feature**
 
-   - 幂等性: 简单记录在每个 Subscription 的 map 中, 避免单消费者重复处理. nats 可以提供 queueSubscribe
+- Idempotence: Simply record in the map of each Subscription to avoid repeated processing by a single consumer. Nats can provide queueSubscribe
 
-   - 有序性: message 使用 OrderingKey 保证接发有序. 如果出错会暂停某一个 OrderingKey 的发送, 空 key 不暂停
+- Orderliness: Messages use OrderingKey to ensure orderly delivery. If an error occurs, the sending of a certain OrderingKey will be suspended, and the empty key will not be suspended
 
-   - 并发处理: topic 和 Subscription 均使用并发处理. 注意中间件是否有临界资源
+- Concurrent processing: Both topic and Subscription use concurrent processing. Pay attention to whether the middleware has critical resources
 
-   - 可靠性: 独立实现了 ack, 保证消息至少一次的投递.
-    
+- Reliability: ack is implemented independently to ensure that the message is delivered at least once.
+
 # Architecture
   - ![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fcomputer%2FWOjfpzAWwh.png?alt=media&token=376cb2ea-ab64-4887-9366-c1e23891cdcd)
    
@@ -72,19 +77,11 @@ Message is the object transport from the pulse endpoint. It's format as CloudEve
                   "source": "bigco.com",
                   "data": { ... }
                 }
- 
-## **Process**
-- [x] 增加本地 eventbus 实现
-- [x] EventBus = (MQ)
-- [x] copy google cloud-go logic to my topic logic with scheduler [[July 27th, 2020]] 
-- [x] 添加 logger 
-- [x] 增加 example , new topic and send messagehttps://sourcegraph.com/github.com/GoogleCloudPlatform/golang-samples@master/-/blob/pubsub/subscriptions/pull_concurrency.go#L27
- - 边车功能 Add Endpoint to receive eventSource  GRPC and http
- - 持久订阅功能log 用于恢复 subscribe 的 event = Kafka 
+
   
 ## Reference
 
-    - nuid: 现在使用 nats 的 nuid 进行 uuid的生成
+    - nuid: now use nats's package nuid to generated uuid
 
     - CloudEvent: a CNCF project
 
@@ -101,4 +98,8 @@ Message is the object transport from the pulse endpoint. It's format as CloudEve
     - Kafka: log
     
     - axon: event source DDD CQRS
+    
+    - webhook: to establish a webhook to receive the response asynchronously
+    
+ 
 

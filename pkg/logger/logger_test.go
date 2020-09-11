@@ -11,7 +11,7 @@ func clearLoggers() {
 }
 
 func TestNewLogger(t *testing.T) {
-	testLoggerName := "dapr.test"
+	testLoggerName := "pulse.test"
 
 	t.Run("create new logger instance", func(t *testing.T) {
 		clearLoggers()

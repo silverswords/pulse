@@ -16,7 +16,7 @@ import (
 const fakeLoggerName = "fakeLogger"
 
 func getTestLogger(buf io.Writer) *pulseLogger {
-	l := newDaprLogger(fakeLoggerName)
+	l := newPulseLogger(fakeLoggerName)
 	l.logger.Logger.SetOutput(buf)
 
 	return l
@@ -33,7 +33,7 @@ func TestEnableJSON(t *testing.T) {
 	assert.Equal(t, "fakeLogger", testLogger.logger.Data[logFieldScope])
 	assert.Equal(t, LogTypeLog, testLogger.logger.Data[logFieldType])
 	assert.Equal(t, expectedHost, testLogger.logger.Data[logFieldInstance])
-	assert.Equal(t, version.Version(), testLogger.logger.Data[logFieldDaprVer])
+	assert.Equal(t, version.Version(), testLogger.logger.Data[logFieldPulseVer])
 
 	testLogger.EnableJSONOutput(false)
 	_, okText := testLogger.logger.Logger.Formatter.(*logrus.TextFormatter)
@@ -41,7 +41,7 @@ func TestEnableJSON(t *testing.T) {
 	assert.Equal(t, "fakeLogger", testLogger.logger.Data[logFieldScope])
 	assert.Equal(t, LogTypeLog, testLogger.logger.Data[logFieldType])
 	assert.Equal(t, expectedHost, testLogger.logger.Data[logFieldInstance])
-	assert.Equal(t, version.Version(), testLogger.logger.Data[logFieldDaprVer])
+	assert.Equal(t, version.Version(), testLogger.logger.Data[logFieldPulseVer])
 }
 
 func TestJSONLoggerFields(t *testing.T) {
@@ -58,9 +58,9 @@ func TestJSONLoggerFields(t *testing.T) {
 			"info()",
 			InfoLevel,
 			"info",
-			"dapr_app",
-			"King Dapr",
-			"dapr-pod",
+			"pulse_app",
+			"King pulse",
+			"pulse-pod",
 			func(l *pulseLogger, msg string) {
 				l.Info(msg)
 			},
@@ -69,9 +69,9 @@ func TestJSONLoggerFields(t *testing.T) {
 			"infof()",
 			InfoLevel,
 			"info",
-			"dapr_app",
-			"King Dapr",
-			"dapr-pod",
+			"pulse_app",
+			"King pulse",
+			"pulse-pod",
 			func(l *pulseLogger, msg string) {
 				l.Infof("%s", msg)
 			},
@@ -80,9 +80,9 @@ func TestJSONLoggerFields(t *testing.T) {
 			"debug()",
 			DebugLevel,
 			"debug",
-			"dapr_app",
-			"King Dapr",
-			"dapr-pod",
+			"pulse_app",
+			"King pulse",
+			"pulse-pod",
 			func(l *pulseLogger, msg string) {
 				l.Debug(msg)
 			},
@@ -91,9 +91,9 @@ func TestJSONLoggerFields(t *testing.T) {
 			"debugf()",
 			DebugLevel,
 			"debug",
-			"dapr_app",
-			"King Dapr",
-			"dapr-pod",
+			"pulse_app",
+			"King pulse",
+			"pulse-pod",
 			func(l *pulseLogger, msg string) {
 				l.Debugf("%s", msg)
 			},
@@ -102,9 +102,9 @@ func TestJSONLoggerFields(t *testing.T) {
 			"error()",
 			InfoLevel,
 			"error",
-			"dapr_app",
-			"King Dapr",
-			"dapr-pod",
+			"pulse_app",
+			"King pulse",
+			"pulse-pod",
 			func(l *pulseLogger, msg string) {
 				l.Error(msg)
 			},
@@ -113,9 +113,9 @@ func TestJSONLoggerFields(t *testing.T) {
 			"errorf()",
 			InfoLevel,
 			"error",
-			"dapr_app",
-			"King Dapr",
-			"dapr-pod",
+			"pulse_app",
+			"King pulse",
+			"pulse-pod",
 			func(l *pulseLogger, msg string) {
 				l.Errorf("%s", msg)
 			},
@@ -154,7 +154,7 @@ func TestWithTypeFields(t *testing.T) {
 	var buf bytes.Buffer
 	testLogger := getTestLogger(&buf)
 	testLogger.EnableJSONOutput(true)
-	testLogger.SetAppID("dapr_app")
+	testLogger.SetAppID("pulse_app")
 	testLogger.SetOutputLevel(InfoLevel)
 
 	// WithLogType will return new Logger with request log type
@@ -178,23 +178,23 @@ func TestWithTypeFields(t *testing.T) {
 }
 
 func TestToLogrusLevel(t *testing.T) {
-	t.Run("Dapr DebugLevel to Logrus.DebugLevel", func(t *testing.T) {
+	t.Run("pulse DebugLevel to Logrus.DebugLevel", func(t *testing.T) {
 		assert.Equal(t, logrus.DebugLevel, toLogrusLevel(DebugLevel))
 	})
 
-	t.Run("Dapr InfoLevel to Logrus.InfoLevel", func(t *testing.T) {
+	t.Run("pulse InfoLevel to Logrus.InfoLevel", func(t *testing.T) {
 		assert.Equal(t, logrus.InfoLevel, toLogrusLevel(InfoLevel))
 	})
 
-	t.Run("Dapr WarnLevel to Logrus.WarnLevel", func(t *testing.T) {
+	t.Run("pulse WarnLevel to Logrus.WarnLevel", func(t *testing.T) {
 		assert.Equal(t, logrus.WarnLevel, toLogrusLevel(WarnLevel))
 	})
 
-	t.Run("Dapr ErrorLevel to Logrus.ErrorLevel", func(t *testing.T) {
+	t.Run("pulse ErrorLevel to Logrus.ErrorLevel", func(t *testing.T) {
 		assert.Equal(t, logrus.ErrorLevel, toLogrusLevel(ErrorLevel))
 	})
 
-	t.Run("Dapr FatalLevel to Logrus.FatalLevel", func(t *testing.T) {
+	t.Run("pulse FatalLevel to Logrus.FatalLevel", func(t *testing.T) {
 		assert.Equal(t, logrus.FatalLevel, toLogrusLevel(FatalLevel))
 	})
 }

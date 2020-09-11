@@ -17,18 +17,18 @@ const (
 	// LogTypeRequest is Request log type
 	LogTypeRequest = "request"
 
-	// Field names that defines Dapr log schema
+	// Field names that defines pulse log schema
 	logFieldTimeStamp = "time"
 	logFieldLevel     = "level"
 	logFieldType      = "type"
 	logFieldScope     = "scope"
 	logFieldMessage   = "msg"
 	logFieldInstance  = "instance"
-	logFieldDaprVer   = "ver"
+	logFieldPulseVer  = "ver"
 	logFieldAppID     = "app_id"
 )
 
-// LogLevel is Dapr Logger Level type
+// LogLevel is pulse Logger Level type
 type LogLevel string
 
 const (
@@ -47,7 +47,7 @@ const (
 	UndefinedLevel LogLevel = "undefined"
 )
 
-// globalLoggers is the collection of Dapr Logger that is shared globally.
+// globalLoggers is the collection of pulse Logger that is shared globally.
 // TODO: User will disable or enable logger on demand.
 var globalLoggers = map[string]Logger{}
 var globalLoggersLock = sync.RWMutex{}
@@ -57,7 +57,7 @@ type Logger interface {
 	// EnableJSONOutput enables JSON formatted output log
 	EnableJSONOutput(enabled bool)
 
-	// SetAppID sets dapr_id field in log. Default value is empty string
+	// SetAppID sets pulse_id field in log. Default value is empty string
 	SetAppID(id string)
 	// SetOutputLevel sets log output level
 	SetOutputLevel(outputLevel LogLevel)
@@ -102,7 +102,7 @@ func toLogLevel(level string) LogLevel {
 		return FatalLevel
 	}
 
-	// unsupported log level by Dapr
+	// unsupported log level by pulse
 	return UndefinedLevel
 }
 
@@ -113,7 +113,7 @@ func NewLogger(name string) Logger {
 
 	logger, ok := globalLoggers[name]
 	if !ok {
-		globalLoggers[name] = newDaprLogger(name)
+		globalLoggers[name] = newPulseLogger(name)
 		logger = globalLoggers[name]
 	}
 

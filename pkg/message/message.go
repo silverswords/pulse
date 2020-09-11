@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+
 	"github.com/nats-io/nuid"
 	"github.com/silverswords/pulse/utils"
 )
@@ -11,9 +12,9 @@ import (
 var uidGen = nuid.New()
 
 const (
-	// DefaultCloudEventType is the default event type for an Dapr published event
+	// DefaultCloudEventType is the default event type for an pulse published event
 	DefaultCloudEventType = "com.pulse.event.sent"
-	// CloudEventsSpecVersion is the specversion used by Dapr for the cloud events implementation
+	// CloudEventsSpecVersion is the specversion used by pulse for the cloud events implementation
 	CloudEventsSpecVersion = "1.0"
 	//ContentType is the Cloud Events HTTP content type
 	ContentType = "application/cloudevents+json"

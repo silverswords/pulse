@@ -19,12 +19,12 @@ func TestOptions(t *testing.T) {
 		assert.Equal(t, defaultOutputLevel, o.OutputLevel)
 	})
 
-	t.Run("set dapr ID", func(t *testing.T) {
+	t.Run("set pulse ID", func(t *testing.T) {
 		o := DefaultOptions()
 		assert.Equal(t, undefinedAppID, o.appID)
 
-		o.SetAppID("dapr-app")
-		assert.Equal(t, "dapr-app", o.appID)
+		o.SetAppID("pulse-app")
+		assert.Equal(t, "pulse-app", o.appID)
 	})
 
 	t.Run("attaching log related cmd flags", func(t *testing.T) {
@@ -55,7 +55,7 @@ func TestOptions(t *testing.T) {
 func TestApplyOptionsToLoggers(t *testing.T) {
 	testOptions := Options{
 		JSONFormatEnabled: true,
-		appID:             "dapr-app",
+		appID:             "pulse-app",
 		OutputLevel:       "debug",
 	}
 
@@ -75,7 +75,7 @@ func TestApplyOptionsToLoggers(t *testing.T) {
 	for _, l := range testLoggers {
 		assert.Equal(
 			t,
-			"dapr-app",
+			"pulse-app",
 			(l.(*pulseLogger)).logger.Data[logFieldAppID])
 		assert.Equal(
 			t,

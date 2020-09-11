@@ -11,13 +11,13 @@ var (
 	commit  string
 )
 
-// Version returns the Dapr version. This is either a semantic version
+// Version returns the pulse version. This is either a semantic version
 // number or else, in the case of unreleased code, the string "edge".
 func Version() string {
 	return version
 }
 
-// Commit returns the git commit SHA for the code that Dapr was built from.
+// Commit returns the git commit SHA for the code that pulse was built from.
 func Commit() string {
 	return commit
 }

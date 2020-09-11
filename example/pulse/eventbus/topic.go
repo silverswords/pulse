@@ -12,6 +12,7 @@ import (
 	_ "net/http/pprof"
 	"runtime"
 	"strconv"
+	"time"
 )
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 				}
 			}()
 			//log.Println("send a message", count)
-			//Sleep(Second)
+			time.Sleep(time.Second)
 			if count > 1e5 {
 				return
 			}

@@ -3,8 +3,8 @@ package main
 import "github.com/silverswords/pulse/pkg/logger"
 
 var (
-	log                      = logger.NewLogger("dapr.runtime")
-	logContrib logger.Logger = logger.NewLogger("dapr.contrib")
+	log                      = logger.NewLogger("pulse.runtime")
+	logContrib logger.Logger = logger.NewLogger("pulse.contrib")
 )
 
 func main() {

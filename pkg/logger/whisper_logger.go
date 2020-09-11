@@ -17,7 +17,7 @@ type pulseLogger struct {
 	logger *logrus.Entry
 }
 
-func newDaprLogger(name string) *pulseLogger {
+func newPulseLogger(name string) *pulseLogger {
 	newLogger := logrus.New()
 	newLogger.SetOutput(os.Stdout)
 
@@ -51,7 +51,7 @@ func (l *pulseLogger) EnableJSONOutput(enabled bool) {
 		logFieldScope:    l.logger.Data[logFieldScope],
 		logFieldType:     LogTypeLog,
 		logFieldInstance: hostname,
-		logFieldDaprVer:  version.Version(),
+		logFieldPulseVer: version.Version(),
 	}
 
 	if enabled {

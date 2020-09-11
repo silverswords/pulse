@@ -6,6 +6,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
+	"time"
 
 	"github.com/silverswords/pulse/mq/nsq"
 	"github.com/silverswords/pulse/pkg/components/mq"
@@ -38,7 +39,7 @@ func main() {
 				}
 			}()
 			log.Println("send a message", count)
-			//time.Sleep(time.Second)
+			time.Sleep(time.Second)
 			if count > 1e7 {
 				return
 			}

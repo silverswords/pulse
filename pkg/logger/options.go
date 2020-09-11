@@ -13,9 +13,9 @@ const (
 	undefinedAppID     = ""
 )
 
-// Options defines the sets of options for Dapr logging
+// Options defines the sets of options for pulse logging
 type Options struct {
-	// appID is the unique id of Dapr Application
+	// appID is the unique id of pulse Application
 	appID string
 
 	// JSONFormatEnabled is the flag to enable JSON formatted log
@@ -34,7 +34,7 @@ func (o *Options) SetOutputLevel(outputLevel string) error {
 	return nil
 }
 
-// SetAppID sets Dapr ID
+// SetAppID sets pulse ID
 func (o *Options) SetAppID(id string) {
 	o.appID = id
 }
@@ -77,13 +77,13 @@ func ApplyOptionsToLoggers(options *Options) error {
 		}
 	}
 
-	daprLogLevel := toLogLevel(options.OutputLevel)
-	if daprLogLevel == UndefinedLevel {
+	pulseLogLevel := toLogLevel(options.OutputLevel)
+	if pulseLogLevel == UndefinedLevel {
 		return fmt.Errorf("invalid value for --log-level: %s", options.OutputLevel)
 	}
 
 	for _, v := range internalLoggers {
-		v.SetOutputLevel(daprLogLevel)
+		v.SetOutputLevel(pulseLogLevel)
 	}
 	return nil
 }
