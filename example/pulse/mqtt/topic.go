@@ -33,7 +33,7 @@ func main() {
 					log.Println(err)
 				}
 			}()
-			log.Println("send a message", count)
+			// log.Println("send a message", count)
 			time.Sleep(time.Second)
 			if count > 1e4 {
 				return
@@ -56,7 +56,6 @@ func main() {
 	err = s.Receive(context.Background(), func(ctx context.Context, m *message.Message) {
 		receiveCount++
 		log.Println("receive the message:", m.Id, receiveCount)
-		log.Println(m)
 	})
 
 	if err != nil {
