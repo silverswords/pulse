@@ -3,7 +3,6 @@ package main
 import (
 	na "github.com/nats-io/nats.go"
 	"log"
-	"net"
 )
 
 func main() {
@@ -16,7 +15,7 @@ func main() {
 	for {
 		count++
 		log.Println(count)
-		nc.Publish("hello", []byte("world"))
+		_ = nc.Publish("hello", []byte("world"))
 	}
 
 }

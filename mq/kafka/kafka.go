@@ -75,8 +75,18 @@ func (n *Driver) Publish(topic string, in []byte) error {
 		Value: sarama.ByteEncoder(in),
 	}
 
-	n.producer.SendMessage(msg)
+	_, _, err := n.producer.SendMessage(msg)
 
+	return err
+}
+
+type Closer func() error
+
+func (c Closer) Close() error {
+	return c()
+}
+
+var nopCloser Closer = func() error {
 	return nil
 }
 
@@ -85,13 +95,11 @@ func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, e
 		handler(msg.Value)
 		return nil
 	}
-
-	ctx, _ := context.WithCancel(context.Background())
 	config := sarama.NewConfig()
 	config.Version = sarama.V0_10_2_0
 	cg, err := sarama.NewConsumerGroup([]string{DefaultURL}, "0", config)
 	if err != nil {
-		return nil, err
+		return nopCloser, err
 	}
 
 	c := &consumer{
@@ -99,6 +107,7 @@ func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, e
 		callback: Handler,
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		Logger := logger.NewLogger("logger")
 		defer func() {
@@ -122,10 +131,15 @@ func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, e
 	}()
 
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		cancel()
+		return nopCloser, err
 	}
 	<-c.ready
-	return nil, nil
+	var closer Closer = func() error {
+		cancel()
+		return nil
+	}
+	return closer, nil
 }
 
 type consumer struct {
@@ -164,6 +178,6 @@ func (consumer *consumer) Setup(sarama.ConsumerGroupSession) error {
 
 func (n *Driver) Close() error {
 	producer := n.producer
-	producer.Close()
+	_ = producer.Close()
 	return nil
 }

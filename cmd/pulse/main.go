@@ -9,4 +9,5 @@ var (
 
 func main() {
 	log.Info("Starting")
+	logContrib.Info("Starting")
 }

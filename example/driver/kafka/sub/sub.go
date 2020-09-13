@@ -11,7 +11,7 @@ import (
 
 func main() {
 	DefaultURL := "192.168.0.251:9092"
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	config := sarama.NewConfig()
 	config.Version = sarama.V0_10_2_0
 	cg, err := sarama.NewConsumerGroup([]string{DefaultURL}, "0", config)
@@ -29,7 +29,10 @@ func main() {
 	}
 
 	err = cg.Consume(ctx, []string{"hello"}, c)
-
+	if err != nil {
+		log.Println(err)
+	}
+	cancel()
 }
 
 type consumer struct {
