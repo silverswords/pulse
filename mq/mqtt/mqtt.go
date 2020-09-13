@@ -128,7 +128,7 @@ func (m *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, e
 	}
 
 	token := c.Subscribe(
-		topic, 0,
+		topic, m.mqttOpts.WillQos,
 		func(client mqtt.Client, msg mqtt.Message) {
 			handler(msg.Payload())
 		})

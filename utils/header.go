@@ -49,8 +49,7 @@ func (h Header) Get(key string) string {
 // keys, access the map directly.
 // The returned slice is not a copy.
 func (h Header) Values(key string) []string {
-	// return textproto.MIMEHeader(h).Values(key)
-	return nil
+	return textproto.MIMEHeader(h).Values(key)
 }
 
 // get is like Get, but key must already be in CanonicalHeaderKey form.

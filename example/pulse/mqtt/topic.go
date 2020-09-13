@@ -30,7 +30,7 @@ func main() {
 			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
 			go func() {
 				if _, err := res.Get(context.Background()); err != nil {
-					log.Println("----------------------", err)
+					log.Println(err)
 				}
 			}()
 			log.Println("send a message", count)
