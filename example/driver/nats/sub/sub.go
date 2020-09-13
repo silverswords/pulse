@@ -14,7 +14,7 @@ func main() {
 	}
 	var count int
 
-	nc.Subscribe("hello", func(msg *na.Msg) {
+	_,_ = nc.Subscribe("hello", func(msg *na.Msg) {
 		log.Println(msg, count)
 		count++
 	})

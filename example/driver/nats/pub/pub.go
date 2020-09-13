@@ -16,7 +16,7 @@ func main() {
 	for {
 		count++
 		log.Println(count)
-		nc.Publish("hello", []byte("world"))
+		_ = nc.Publish("hello", []byte("world"))
 	}
 
 }

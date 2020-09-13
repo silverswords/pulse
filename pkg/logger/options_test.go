@@ -70,7 +70,7 @@ func TestApplyOptionsToLoggers(t *testing.T) {
 		l.SetOutputLevel(InfoLevel)
 	}
 
-	ApplyOptionsToLoggers(&testOptions)
+	_ = ApplyOptionsToLoggers(&testOptions)
 
 	for _, l := range testLoggers {
 		assert.Equal(
