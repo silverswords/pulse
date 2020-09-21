@@ -1,8 +1,9 @@
 package main
 
 import (
-	na "github.com/nats-io/nats.go"
 	"log"
+
+	na "github.com/nats-io/nats.go"
 )
 
 func main() {

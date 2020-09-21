@@ -5,6 +5,7 @@ go 1.14
 require (
 	github.com/Shopify/sarama v1.27.0
 	github.com/asaskevich/EventBus v0.0.0-20200428142821-4fc0642a29f3
+	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/go-redis/redis/v8 v8.0.0-beta.7
 	github.com/google/uuid v1.1.1
 	github.com/json-iterator/go v1.1.10
@@ -17,5 +18,6 @@ require (
 	go.opencensus.io v0.22.3
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	google.golang.org/api v0.29.0
+	google.golang.org/appengine v1.6.5
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
