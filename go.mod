@@ -15,6 +15,7 @@ require (
 	github.com/nsqio/go-nsq v1.0.8
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.6.1
+	github.com/valyala/fasthttp v1.16.0
 	go.opencensus.io v0.22.3
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	google.golang.org/api v0.29.0

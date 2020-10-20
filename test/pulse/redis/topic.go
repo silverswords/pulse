@@ -31,7 +31,7 @@ func main() {
 		var count int
 		for {
 			count++
-			_ = t.Publish(context.Background(), message.NewEventwithOrderKey([]byte(strconv.Itoa(count)), "1"))
+			_ = t.Publish(context.Background(), message.NewSimpleByteMessage([]byte(strconv.Itoa(count))))
 			//go func() {
 			//	if _, err := res.Get(context.Background()); err != nil {
 			//		log.Println(err)
@@ -58,7 +58,7 @@ func main() {
 	}()
 
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
-	err = s.Receive(context.Background(), func(ctx context.Context, m *message.Message) {
+	err = s.Receive(context.Background(), func(ctx context.Context, m *message.CloudEventsEnvelope) {
 
 	})
 

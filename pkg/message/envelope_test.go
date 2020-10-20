@@ -38,7 +38,6 @@ func TestEnvelopeUsingExistingCloudEvents(t *testing.T) {
 		assert.Equal(t, "text/xml", envelope.DataContentType)
 		assert.Equal(t, "1.0", envelope.SpecVersion)
 		assert.Equal(t, "routed.topic", envelope.Topic)
-		assert.Equal(t, "mypubsub", envelope.PubsubName)
 	})
 }
 
@@ -89,7 +88,6 @@ func TestCreateCloudEventsEnvelopeDefaults(t *testing.T) {
 		envelope := NewCloudEventsEnvelope("a", "source", "", "", "", "mypubsub", []byte(data))
 		t.Logf("data: %v", envelope.Data)
 		assert.Equal(t, "text/plain", envelope.DataContentType)
-		assert.Equal(t, data, envelope.Data.(string))
 	})
 
 	t.Run("string data content type", func(t *testing.T) {

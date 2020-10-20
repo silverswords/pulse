@@ -1,6 +1,5 @@
 package stateHooks
 
-
 func useState(key string, value interface{}) interface{} {
 	// check the value
 	var different bool
