@@ -9,7 +9,6 @@ package message
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/nats-io/nuid"
 	"log"
@@ -42,7 +41,7 @@ type CloudEventsEnvelope struct {
 	Data            []byte `json:"data"`
 	Topic           string `json:"topic"`
 	WebhookURL      string `json:"webhookUrl"`
-	OrderingKey     string `json:orderingKey"` // for test, order id, would be ordered consume by the consumer.
+	OrderingKey     string `json:"orderingKey"` // for test, order id, would be ordered consume by the consumer.
 
 	// Where the message from and to. what codec is the message have. when and why have this message.
 
@@ -72,7 +71,7 @@ func NewSimpleByteMessage(data []byte) *CloudEventsEnvelope {
 func NewCloudEventsEnvelope(id, source, datacontentType, eventType, topic, webhook, orderingKey string, data []byte) (*CloudEventsEnvelope, error) {
 	// defaults
 	if id == "" {
-		id = uuid.New().String()
+		id = uidGen.Next()
 	}
 	if source == "" {
 		source = DefaultCloudEventSource

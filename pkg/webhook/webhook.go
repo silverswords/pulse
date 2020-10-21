@@ -25,6 +25,7 @@ func NewHookServer() *webhookServer {
 	return &webhookServer{}
 }
 
+// nolint
 type webhookService struct {
 }
 

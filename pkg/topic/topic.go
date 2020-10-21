@@ -46,8 +46,7 @@ var (
 )
 
 type Topic struct {
-	appsource string
-	name      string
+	name string
 
 	topicOptions []Option
 

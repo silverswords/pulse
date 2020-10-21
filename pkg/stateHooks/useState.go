@@ -1,5 +1,6 @@
 package stateHooks
 
+// nolint
 func useState(key string, value interface{}) interface{} {
 	// check the value
 	var different bool
@@ -9,6 +10,7 @@ func useState(key string, value interface{}) interface{} {
 	return value
 }
 
+// nolint
 func updateState(key string, value interface{}) {
 
 }

@@ -36,7 +36,6 @@ type Subscription struct {
 
 	handlers      []func(ctx context.Context, msg *message.CloudEventsEnvelope)
 	webhookClient *fasthttp.Client
-	webhookFunc   func(ctx context.Context, msg *message.CloudEventsEnvelope)
 
 	// the received message so the repeated message not handle again.
 	// todo: consider change it to bitmap or expired when over 60 seconds
@@ -124,6 +123,7 @@ func (s *Subscription) done(ackId string, ack bool) {
 	//	send the ack event to topic and keep retry if error if connection error.
 	go func() {
 		var tryTimes int
+		// nolint
 		m, err := message.NewCloudEventsEnvelope(ackId, "subscription", "none", "ack", s.topic, "", "", []byte{})
 		b, err := jsoniter.ConfigFastest.Marshal(m)
 		if err != nil {
