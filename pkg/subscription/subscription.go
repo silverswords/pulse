@@ -4,14 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/silverswords/pulse/pkg/components/mq"
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/retry"
 	"github.com/silverswords/pulse/pkg/scheduler"
 	"github.com/silverswords/pulse/pkg/topic"
+	"github.com/valyala/fasthttp"
 	"sync"
-	"sync/atomic"
+	"time"
+)
+
+const (
+	DefaultWebHookRequestTimeout = 60 * time.Second
 )
 
 var (
@@ -28,7 +34,8 @@ type Subscription struct {
 	// the messages which received by the mq.
 	scheduler *scheduler.ReceiveScheduler
 
-	handlers []func(ctx context.Context, msg *message.Message)
+	handlers      []func(ctx context.Context, msg *message.CloudEventsEnvelope)
+	webhookClient *fasthttp.Client
 
 	// the received message so the repeated message not handle again.
 	// todo: consider change it to bitmap or expired when over 60 seconds
@@ -63,6 +70,9 @@ type ReceiveSettings struct {
 	// If the value is negative, then there will be no limit on the number of
 	// unprocessed messages.
 	MaxOutstandingMessages int
+
+	// WebHookRequestTimeout is the timeout when Subscription calls message's callback webhook via fasthttp.Client.
+	WebHookRequestTimeout time.Duration
 }
 
 // DefaultPublishSettings holds the default values for topics' PublishSettings.
@@ -72,6 +82,8 @@ var DefaultRecieveSettings = ReceiveSettings{
 	// default nil and drop letter.
 
 	MaxOutstandingMessages: 1000,
+
+	WebHookRequestTimeout: DefaultWebHookRequestTimeout,
 }
 
 // new a topic and init it with the connection options
@@ -111,17 +123,22 @@ func (s *Subscription) done(ackId string, ack bool) {
 	//	send the ack event to topic and keep retry if error if connection error.
 	go func() {
 		var tryTimes int
-		m := &message.Message{Id: ackId}
-		err := s.d.Publish(topic.AckTopicPrefix+s.topic, message.ToByte(m))
+		// nolint
+		m, err := message.NewCloudEventsEnvelope(ackId, "subscription", "none", "ack", s.topic, "", "", []byte{})
+		b, err := jsoniter.ConfigFastest.Marshal(m)
+		if err != nil {
+			log.Error("suber ack error", err)
+		}
+		err = s.d.Publish(topic.AckTopicPrefix+s.topic, b)
 		//log.Println("suber ----------------------------- suber ack the",m.Id )
 		for err != nil {
 			// wait for sometime
 			err1 := s.RetryParams.Backoff(context.TODO(), tryTimes)
 			tryTimes++
 			if err1 != nil {
-				log.Info("error retrying send ack message id:", m.Id)
+				log.Info("error retrying send ack message id:", ackId)
 			}
-			err = s.d.Publish(topic.AckTopicPrefix+s.topic, message.ToByte(m))
+			err = s.d.Publish(topic.AckTopicPrefix+s.topic, b)
 		}
 		//s.pendingAcks[ackId] = true
 		//	if reached here, the message have been send ack.
@@ -129,11 +146,11 @@ func (s *Subscription) done(ackId string, ack bool) {
 }
 
 // checkIfReceived checkd and set true if not true previous. It returns true when subscription had received the message.
-func (s *Subscription) checkIfReceived(msg *message.Message) bool {
+func (s *Subscription) checkIfReceived(msg *message.CloudEventsEnvelope) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.receivedEvent[msg.Id] {
-		s.receivedEvent[msg.Id] = true
+	if !s.receivedEvent[msg.ID] {
+		s.receivedEvent[msg.ID] = true
 		return false
 	} else {
 		return true
@@ -143,7 +160,7 @@ func (s *Subscription) checkIfReceived(msg *message.Message) bool {
 // todo: add batching iterator to batch every suber's message. that's need to store the messages in subscribers.
 // Receive is a blocking function and return error until receive the message and occurs error when handle message.
 // if error, may should call DrainAck()?
-func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *message.Message)) error {
+func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *message.CloudEventsEnvelope)) error {
 	log.Debug("Subscription Start Receive from ", s.topic)
 	s.mu.Lock()
 	if s.receiveActive {
@@ -163,18 +180,22 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	defer cancel2()
 
 	closer, err := s.d.Subscribe(s.topic, func(msg []byte) {
-		m, err := message.ToMessage(msg)
+		e := &message.CloudEventsEnvelope{}
+		err := jsoniter.Unmarshal(msg, e)
 		if err != nil {
 			log.Error("Error while transforming the byte to message: ", err)
 			// not our pulse message. just drop it.
 			return
 		}
+		m := &message.CloudEventsEnvelope{
+			ID: e.ID,
+		}
 		// don't repeat the handle logic.
 		if s.checkIfReceived(m) {
-			log.Error("Subscriber with topic: ", s.topic, " already received this message id:", m.Id)
+			log.Error("Subscriber with topic: ", s.topic, " already received this message id:", m.ID)
 			return
 		}
-		log.Debug("Subscriber with topic: ", s.topic, " received message id: ", m.Id)
+		log.Debug("Subscriber with topic: ", s.topic, " received message id: ", m.ID)
 
 		// done is async function
 		m.DoneFunc = s.done
@@ -224,40 +245,4 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 
 	// if there is some error. close the suber and return the error.
 	return err
-}
-
-func WithMiddlewares(handlers ...func(context.Context, *message.Message)) Option {
-	return func(s *Subscription) error {
-		s.handlers = append(s.handlers, handlers...)
-		return nil
-	}
-}
-
-func WithCount() Option {
-	return func(s *Subscription) error {
-		var count uint64
-		s.handlers = append(s.handlers, func(ctx context.Context, m *message.Message) {
-			atomic.AddUint64(&count, 1)
-			log.Info("count: ", count)
-		})
-		return nil
-	}
-}
-
-func WithAutoACK() Option {
-	return func(s *Subscription) error {
-		s.EnableAck = true
-		return nil
-	}
-}
-
-type Option func(*Subscription) error
-
-func (s *Subscription) applyOptions(opts ...Option) error {
-	for _, fn := range opts {
-		if err := fn(s); err != nil {
-			return err
-		}
-	}
-	return nil
 }

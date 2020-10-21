@@ -42,7 +42,7 @@ if err != nil {
     return
 }
 
-err = s.Receive(context.Background(), func(ctx context.Context, m *message.Message) {
+err = s.Receive(context.Background(), func(ctx context.Context, m *message.CloudEventsEnvelope) {
     log.Println("receive the message:", m.Id)
 })
 ```

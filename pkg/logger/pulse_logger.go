@@ -1,4 +1,4 @@
-// use dapr logger https://github.com/dapr/dapr
+// logger use dapr logger https://github.com/dapr/dapr
 package logger
 
 import (

@@ -1,10 +1,11 @@
+// Publish logic select the code form Google Code with MIT. https://github.com/googleapis/google-cloud-go/blob/master/pubsub/topic.go
 package topic
 
 import (
 	"context"
 	"errors"
 	"fmt"
-
+	jsoniter "github.com/json-iterator/go"
 	"github.com/silverswords/pulse/pkg/components/mq"
 	"github.com/silverswords/pulse/pkg/deadpolicy"
 	"github.com/silverswords/pulse/pkg/logger"
@@ -18,7 +19,6 @@ import (
 
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"go.opencensus.io/tag"
@@ -46,12 +46,15 @@ var (
 )
 
 type Topic struct {
-	topicOptions []Option
-
-	d    mq.Driver
 	name string
 
-	endpoints []func(ctx context.Context, m *message.Message) error
+	topicOptions []Option
+
+	d mq.Driver
+
+	endpoints []func(ctx context.Context, m *message.CloudEventsEnvelope) error
+	// callback to webhook.
+	WebhookURL string
 	// Settings for publishing messages. All changes must be made before the
 	// first call to Publish. The default is DefaultPublishSettings.
 	// it means could not dynamically change and hot start.
@@ -62,7 +65,7 @@ type Topic struct {
 	scheduler *scheduler.PublishScheduler
 
 	pendingAcks map[string]bool
-	deadQueue   chan *message.Message
+	deadQueue   chan *message.CloudEventsEnvelope
 }
 
 // PublishSettings control the bundling of published messages.
@@ -154,7 +157,6 @@ func NewTopic(topicName string, driverMetadata mq.Metadata, options ...Option) (
 }
 
 func (t *Topic) startAck(_ context.Context) error {
-	// todo: now the ack logic's stability rely on mq subscriber implements. but not pulse implements.
 	// open a subscriber, receive and then ack the message.
 	// message should check itself and then depend on topic RetryParams to retry.
 	if !t.EnableAck {
@@ -162,14 +164,15 @@ func (t *Topic) startAck(_ context.Context) error {
 	}
 
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
-		m, err := message.ToMessage(out)
+		e := &message.CloudEventsEnvelope{}
+		err := jsoniter.ConfigFastest.Unmarshal(out, e)
 		if err != nil {
 			log.Error("topic", t.name, "error in ack message decode: ", err)
 			//	 not our pulse message, just ignore it
 			return
 		}
-		log.Debug("ACK: topic ", t.name, " received ackId ", m.Id)
-		t.done(m.Id, true, time.Now())
+		log.Debug("ACK: topic ", t.name, " received ackId ", e.ID)
+		t.done(e.ID, true, time.Now())
 	})
 	log.Debug("try to subscribe the ack topic")
 	if err != nil {
@@ -197,7 +200,7 @@ func (t *Topic) startAck(_ context.Context) error {
 // add in the scheduler, message would be equal nil to gc.
 //
 // Warning: when use ordering feature, recommend to limit the QPS to 100, or use synchronous
-func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResult {
+func (t *Topic) Publish(ctx context.Context, msg *message.CloudEventsEnvelope) *PublishResult {
 	r := &PublishResult{ready: make(chan struct{})}
 	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
 		r.set("", errTopicOrderingDisabled)
@@ -213,14 +216,6 @@ func (t *Topic) Publish(ctx context.Context, msg *message.Message) *PublishResul
 			return r
 		}
 	}
-	// Use a PublishRequest with only the Messages field to calculate the size
-	// of an individual message. This accurately calculates the size of the
-	// encoded proto message by accounting for the length of an individual
-	// PubSubMessage and Data/Attributes field.
-	// TODO(hongalex): if this turns out to take significant time, try to approximate it.
-	// TODO: consider wrap with a newLogicFromMessage()
-	msg.Size = len(message.ToByte(msg))
-	// --------------------Set Over---------------------------
 
 	t.start()
 	t.mu.RLock()
@@ -330,7 +325,7 @@ func (t *Topic) start() {
 }
 
 type bundledMessage struct {
-	msg *message.Message
+	msg *message.CloudEventsEnvelope
 	res *PublishResult
 }
 
@@ -381,15 +376,15 @@ var (
 )
 
 // choose to skip ack logic. would delete key when ack.
-func (t *Topic) checkAck(m *message.Message) bool {
+func (t *Topic) checkAck(m *message.CloudEventsEnvelope) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	//log.Info("checking message ", m.Id, t.pendingAcks)
-	if !t.pendingAcks[m.Id] {
+	if !t.pendingAcks[m.ID] {
 		return false
 	}
 	// clear the map
-	delete(t.pendingAcks, m.Id)
+	delete(t.pendingAcks, m.ID)
 	return true
 }
 
@@ -427,15 +422,21 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 
 // publishMessage block until ack or an error occurs and pass the error by PublishResult
 func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
-	log.Debug("sending: the bundle key is ", bm.msg.OrderingKey, " with id", bm.msg.Id)
-	// comment the trace of google api
-	mb := message.ToByte(bm.msg)
-	// todo: make this id ordered or generated on mq
-	id := bm.msg.Id
-	// if pub error, would return it in result.
-	// terminate the scheduler if ordering.
+	id := bm.msg.ID
+	log.Debug("sending: the bundle key is ", bm.msg.OrderingKey, " with id", id)
 
-	err := t.d.Publish(t.name, mb)
+	if bm.msg.WebhookURL == "" {
+		bm.msg.WebhookURL = t.WebhookURL
+	}
+
+	b, err := jsoniter.ConfigFastest.Marshal(bm.msg)
+	if err != nil {
+		log.Error("In publishMessage:", err)
+		goto CheckError
+	}
+
+	// if pub error, would return it in result and terminate the scheduler if ordering.
+	err = t.d.Publish(t.name, b)
 	if err != nil {
 		goto CheckError
 	}
@@ -465,8 +466,8 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 				break
 			}
 		}
-		err = t.d.Publish(t.name, mb)
-		log.Error("Resend message: ", bm.msg.Id)
+		err = t.d.Publish(t.name, b)
+		log.Error("Resend message: ", bm.msg.ID)
 		if err != nil {
 			goto CheckError
 		}
@@ -493,43 +494,4 @@ CheckError:
 	}
 	// this error return to cancel the group of sending goroutines if not nil.
 	return err
-}
-
-// WithRequiredACK would turn on the ack function.
-func WithRequiredACK() Option {
-	return func(t *Topic) error {
-		t.EnableAck = true
-		return nil
-	}
-}
-
-func WithCount() Option {
-	return func(t *Topic) error {
-		var count uint64
-		t.endpoints = append(t.endpoints, func(ctx context.Context, m *message.Message) error {
-			atomic.AddUint64(&count, 1)
-			log.Info("count: ", count)
-			return nil
-		})
-		return nil
-	}
-}
-
-// WithRequiredACK would turn on the ack function.
-func WithOrdered() Option {
-	return func(t *Topic) error {
-		t.EnableMessageOrdering = true
-		return nil
-	}
-}
-
-type Option func(*Topic) error
-
-func (t *Topic) applyOptions(opts ...Option) error {
-	for _, fn := range opts {
-		if err := fn(t); err != nil {
-			return err
-		}
-	}
-	return nil
 }
