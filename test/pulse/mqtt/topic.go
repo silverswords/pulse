@@ -27,7 +27,7 @@ func main() {
 		var count int
 		for {
 			count++
-			res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
+			res := t.Publish(context.Background(), message.NewSimpleByteMessage([]byte("hello")))
 			go func() {
 				if _, err := res.Get(context.Background()); err != nil {
 					log.Println(err)
@@ -55,7 +55,7 @@ func main() {
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
 	err = s.Receive(context.Background(), func(ctx context.Context, m *message.CloudEventsEnvelope) {
 		receiveCount++
-		log.Println("receive the message:", m.Id, receiveCount)
+		log.Println("receive the message:", m.ID, receiveCount)
 	})
 
 	if err != nil {
