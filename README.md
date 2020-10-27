@@ -6,7 +6,8 @@
 an eventbus made on portable MQ.
 
 ## Usage
-Check the example/pulse and find an example for supported MQ.
+Check the example/pulse and find an example for supported MQ. 
+Note: You need run your MQ first and get its address.
 
 ### Use MQ as broker
 example for nats.
