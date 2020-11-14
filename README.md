@@ -1,7 +1,7 @@
 # pulse
 [![Go Report Card](https://goreportcard.com/badge/github.com/silverswords/pulse)](https://goreportcard.com/report/github.com/silverswords/pulse)
 [![visitor badges](https://visitor-badge.laobi.icu/badge?page_id=silverswords.pulse)](https://github.com/abserari)
-
+[![Discord](https://img.shields.io/static/v1?logo=Discord&message=Chat&label=discord&color=purple)](https://discord.gg/rRwryXfj3u)
 
 an eventbus made on portable MQ.
 
