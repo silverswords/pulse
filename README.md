@@ -5,6 +5,8 @@
 
 an eventbus made on portable MQ.
 
+For Version 2.0. Let's refer https://cloud.google.com/pubsub/docs/choosing-pubsub-or-cloud-tasks
+
 ## Usage
 Check the example/pulse and find an example for supported MQ. 
 Note: You need run your MQ first and get its address.
