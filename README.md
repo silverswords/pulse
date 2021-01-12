@@ -6,6 +6,7 @@ an eventbus made on portable MQ.
 
 For Version 2.0. Let's refer https://cloud.google.com/pubsub/docs/choosing-pubsub-or-cloud-tasks
 
+- [ ] Refactor the interface, make it clear and more easier to realize.
 - [ ] pub/sub system but not a sdk
 - [ ] protobuf support for event
 - [ ] Metrics support for Prometheus by zap logger?
