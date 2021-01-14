@@ -12,6 +12,9 @@ For Version 2.0. Let's refer https://cloud.google.com/pubsub/docs/choosing-pubsu
 - [ ] Metrics support for Prometheus by zap logger?
 - [ ] Integration for cadence workflow
 
+There are three things stable in computer industry. Storage, Network and OperateSystem.
+Sidecar, Or Microservice Orchestration is about the protocl layer. Sidecar would transfer and transport, in order to solve multi complex network problem in real world.
+Let's explore new world but not promise communication model, eventbus base on cloud message queue. In QoS 1, it like UDP protocol. With ack, like TCP. With webhook, like service invocation. So eazily scalable on engineering language--Go, and adapted with Hybrid Cloud is my goal.
 ## Usage
 Check the example/pulse and find an example for supported MQ. 
 Note: You need run your MQ first and get its address.
