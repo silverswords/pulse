@@ -1,5 +1,5 @@
 package deadpolicy
 
-// not implements now
+// todo: not implements now
 type DeadLetterPolicy struct {
 }

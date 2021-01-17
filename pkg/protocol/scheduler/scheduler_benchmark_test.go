@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/silverswords/pulse/pkg/scheduler"
+	"github.com/silverswords/pulse/pkg/protocol/scheduler"
 )
 
 const pubSchedulerWorkers = 100

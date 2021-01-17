@@ -6,6 +6,7 @@ require (
 	github.com/Shopify/sarama v1.27.0
 	github.com/asaskevich/EventBus v0.0.0-20200428142821-4fc0642a29f3
 	github.com/eclipse/paho.mqtt.golang v1.2.0
+	github.com/gin-gonic/gin v1.6.3
 	github.com/go-redis/redis/v8 v8.0.0-beta.7
 	github.com/google/uuid v1.1.1
 	github.com/json-iterator/go v1.1.10
