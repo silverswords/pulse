@@ -2,7 +2,7 @@ package main
 
 import (
 	na "github.com/nats-io/nats.go"
-	"github.com/silverswords/pulse/mq/nats"
+	"github.com/silverswords/pulse/drivers/nats"
 	"log"
 	"runtime"
 )

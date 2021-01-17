@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/retry"
@@ -29,9 +29,9 @@ var (
 type Subscription struct {
 	subOptions []Option
 
-	d     mq.Driver
+	d     driver.Driver
 	topic string
-	// the messages which received by the mq.
+	// the messages which received by the driver.
 	scheduler *scheduler.ReceiveScheduler
 
 	handlers      []func(ctx context.Context, msg *message.CloudEventsEnvelope)
@@ -87,8 +87,8 @@ var DefaultRecieveSettings = ReceiveSettings{
 }
 
 // new a topic and init it with the connection options
-func NewSubscription(topicName string, driverMetadata mq.Metadata, options ...Option) (*Subscription, error) {
-	d, err := mq.Registry.Create(driverMetadata.GetDriverName())
+func NewSubscription(topicName string, driverMetadata driver.Metadata, options ...Option) (*Subscription, error) {
+	d, err := driver.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
 	}

@@ -5,17 +5,17 @@ import (
 	"errors"
 
 	evb "github.com/asaskevich/EventBus"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/driver"
 )
 
 var eventbus = &Driver{eb: evb.New()}
 
 func init() {
-	// use to register the nats to pubsub mq factory
-	mq.Registry.Register("", func() mq.Driver {
+	// use to register the nats to pubsub driver factory
+	driver.Registry.Register("", func() driver.Driver {
 		return NewEventBus()
 	})
-	//log.Println("Register the nats mq")
+	//log.Println("Register the nats driver")
 }
 
 type metadata struct {
@@ -33,8 +33,8 @@ func NewEventBus() *Driver {
 	return eventbus
 }
 
-// Init initializes the mq and init the connection to the server.
-func (d *Driver) Init(metadata mq.Metadata) error {
+// Init initializes the driver and init the connection to the server.
+func (d *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil
@@ -66,7 +66,7 @@ func (c Closer) Close() error {
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
 // handler use to receive the message and move to top level subscriber.
-func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, error) {
+func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	if d.stopped {
 		return nil, errors.New("draining")
 	}
@@ -93,10 +93,10 @@ func (d *Driver) Close() error {
 	return nil
 }
 
-func parseNATSMetadata(_ mq.Metadata) (metadata, error) {
+func parseNATSMetadata(_ driver.Metadata) (metadata, error) {
 	m := metadata{}
 	return m, nil
 }
 
-var _ mq.Driver = (*Driver)(nil)
-var _ mq.Closer = (*Driver)(nil)
+var _ driver.Driver = (*Driver)(nil)
+var _ driver.Closer = (*Driver)(nil)

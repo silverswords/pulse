@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/nsqio/go-nsq"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/driver"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 func init() {
-	mq.Registry.Register(DriverName, func() mq.Driver {
+	driver.Registry.Register(DriverName, func() driver.Driver {
 		return NewNsq()
 	})
 }
@@ -25,7 +25,7 @@ type metadata struct {
 	nsqURL string
 }
 
-func parseMetadata(meta mq.Metadata) (metadata, error) {
+func parseMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.nsqURL, ok = val.(string); ok {
@@ -46,7 +46,7 @@ type Driver struct {
 	channelSerialNumber int
 }
 
-func (n *Driver) Init(metadata mq.Metadata) error {
+func (n *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseMetadata(metadata)
 	if err != nil {
 		fmt.Println(err)
@@ -69,7 +69,7 @@ func (n *Driver) Publish(topic string, in []byte) error {
 	return nil
 }
 
-func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, error) {
+func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	var (
 		MsgHandler = func(m *nsq.Message) error {
 			handler(m.Body)
@@ -106,5 +106,5 @@ func (n *Driver) Close() error {
 	return nil
 }
 
-var _ mq.Driver = (*Driver)(nil)
-var _ mq.Closer = (*Driver)(nil)
+var _ driver.Driver = (*Driver)(nil)
+var _ driver.Closer = (*Driver)(nil)

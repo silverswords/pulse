@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/pulse/mq/redis"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/drivers/redis"
+	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	meta := mq.NewMetadata()
+	meta := driver.NewMetadata()
 	meta.Properties[redis.URL] = redis.DefaultURL
 	meta.Properties["DriverName"] = "redis"
 

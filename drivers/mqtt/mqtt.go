@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/driver"
 )
 
 const (
@@ -19,11 +19,11 @@ const (
 )
 
 func init() {
-	// use to register the mqtt to pubsub mq factory
-	mq.Registry.Register("mqtt", func() mq.Driver {
+	// use to register the mqtt to pubsub driver factory
+	driver.Registry.Register("mqtt", func() driver.Driver {
 		return NewMQTT()
 	})
-	//log.Println("Register the mqtt mq")
+	//log.Println("Register the mqtt driver")
 }
 
 // Driver is the mqtt implementation for driver interface
@@ -38,11 +38,11 @@ type metadata struct {
 }
 
 // NewMQTT -
-func NewMQTT() mq.Driver {
+func NewMQTT() driver.Driver {
 	return &Driver{}
 }
 
-func parseMQTTMetaData(md mq.Metadata) (metadata, error) {
+func parseMQTTMetaData(md driver.Metadata) (metadata, error) {
 	m := metadata{}
 
 	// required configuration settings
@@ -70,8 +70,8 @@ func parseMQTTMetaData(md mq.Metadata) (metadata, error) {
 	return m, nil
 }
 
-// Init initializes the mq and init the connection to the server.
-func (m *Driver) Init(metadata mq.Metadata) error {
+// Init initializes the driver and init the connection to the server.
+func (m *Driver) Init(metadata driver.Metadata) error {
 	mqttMeta, err := parseMQTTMetaData(metadata)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func (m *Driver) Publish(topic string, in []byte) error {
 }
 
 // Subscribe to the mqtt pub sub topic.
-func (m *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, error) {
+func (m *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	c, err := m.connect()
 	if err != nil {
 		return nil, err

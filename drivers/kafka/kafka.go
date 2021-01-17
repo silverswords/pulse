@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/Shopify/sarama"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/logger"
 )
 
@@ -18,11 +18,11 @@ const (
 )
 
 func init() {
-	// use to register the kafka to pubsub mq factory
-	mq.Registry.Register(DriverName, func() mq.Driver {
+	// use to register the kafka to pubsub driver factory
+	driver.Registry.Register(DriverName, func() driver.Driver {
 		return NewKafka()
 	})
-	//log.Println("Register the kafka mq")
+	//log.Println("Register the kafka driver")
 }
 
 func NewKafka() *Driver {
@@ -38,7 +38,7 @@ type metadata struct {
 	kafkaURL string
 }
 
-func parseKAFKAMetadata(meta mq.Metadata) (metadata, error) {
+func parseKAFKAMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.kafkaURL, ok = val.(string); ok {
@@ -49,7 +49,7 @@ func parseKAFKAMetadata(meta mq.Metadata) (metadata, error) {
 	return m, errors.New("kafka error: missing kafka URL")
 }
 
-func (n *Driver) Init(metadata mq.Metadata) error {
+func (n *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseKAFKAMetadata(metadata)
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ var nopCloser Closer = func() error {
 	return nil
 }
 
-func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, error) {
+func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	Handler := func(msg *sarama.ConsumerMessage) error {
 		handler(msg.Value)
 		return nil

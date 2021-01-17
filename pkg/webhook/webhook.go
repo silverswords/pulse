@@ -18,7 +18,6 @@ type webhookServer struct {
 }
 
 func (s *webhookServer) Add(pattern string, handler http.Handler) {
-
 }
 
 func NewHookServer() *webhookServer {

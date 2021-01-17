@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"github.com/go-redis/redis/v8"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/driver"
 )
 
 // todo: https://github.com/dapr/components-contrib/blob/master/pubsub/redis/redis.go
@@ -16,18 +16,18 @@ const (
 )
 
 func init() {
-	// use to register the nats to pubsub mq factory
-	mq.Registry.Register("redis", func() mq.Driver {
+	// use to register the nats to pubsub driver factory
+	driver.Registry.Register("redis", func() driver.Driver {
 		return NewRedis()
 	})
-	//log.Println("Register the nats mq")
+	//log.Println("Register the nats driver")
 }
 
 type metadata struct {
 	options *redis.Options
 }
 
-func parseNATSMetadata(meta mq.Metadata) (m metadata, err error) {
+func parseNATSMetadata(meta driver.Metadata) (m metadata, err error) {
 	m = metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if s, ok := val.(string); ok {
@@ -55,8 +55,8 @@ func NewRedis() *Driver {
 	return &Driver{}
 }
 
-// Init initializes the mq and init the connection to the server.
-func (d *Driver) Init(metadata mq.Metadata) error {
+// Init initializes the driver and init the connection to the server.
+func (d *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil
@@ -89,7 +89,7 @@ func (c Closer) Close() error {
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
 // handler use to receive the message and move to top level subscriber.
-func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, error) {
+func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	if d.stopped {
 		return nil, errors.New("draining")
 	}
@@ -148,5 +148,5 @@ func (d *Driver) Close() error {
 	return d.redisClient.Close()
 }
 
-var _ mq.Driver = (*Driver)(nil)
-var _ mq.Closer = (*Driver)(nil)
+var _ driver.Driver = (*Driver)(nil)
+var _ driver.Closer = (*Driver)(nil)

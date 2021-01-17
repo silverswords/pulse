@@ -8,16 +8,16 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/silverswords/pulse/mq/nats"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/drivers/nats"
+	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 )
 
 func main() {
-	meta := mq.NewMetadata()
-	meta.Properties[nats.URL] = nats.DefaultURL
+	meta := driver.NewMetadata()
+	meta.Properties[nats.URL] = "nats://34.92.175.246:4222"
 	meta.Properties["DriverName"] = "nats"
 
 	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithOrdered())

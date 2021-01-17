@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	nc, err := na.Connect("nats_client:W64f8c6vG6@192.168.0.253:31476")
+	nc, err := na.Connect("nats://34.92.175.246:4222")
 	if err != nil {
 		log.Println(err)
 		return
@@ -18,5 +18,4 @@ func main() {
 		log.Println(count)
 		_ = nc.Publish("hello", []byte("world"))
 	}
-
 }

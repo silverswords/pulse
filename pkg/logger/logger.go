@@ -11,6 +11,7 @@ import (
 	"sync"
 )
 
+//todo: need to improve to zap and prometheus.
 const (
 	// LogTypeLog is normal log type
 	LogTypeLog = "log"

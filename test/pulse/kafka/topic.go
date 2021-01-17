@@ -9,16 +9,16 @@ import (
 	"strconv"
 	"time"
 
-	_ "github.com/silverswords/pulse/mq/eventbus"
-	"github.com/silverswords/pulse/mq/kafka"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	_ "github.com/silverswords/pulse/drivers/eventbus"
+	"github.com/silverswords/pulse/drivers/kafka"
+	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 )
 
 func main() {
-	meta := mq.NewMetadata()
+	meta := driver.NewMetadata()
 	meta.Properties[kafka.URL] = kafka.DefaultURL
 	meta.Properties["DriverName"] = "kafka"
 	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithCount())

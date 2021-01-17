@@ -1,4 +1,4 @@
-package utils
+package cyclequeue
 
 import (
 	"math/rand"

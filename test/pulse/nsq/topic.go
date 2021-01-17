@@ -9,15 +9,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/silverswords/pulse/mq/nsq"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/drivers/nsq"
+	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 )
 
 func main() {
-	meta := mq.NewMetadata()
+	meta := driver.NewMetadata()
 	meta.Properties[nsq.URL] = nsq.DefaultURL
 	meta.Properties["DriverName"] = "nsq"
 

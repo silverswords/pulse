@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/silverswords/pulse/pkg/components/mq"
 	"github.com/silverswords/pulse/pkg/deadpolicy"
+	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/retry"
@@ -50,7 +50,7 @@ type Topic struct {
 
 	topicOptions []Option
 
-	d mq.Driver
+	d driver.Driver
 
 	endpoints []func(ctx context.Context, m *message.CloudEventsEnvelope) error
 	// callback to webhook.
@@ -128,8 +128,8 @@ var DefaultPublishSettings = PublishSettings{
 }
 
 // new a topic and init it with the connection options
-func NewTopic(topicName string, driverMetadata mq.Metadata, options ...Option) (*Topic, error) {
-	d, err := mq.Registry.Create(driverMetadata.GetDriverName())
+func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Option) (*Topic, error) {
+	d, err := driver.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
 	}

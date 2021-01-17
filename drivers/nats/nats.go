@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/silverswords/pulse/pkg/components/mq"
+	"github.com/silverswords/pulse/pkg/driver"
 )
 
 const (
@@ -19,11 +19,11 @@ const (
 )
 
 func init() {
-	// use to register the nats to pubsub mq factory
-	mq.Registry.Register("nats", func() mq.Driver {
+	// use to register the nats to pubsub driver factory
+	driver.Registry.Register("nats", func() driver.Driver {
 		return NewNats()
 	})
-	//log.Println("Register the nats mq")
+	//log.Println("Register the nats driver")
 }
 
 func setupConnOptions(opts []nats.Option) []nats.Option {
@@ -50,7 +50,7 @@ type metadata struct {
 	queueGroupName string
 }
 
-func parseNATSMetadata(meta mq.Metadata) (metadata, error) {
+func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.natsURL, ok = val.(string); !ok {
@@ -82,8 +82,8 @@ func NewNats() *Driver {
 	return &Driver{}
 }
 
-// Init initializes the mq and init the connection to the server.
-func (n *Driver) Init(metadata mq.Metadata) error {
+// Init initializes the driver and init the connection to the server.
+func (n *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil
@@ -113,7 +113,7 @@ func (n *Driver) Publish(topic string, in []byte) error {
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
 // handler use to receive the message and move to top level subscriber.
-func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (mq.Closer, error) {
+func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	var (
 		sub        *nats.Subscription
 		err        error
@@ -152,5 +152,5 @@ func (n *Driver) Close() error {
 	return nil
 }
 
-var _ mq.Driver = (*Driver)(nil)
-var _ mq.Closer = (*subscriber)(nil)
+var _ driver.Driver = (*Driver)(nil)
+var _ driver.Closer = (*subscriber)(nil)
