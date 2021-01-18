@@ -1,7 +1,7 @@
 package message
 
-type Messageable interface {
-	value() []byte
+type Msger interface {
+	Msg() []byte
 }
 
 type Hookable interface {
