@@ -9,6 +9,6 @@ type Publisher struct {
 	driver.Driver
 }
 
-func (p *Publisher) Publish(ctx context.Context, message interface{}) {
+func (p *Publisher) Publish(ctx context.Context, msg Messageable) {
 
 }
