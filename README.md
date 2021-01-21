@@ -1,7 +1,13 @@
 # pulse
 [![Go Report Card](https://goreportcard.com/badge/github.com/silverswords/pulse)](https://goreportcard.com/report/github.com/silverswords/pulse)
 [![visitor badges](https://visitor-badge.laobi.icu/badge?page_id=silverswords.pulse)](https://github.com/abserari)
-[![Discord Chat](https://img.shields.io/discord/771388143148073040.svg)](https://discord.gg/rRwryXfj3u)  
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TODOs](https://badgen.net/https/api.tickgit.com/badgen/github.com/silverswords/pulse)](https://www.tickgit.com/browse?repo=github.com/silverswords/pulse)
+
+<!-- [![Docker Pulls](https://img.shields.io/docker/pulls/yhyddr/pulse)](https://hub.docker.com/r/yhydddr) -->
+[![Follow on Twitter](https://img.shields.io/twitter/follow/abserari.svg?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=abserari)
+[![Discord Banner](https://discord.com/api/guilds/771388143148073040/widget.png?style=banner2)](https://discord.gg/rRwryXfj3u)
+
 an eventbus made on portable MQ.
 
 For Version 2.0. Let's refer https://cloud.google.com/pubsub/docs/choosing-pubsub-or-cloud-tasks
