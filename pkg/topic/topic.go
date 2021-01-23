@@ -62,7 +62,7 @@ type Topic struct {
 
 	mu        sync.RWMutex
 	stopped   bool
-	scheduler *scheduler.PublishScheduler
+	scheduler *scheduler.BundleScheduler
 
 	pendingAcks map[string]bool
 	deadQueue   chan *message.CloudEventsEnvelope

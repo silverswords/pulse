@@ -32,7 +32,7 @@ type Subscription struct {
 	d     driver.Driver
 	topic string
 	// the messages which received by the driver.
-	scheduler *scheduler.ReceiveScheduler
+	scheduler *scheduler.Scheduler
 
 	handlers      []func(ctx context.Context, msg *message.CloudEventsEnvelope)
 	webhookClient *fasthttp.Client

@@ -43,7 +43,7 @@ type CloudEventsEnvelope struct {
 	WebhookURL      string `json:"webhookUrl"`
 	OrderingKey     string `json:"orderingKey"` // for test, order id, would be ordered consume by the consumer.
 
-	// Where the message from and to. what codec is the message have. when and why have this message.
+	// Where the message from and to. what gob is the message have. when and why have this message.
 
 	// Logic is represents the fields that don't need initialize by the message producer.
 	Size int

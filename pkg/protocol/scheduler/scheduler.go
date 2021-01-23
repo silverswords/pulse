@@ -25,14 +25,15 @@ import (
 	"google.golang.org/api/support/bundler"
 )
 
-// PublishScheduler is a scheduler which is designed for Pub/Sub's Publish flow.
-// It bundles items before handling them. All items in this PublishScheduler use
+// todo: add Bundle Scheduler and Single Scheduler
+// BundleScheduler is a scheduler which is designed for Pub/Sub's Publish flow.
+// It bundles items before handling them. All items in this BundleScheduler use
 // the same handler.
 //
 // Each item is added with a given key. Items added to the empty string key are
 // handled in random order. Items added to any other key are handled
 // sequentially.
-type PublishScheduler struct {
+type BundleScheduler struct {
 	// Settings passed down to each bundler that gets created.
 	DelayThreshold time.Duration
 	// Once a bundle has this many items, handle the bundle. Since only one
@@ -70,7 +71,7 @@ type PublishScheduler struct {
 	done    chan struct{}
 }
 
-// NewPublishScheduler returns a new PublishScheduler.
+// NewPublishScheduler returns a new BundleScheduler.
 //
 // The workers arg is the number of workers that will operate on the queue of
 // work. A reasonably large number of workers is highly recommended. If the
@@ -81,12 +82,12 @@ type PublishScheduler struct {
 // undelivered messages.
 //
 // The scheduler should be stopped only with FlushAndStop.
-func NewPublishScheduler(workers int, handle func(bundle interface{})) *PublishScheduler {
+func NewPublishScheduler(workers int, handle func(bundle interface{})) *BundleScheduler {
 	if workers == 0 {
 		workers = 10
 	}
 
-	s := PublishScheduler{
+	s := BundleScheduler{
 		bundlers:       make(map[string]*bundler.Bundler),
 		outstanding:    make(map[string]int),
 		keysWithErrors: make(map[string]struct{}),
@@ -105,10 +106,10 @@ func NewPublishScheduler(workers int, handle func(bundle interface{})) *PublishS
 //
 // Since ordered keys require only a single outstanding RPC at once, it is
 // possible to send ordered key messages to Topic.Publish (and subsequently to
-// PublishScheduler.Add) faster than the bundler can publish them to the
+// BundleScheduler.Add) faster than the bundler can publish them to the
 // Pub/Sub service, resulting in a backed up queue of Pub/Sub bundles. Each
 // item in the bundler queue is a goroutine.
-func (s *PublishScheduler) Add(key string, item interface{}, size int) error {
+func (s *BundleScheduler) Add(key string, item interface{}, size int) error {
 	select {
 	case <-s.done:
 		return errors.New("draining")
@@ -162,7 +163,7 @@ func (s *PublishScheduler) Add(key string, item interface{}, size int) error {
 
 // FlushAndStop begins flushing items from bundlers and from the scheduler. It
 // blocks until all items have been flushed.
-func (s *PublishScheduler) FlushAndStop() {
+func (s *BundleScheduler) FlushAndStop() {
 	close(s.done)
 	for _, b := range s.bundlers {
 		b.Flush()
@@ -171,7 +172,7 @@ func (s *PublishScheduler) FlushAndStop() {
 
 // IsPaused checks if the bundler associated with an ordering keys is
 // paused.
-func (s *PublishScheduler) IsPaused(orderingKey string) bool {
+func (s *BundleScheduler) IsPaused(orderingKey string) bool {
 	s.keysMu.RLock()
 	defer s.keysMu.RUnlock()
 	_, ok := s.keysWithErrors[orderingKey]
@@ -182,7 +183,7 @@ func (s *PublishScheduler) IsPaused(orderingKey string) bool {
 // preventing it from accepting new messages. Any outstanding messages
 // that haven't been published will error. If orderingKey is empty,
 // this is a no-op.
-func (s *PublishScheduler) Pause(orderingKey string) {
+func (s *BundleScheduler) Pause(orderingKey string) {
 	if orderingKey != "" {
 		s.keysMu.Lock()
 		defer s.keysMu.Unlock()
@@ -191,7 +192,7 @@ func (s *PublishScheduler) Pause(orderingKey string) {
 }
 
 // Resume resumes accepting message with the provided ordering key.
-func (s *PublishScheduler) Resume(orderingKey string) {
+func (s *BundleScheduler) Resume(orderingKey string) {
 	s.keysMu.Lock()
 	defer s.keysMu.Unlock()
 	delete(s.keysWithErrors, orderingKey)
@@ -211,12 +212,12 @@ func (s *PublishScheduler) Resume(orderingKey string) {
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ReceiveScheduler is a scheduler which is designed for Pub/Sub's Receive flow.
+// Scheduler is a scheduler which is designed for Pub/Sub's Receive flow.
 //
 // Each item is added with a given key. Items added to the empty string key are
 // handled in random order. Items added to any other key are handled
 // sequentially.
-type ReceiveScheduler struct {
+type Scheduler struct {
 	// workers is a channel that represents workers. Rather than a pool, where
 	// worker are "removed" until the pool is empty, the channel is more like a
 	// set of work desks, where workers are "added" until all the desks are full.
@@ -234,19 +235,19 @@ type ReceiveScheduler struct {
 	m  map[string][]func()
 }
 
-// NewReceiveScheduler creates a new ReceiveScheduler.
+// NewReceiveScheduler creates a new Scheduler.
 //
 // The workers arg is the number of concurrent calls to handle. If the workers
 // arg is 0, then a healthy default of 10 workers is used. If less than 0, this
-// will be set to an large number, similar to PublishScheduler's handler limit.
-func NewReceiveScheduler(workers int) *ReceiveScheduler {
+// will be set to an large number, similar to BundleScheduler's handler limit.
+func NewReceiveScheduler(workers int) *Scheduler {
 	if workers == 0 {
 		workers = 10
 	} else if workers < 0 {
 		workers = 1e9
 	}
 
-	return &ReceiveScheduler{
+	return &Scheduler{
 		workers: make(chan struct{}, workers),
 		done:    make(chan struct{}),
 		m:       make(map[string][]func()),
@@ -255,11 +256,11 @@ func NewReceiveScheduler(workers int) *ReceiveScheduler {
 
 // Add adds the item to be handled. Add may block.
 //
-// Buffering happens above the ReceiveScheduler in the form of a flow controller
-// that requests batches of messages to pull. A backed up ReceiveScheduler.Add
+// Buffering happens above the Scheduler in the form of a flow controller
+// that requests batches of messages to pull. A backed up Scheduler.Add
 // call causes pushback to the pubsub service (less Receive calls on the
 // long-lived stream), which keeps memory footprint stable.
-func (s *ReceiveScheduler) Add(key string, item interface{}, handle func(item interface{})) error {
+func (s *Scheduler) Add(key string, item interface{}, handle func(item interface{})) error {
 	select {
 	case <-s.done:
 		return errors.New("draining")
@@ -323,7 +324,7 @@ func (s *ReceiveScheduler) Add(key string, item interface{}, handle func(item in
 
 // Shutdown begins flushing messages and stops accepting new Add calls. Shutdown
 // does not block, or wait for all messages to be flushed.
-func (s *ReceiveScheduler) Shutdown() {
+func (s *Scheduler) Shutdown() {
 	select {
 	case <-s.done:
 	default:
