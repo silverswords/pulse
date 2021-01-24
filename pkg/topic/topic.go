@@ -9,9 +9,8 @@ import (
 	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/message"
-	"github.com/silverswords/pulse/pkg/protocol/deadpolicy"
-	"github.com/silverswords/pulse/pkg/protocol/retry"
-	"github.com/silverswords/pulse/pkg/protocol/scheduler"
+	"github.com/silverswords/pulse/pkg/message/protocol/retry"
+	"github.com/silverswords/pulse/pkg/scheduler"
 	"golang.org/x/sync/errgroup"
 
 	//"go.opencensus.io/stats"
@@ -41,38 +40,25 @@ const (
 var (
 	log = logger.NewLogger("pulse")
 
-	errTopicOrderingDisabled = errors.New("Topic.EnableMessageOrdering=false, but an OrderingKey was set in Message. Please remove the OrderingKey or turn on Topic.EnableMessageOrdering")
+	errTopicOrderingDisabled = errors.New("BundleTopic.EnableMessageOrdering=false, but an OrderingKey was set in Message. Please remove the OrderingKey or turn on BundleTopic.EnableMessageOrdering")
 	errTopicStopped          = errors.New("pubsub: Stop has been called for this topic")
 )
 
-type Topic struct {
-	name string
+type BundleTopic struct {
+	mu sync.RWMutex
 
-	topicOptions []Option
-
-	d driver.Driver
-
-	endpoints []func(ctx context.Context, m *message.CloudEventsEnvelope) error
-	// callback to webhook.
-	WebhookURL string
+	stopped bool
 	// Settings for publishing messages. All changes must be made before the
 	// first call to Publish. The default is DefaultPublishSettings.
 	// it means could not dynamically change and hot start.
-	PublishSettings
-
-	mu        sync.RWMutex
-	stopped   bool
+	Settings
 	scheduler *scheduler.BundleScheduler
-
-	pendingAcks map[string]bool
-	deadQueue   chan *message.CloudEventsEnvelope
 }
 
-// PublishSettings control the bundling of published messages.
-type PublishSettings struct {
+// Settings control the bundling of published messages.
+type Settings struct {
 	// EnableMessageOrdering enables delivery of ordered keys.
 	EnableMessageOrdering bool
-	EnableAck             bool
 
 	// Publish a non-empty batch after this delay has passed.
 	DelayThreshold time.Duration
@@ -94,52 +80,40 @@ type PublishSettings struct {
 	// The maximum time that the client will attempt to publish a bundle of messages.
 	Timeout time.Duration
 
-	AckMapTicker  time.Duration
-	MaxRetryTimes int
 	// The maximum number of bytes that the Bundler will keep in memory before
 	// returning ErrOverflow.
 	//
 	// Defaults to DefaultPublishSettings.BufferedByteLimit.
 	BufferedByteLimit int
-
-	// if nil, no retry if no ack.
-	RetryParams *retry.Params
-	// if nil, drop deadletter.
-	DeadLetterPolicy *deadpolicy.DeadLetterPolicy
 }
 
-// DefaultPublishSettings holds the default values for topics' PublishSettings.
-var DefaultPublishSettings = PublishSettings{
+// DefaultPublishSettings holds the default values for topics' Settings.
+var DefaultPublishSettings = Settings{
 	DelayThreshold: 10 * time.Millisecond,
 	CountThreshold: 100,
 	ByteThreshold:  1e6,
 	NumGoroutines:  100 * runtime.GOMAXPROCS(0),
 	Timeout:        60 * time.Second,
-	AckMapTicker:   5 * time.Second,
-	MaxRetryTimes:  3,
 	// By default, limit the bundler to 10 times the max message size. The number 10 is
 	// chosen as a reasonable amount of messages in the worst case whilst still
 	// capping the number to a low enough value to not OOM users.
 	BufferedByteLimit: 10 * MaxPublishRequestBytes,
 	// default linear increase retry interval and 10 times.
-	RetryParams: &retry.DefaultRetryParams,
-	// default nil and drop letter.
-	DeadLetterPolicy: nil,
 }
 
 // new a topic and init it with the connection options
-func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Option) (*Topic, error) {
+func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Option) (*BundleTopic, error) {
 	d, err := driver.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
 	}
-	t := &Topic{
-		name:            PulsePrefix + topicName,
-		topicOptions:    options,
-		d:               d,
-		PublishSettings: DefaultPublishSettings,
-		pendingAcks:     make(map[string]bool),
-		deadQueue:       nil,
+	t := &BundleTopic{
+		name:         PulsePrefix + topicName,
+		topicOptions: options,
+		d:            d,
+		Settings:     DefaultPublishSettings,
+		pendingAcks:  make(map[string]bool),
+		deadQueue:    nil,
 	}
 
 	if err := t.applyOptions(options...); err != nil {
@@ -156,7 +130,7 @@ func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Optio
 	return t, nil
 }
 
-func (t *Topic) startAck(_ context.Context) error {
+func (t *BundleTopic) startAck(_ context.Context) error {
 	// open a subscriber, receive and then ack the message.
 	// message should check itself and then depend on topic RetryParams to retry.
 	if !t.EnableAck {
@@ -185,7 +159,7 @@ func (t *Topic) startAck(_ context.Context) error {
 }
 
 // Publish publishes msg to the topic asynchronously. Messages are batched and
-// sent according to the topic's PublishSettings. Publish never blocks.
+// sent according to the topic's Settings. Publish never blocks.
 //
 // Publish returns a non-nil PublishResult which will be ready when the
 // message has been sent (or has failed to be sent) to the server.
@@ -200,7 +174,7 @@ func (t *Topic) startAck(_ context.Context) error {
 // add in the scheduler, message would be equal nil to gc.
 //
 // Warning: when use ordering feature, recommend to limit the QPS to 100, or use synchronous
-func (t *Topic) Publish(ctx context.Context, msg *message.CloudEventsEnvelope) *PublishResult {
+func (t *BundleTopic) Publish(ctx context.Context, msg *message.CloudEventsEnvelope) *PublishResult {
 	r := &PublishResult{ready: make(chan struct{})}
 	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
 		r.set("", errTopicOrderingDisabled)
@@ -240,7 +214,7 @@ func (t *Topic) Publish(ctx context.Context, msg *message.CloudEventsEnvelope) *
 // Publishing using an ordering key might be paused if an error is
 // encountered while publishing, to prevent messages from being published
 // out of order.
-func (t *Topic) ResumePublish(orderingKey string) {
+func (t *BundleTopic) ResumePublish(orderingKey string) {
 	t.mu.RLock()
 	noop := t.scheduler == nil
 	t.mu.RUnlock()
@@ -253,7 +227,7 @@ func (t *Topic) ResumePublish(orderingKey string) {
 // Stop sends all remaining published messages and stop goroutines created for handling
 // publishing. Returns once all outstanding messages have been sent or have
 // failed to be sent.
-func (t *Topic) Stop() {
+func (t *BundleTopic) Stop() {
 	t.mu.Lock()
 	noop := t.stopped || t.scheduler == nil
 	t.stopped = true
@@ -264,7 +238,7 @@ func (t *Topic) Stop() {
 	t.scheduler.FlushAndStop()
 }
 
-func (t *Topic) done(ackId string, ack bool, _ time.Time) {
+func (t *BundleTopic) done(ackId string, ack bool, _ time.Time) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if ack {
@@ -273,7 +247,7 @@ func (t *Topic) done(ackId string, ack bool, _ time.Time) {
 }
 
 // use to start the topic sender and acker
-func (t *Topic) start() {
+func (t *BundleTopic) start() {
 	t.mu.RLock()
 	onceStart := t.stopped || t.scheduler != nil
 	t.mu.RUnlock()
@@ -287,12 +261,12 @@ func (t *Topic) start() {
 		return
 	}
 
-	timeout := t.PublishSettings.Timeout
-	workers := t.PublishSettings.NumGoroutines
+	timeout := t.Settings.Timeout
+	workers := t.Settings.NumGoroutines
 	// Unless overridden, allow many goroutines per CPU to call the Publish RPC
 	// concurrently. The default value was determined via extensive load
 	// testing (see the loadtest subdirectory).
-	if t.PublishSettings.NumGoroutines == 0 {
+	if t.Settings.NumGoroutines == 0 {
 		workers = 25 * runtime.GOMAXPROCS(0)
 	}
 
@@ -306,16 +280,16 @@ func (t *Topic) start() {
 		}
 		t.publishMessageBundle(ctx, bundle.([]*bundledMessage))
 	})
-	t.scheduler.DelayThreshold = t.PublishSettings.DelayThreshold
-	t.scheduler.BundleCountThreshold = t.PublishSettings.CountThreshold
+	t.scheduler.DelayThreshold = t.Settings.DelayThreshold
+	t.scheduler.BundleCountThreshold = t.Settings.CountThreshold
 	if t.scheduler.BundleCountThreshold > MaxPublishRequestCount {
 		t.scheduler.BundleCountThreshold = MaxPublishRequestCount
 	}
-	t.scheduler.BundleByteThreshold = t.PublishSettings.ByteThreshold
+	t.scheduler.BundleByteThreshold = t.Settings.ByteThreshold
 
 	bufferedByteLimit := DefaultPublishSettings.BufferedByteLimit
-	if t.PublishSettings.BufferedByteLimit > 0 {
-		bufferedByteLimit = t.PublishSettings.BufferedByteLimit
+	if t.Settings.BufferedByteLimit > 0 {
+		bufferedByteLimit = t.Settings.BufferedByteLimit
 	}
 	t.scheduler.BufferedByteLimit = bufferedByteLimit
 
@@ -324,72 +298,8 @@ func (t *Topic) start() {
 	t.scheduler.BundleByteLimit = MaxPublishRequestBytes // - calcFieldSizeString(t.name)
 }
 
-type bundledMessage struct {
-	msg *message.CloudEventsEnvelope
-	res *PublishResult
-}
-
-// PublishResult help to know error because of sending goroutine is another goroutine.
-type PublishResult struct {
-	ready    chan struct{}
-	serverID string
-	err      error
-}
-
-// Ready returns a channel that is closed when the result is ready.
-// When the Ready channel is closed, Get is guaranteed not to block.
-func (r *PublishResult) Ready() <-chan struct{} { return r.ready }
-
-// Get returns the server-generated message ID and/or error result of a Publish call.
-// Get blocks until the Publish call completes or the context is done.
-func (r *PublishResult) Get(ctx context.Context) (serverID string, err error) {
-	// If the result is already ready, return it even if the context is done.
-	select {
-	case <-r.Ready():
-		return r.serverID, r.err
-	default:
-	}
-	select {
-	case <-ctx.Done():
-		return "", ctx.Err()
-	case <-r.Ready():
-		return r.serverID, r.err
-	}
-}
-
-func (r *PublishResult) set(sid string, err error) {
-	r.serverID = sid
-	r.err = err
-	close(r.ready)
-}
-
-// The following keys are used to tag requests with a specific topic/subscription ID.
-var (
-	keyTopic = tag.MustNewKey("topic")
-	//keySubscription = tag.MustNewKey("subscription")
-)
-
-// In the following, errors are used if status is not "OK".
-var (
-	keyStatus = tag.MustNewKey("status")
-	keyError  = tag.MustNewKey("error")
-)
-
-// choose to skip ack logic. would delete key when ack.
-func (t *Topic) checkAck(m *message.CloudEventsEnvelope) bool {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	//log.Info("checking message ", m.Id, t.pendingAcks)
-	if !t.pendingAcks[m.ID] {
-		return false
-	}
-	// clear the map
-	delete(t.pendingAcks, m.ID)
-	return true
-}
-
 // publishMessageBundle just handle the send logic
-func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage) {
+func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*message.AsyncResultActor) {
 	ctx, err := tag.New(ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keyTopic, t.name))
 	if err != nil {
 		log.Errorf("pubsub: cannot create context with tag in publishMessageBundle: %v", err)
@@ -420,14 +330,23 @@ func (t *Topic) publishMessageBundle(ctx context.Context, bms []*bundledMessage)
 	_ = group.Wait()
 }
 
-// publishMessage block until ack or an error occurs and pass the error by PublishResult
-func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
-	id := bm.msg.ID
-	log.Debug("sending: the bundle key is ", bm.msg.OrderingKey, " with id", id)
+type OrderingKeyActor struct {
+	msg *message.Message
+}
 
-	if bm.msg.WebhookURL == "" {
-		bm.msg.WebhookURL = t.WebhookURL
-	}
+func (a *OrderingKeyActor) Do(fn message.DoFunc) error {
+
+}
+
+// publishMessage block until ack or an error occurs and pass the error by PublishResult
+func (t *BundleTopic) publishMessage(ctx context.Context, bm *message.AsyncResultActor) error {
+	bm.Do(func(msg *message.Message, err error) error {
+		log.Debug("sending: the bundle key is ", msg.OrderingKey, " with id")
+
+		return nil
+	})
+
+	id := bm.msg.ID
 
 	b, err := jsoniter.ConfigFastest.Marshal(bm.msg)
 	if err != nil {
@@ -436,6 +355,7 @@ func (t *Topic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 	}
 
 	// if pub error, would return it in result and terminate the scheduler if ordering.
+
 	err = t.d.Publish(t.name, b)
 	if err != nil {
 		goto CheckError

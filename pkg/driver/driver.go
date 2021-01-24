@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"fmt"
 	"github.com/silverswords/pulse/pkg/logger"
 )
@@ -57,14 +58,8 @@ func (m *Metadata) SetDriver(driverName string) {
 }
 
 type Driver interface {
-	Initer
-	Publisher
-	Subscriber
-	Closer
-}
-
-type Initer interface {
-	Init(Metadata) error
+	OpenPublisher(*Metadata) Publisher
+	OpenSubscriber(*Metadata) Subscriber
 }
 
 // Publisher should realize the retry by themselves..
@@ -80,7 +75,24 @@ type Subscriber interface {
 	Subscribe(topic string, handler func(out []byte)) (Closer, error)
 }
 
+type PublisherContext interface {
+	Publish(ctx context.Context, topic string, in []byte) error
+}
+
 // Closer is the common interface for things that can be closed.
 type Closer interface {
 	Close() error
+}
+
+type DriverContext interface {
+	OpenConnector(name string) (Connector, error)
+}
+
+type Initer interface {
+	Init(Metadata) error
+}
+
+type Connector interface {
+	Connect(ctx context.Context) (string, error)
+	Driver() Driver
 }

@@ -8,8 +8,8 @@ import (
 	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/message"
-	"github.com/silverswords/pulse/pkg/protocol/retry"
-	"github.com/silverswords/pulse/pkg/protocol/scheduler"
+	"github.com/silverswords/pulse/pkg/message/protocol/retry"
+	"github.com/silverswords/pulse/pkg/scheduler"
 	"github.com/silverswords/pulse/pkg/topic"
 	"github.com/valyala/fasthttp"
 	"sync"
@@ -75,7 +75,7 @@ type ReceiveSettings struct {
 	WebHookRequestTimeout time.Duration
 }
 
-// DefaultPublishSettings holds the default values for topics' PublishSettings.
+// DefaultPublishSettings holds the default values for topics' Settings.
 var DefaultRecieveSettings = ReceiveSettings{
 	// default linear increase retry interval and 10 times.
 	RetryParams: &retry.DefaultRetryParams,

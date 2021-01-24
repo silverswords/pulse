@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/silverswords/pulse/pkg/protocol/scheduler"
+	"github.com/silverswords/pulse/pkg/scheduler"
 )
 
 type pair struct {
