@@ -2,9 +2,12 @@ package message
 
 import (
 	"context"
+	"errors"
 	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message/protocol/retry"
+	"github.com/silverswords/pulse/pkg/message/protocol/timingwheel"
 	"log"
+	"time"
 )
 
 type DoFunc func(*Message, context.Context, error) error
@@ -82,6 +85,29 @@ func ExampleAsyncRetryActor() {
 	asyncResult := Actor.res.Get(context.Background())
 	err := Actor.Do(load)
 	log.Println(err, asyncResult)
+}
+
+//DelayActor take an timingwheel and use it for its own delay setting.
+type DelayActor struct {
+	msg Actor
+	*timingwheel.TimingWheel
+	time.Duration
+}
+
+func NewDelayActor(msg Actor, timingWheel *timingwheel.TimingWheel) *DelayActor {
+	return &DelayActor{msg: msg, TimingWheel: timingWheel}
+}
+
+func (d DelayActor) Do(doFunc DoFunc) error {
+	return d.msg.Do(func(msg *Message, ctx context.Context, err error) error {
+		ch := d.After(d.Duration)
+		select {
+		case <-ctx.Done():
+			return errors.New("no enough")
+		case <-ch:
+			return doFunc(msg, ctx, err)
+		}
+	})
 }
 
 type AsyncResultActor struct {

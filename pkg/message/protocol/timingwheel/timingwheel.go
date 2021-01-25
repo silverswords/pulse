@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// from https://sourcegraph.com/github.com/TarsCloud/TarsGo@34efbda81b4bc3da6f141b86d8ffbdc14ccb828d/-/blob/tars/util/rtimer/timewheel.go#L35
 var (
 	timerMap map[time.Duration]*TimingWheel
 	mapLock  = &sync.Mutex{}
