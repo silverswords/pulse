@@ -10,17 +10,12 @@
 
 an eventbus made on portable MQ.
 
-For Version 2.0. Let's refer https://cloud.google.com/pubsub/docs/choosing-pubsub-or-cloud-tasks
-
-- [ ] Refactor the interface, make it clear and more easier to realize.
-- [ ] pub/sub system but not a sdk
-- [ ] protobuf support for event
-- [ ] Metrics support for Prometheus by zap logger?
-- [ ] Integration for cadence workflow
-
 There are three things stable in computer industry. Storage, Network and OperateSystem.
 Sidecar, Or Microservice Orchestration is about the protocl layer. Sidecar would transfer and transport, in order to solve multi complex network problem in real world.
 Let's explore new world but not promise communication model, eventbus base on cloud message queue. In QoS 1, it like UDP protocol. With ack, like TCP. With webhook, like service invocation. So eazily scalable on engineering language--Go, and adapted with Hybrid Cloud is my goal.
+
+The most important component is **scheduler**, then the driver.
+
 ## Usage
 Check the example/pulse and find an example for supported MQ. 
 Note: You need run your MQ first and get its address.
@@ -74,6 +69,19 @@ err = s.Receive(context.Background(), func(ctx context.Context, m *message.Cloud
 - Concurrent processing: Both topic and Subscription use concurrent processing. Pay attention to whether the middleware has critical resources
 
 - Reliability: ack is implemented independently to ensure that the message is delivered at least once.
+    In future: support QoS 0,1,2 three level.
+ 
+- Asynchronous: Message send asynchronously and could be **buffered** and **delay** send. 
+
+- Batch Handle: Scheduler could buffer message and batch handle them if underlying MQ supports.
+
+### **To-DO**
+You could find real-time taskboard on https://github.com/silverswords/pulse/projects
+- [ ] Refactor the interface, make it clear and more easier to realize.
+- [ ] pub/sub system but not a sdk
+- [ ] protobuf support for event
+- [ ] Metrics support for Prometheus by zap logger?
+- [ ] Integration for cadence workflow
 
 # Architecture
   - ![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fcomputer%2FWOjfpzAWwh.png?alt=media&token=376cb2ea-ab64-4887-9366-c1e23891cdcd)
