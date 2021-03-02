@@ -17,25 +17,15 @@ type Actor interface {
 }
 
 type Message struct {
+	Data []byte
+
+	Topic       string
 	OrderingKey string
 }
 
 func (m *Message) Do(fn DoFunc) error {
-	return fn(m, context.Background(), nil)
-}
-
-func PublishMessage(driver driver.Publisher, m *Message) error {
-	return m.Do(func(m *Message, ctx context.Context, err error) error {
-		return driver.Publish("topic from message", []byte{' ', ' '})
-	})
-}
-
-func ExampleDo() {
-	var m Message
-	var pub driver.Publisher
-
-	err := PublishMessage(pub, &m)
-	log.Println("err is ", err)
+	err := fn(m, context.Background(), nil)
+	return err
 }
 
 type RetryActor struct {
@@ -185,4 +175,28 @@ func (a *AckMessage) Do(doFunc DoFunc) error {
 		}
 	}
 	return a.msg.Do(doFunc)
+}
+
+func ExampleDo() {
+	var m Message
+	// warning: this publisher only pub message to console, so example does not work in real world.
+	var p = ExamplePublisher{&ExampleImplPublisher{}}
+
+	err := m.Do(p.PublishMessage)
+	log.Println("err is ", err)
+}
+
+type ExamplePublisher struct {
+	driver.PublisherContext
+}
+
+func (t *ExamplePublisher) PublishMessage(m *Message, ctx context.Context, err error) error {
+	return t.Publish(ctx, m.Topic, m.Data)
+}
+
+type ExampleImplPublisher struct{}
+
+func (e *ExampleImplPublisher) Publish(ctx context.Context, topic string, data []byte) error {
+	log.Println(ctx, topic, data)
+	return nil
 }
