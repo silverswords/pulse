@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/silverswords/pulse/pkg/logger"
+	"github.com/silverswords/pulse/pkg/message"
 )
 
 var log = logger.NewLogger("pulse.driver")
@@ -58,25 +59,23 @@ func (m *Metadata) SetDriver(driverName string) {
 }
 
 type Driver interface {
-	OpenPublisher(*Metadata) Publisher
-	OpenSubscriber(*Metadata) Subscriber
+	Connector
+	Closer
+	Publisher
+	Subscriber
 }
 
 // Publisher should realize the retry by themselves..
 // like nats, it retry when conn is reconnecting, it would be in the pending queue.
 type Publisher interface {
-	Publish(topic string, in []byte) error
+	Publish(message *message.Message, ctx context.Context, err error) error
 }
 
 // Subscriber is a blocking method
 // should be cancel() with ctx or call Driver.Close() to close all the subscribers.
 // note that handle just push the received message to subscription
 type Subscriber interface {
-	Subscribe(topic string, handler func(out []byte)) (Closer, error)
-}
-
-type PublisherContext interface {
-	Publish(ctx context.Context, topic string, in []byte) error
+	Subscribe(topic string, handler func(message *message.Message, ctx context.Context, err error) error) (Closer, error)
 }
 
 // Closer is the common interface for things that can be closed.
@@ -84,15 +83,13 @@ type Closer interface {
 	Close() error
 }
 
-type DriverContext interface {
-	OpenConnector(name string) (Connector, error)
-}
-
-type Initer interface {
-	Init(Metadata) error
-}
-
 type Connector interface {
-	Connect(ctx context.Context) (string, error)
-	Driver() Driver
+	Connect(Metadata) error
+}
+
+type DriverAsync interface {
+	Driver
+	// waiting for design
+	PublishAsync()
+	SubscribeSync()
 }

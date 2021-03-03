@@ -182,21 +182,18 @@ func ExampleDo() {
 	// warning: this publisher only pub message to console, so example does not work in real world.
 	var p = ExamplePublisher{&ExampleImplPublisher{}}
 
-	err := m.Do(p.PublishMessage)
+	err := m.Do(p.Publish)
 	log.Println("err is ", err)
 }
 
 type ExamplePublisher struct {
-	driver.PublisherContext
-}
-
-func (t *ExamplePublisher) PublishMessage(m *Message, ctx context.Context, err error) error {
-	return t.Publish(ctx, m.Topic, m.Data)
+	driver.Publisher
 }
 
 type ExampleImplPublisher struct{}
 
-func (e *ExampleImplPublisher) Publish(ctx context.Context, topic string, data []byte) error {
-	log.Println(ctx, topic, data)
+// Publish: warning: this publisher only pub message to console, so example does not work in real world.
+func (e *ExampleImplPublisher) Publish(message *Message, ctx context.Context, err error) error {
+	log.Println(ctx, *message, err)
 	return nil
 }
