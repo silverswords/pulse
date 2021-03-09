@@ -3,10 +3,11 @@ package nsq
 import (
 	"errors"
 	"fmt"
+	"github.com/silverswords/pulse/pkg/pubsub"
 	"strconv"
 
 	"github.com/nsqio/go-nsq"
-	"github.com/silverswords/pulse/pkg/driver"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
 const (
@@ -16,7 +17,7 @@ const (
 )
 
 func init() {
-	driver.Registry.Register(DriverName, func() driver.Driver {
+	pubsub.Registry.Register(DriverName, func() driver.Driver {
 		return NewNsq()
 	})
 }
@@ -25,7 +26,7 @@ type metadata struct {
 	nsqURL string
 }
 
-func parseMetadata(meta driver.Metadata) (metadata, error) {
+func parseMetadata(meta pubsub.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.nsqURL, ok = val.(string); ok {
@@ -46,7 +47,7 @@ type Driver struct {
 	channelSerialNumber int
 }
 
-func (n *Driver) Init(metadata driver.Metadata) error {
+func (n *Driver) Init(metadata pubsub.Metadata) error {
 	m, err := parseMetadata(metadata)
 	if err != nil {
 		fmt.Println(err)

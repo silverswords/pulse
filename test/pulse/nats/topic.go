@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/silverswords/pulse/pkg/pubsub"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -9,14 +10,13 @@ import (
 	"strconv"
 
 	"github.com/silverswords/pulse/drivers/nats"
-	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 )
 
 func main() {
-	meta := driver.NewMetadata()
+	meta := pubsub.NewMetadata()
 	meta.Properties[nats.URL] = "nats://34.92.175.246:4222"
 	meta.Properties["DriverName"] = "nats"
 

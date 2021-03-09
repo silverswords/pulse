@@ -2,20 +2,20 @@ package main
 
 import (
 	"context"
+	"github.com/silverswords/pulse/pkg/pubsub"
 	"log"
 	"net/http"
 	"runtime"
 	"time"
 
 	"github.com/silverswords/pulse/drivers/mqtt"
-	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 )
 
 func main() {
-	meta := driver.NewMetadata()
+	meta := pubsub.NewMetadata()
 	meta.Properties[mqtt.URL] = mqtt.DefaultURL
 	meta.Properties["DriverName"] = "mqtt"
 	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithCount())

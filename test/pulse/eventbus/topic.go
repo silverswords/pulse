@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	_ "github.com/silverswords/pulse/drivers/eventbus"
-	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/pubsub"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 	"log"
@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	meta := driver.NewMetadata()
+	meta := pubsub.NewMetadata()
 
 	t, err := topic.NewTopic("eventbus:hello", *meta, topic.WithOrdered(), topic.WithRequiredACK(), topic.WithCount())
 	//t, err := topic.NewTopic("eventbus:hello", *meta, topic.WithRequiredACK(), topic.WithCount())

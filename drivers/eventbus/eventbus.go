@@ -3,16 +3,17 @@ package eventbus
 // from https://github.com/asaskevich/EventBus/blob/master/README.md
 import (
 	"errors"
+	"github.com/silverswords/pulse/pkg/pubsub"
 
 	evb "github.com/asaskevich/EventBus"
-	"github.com/silverswords/pulse/pkg/driver"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
 var eventbus = &Driver{eb: evb.New()}
 
 func init() {
 	// use to register the nats to pubsub driver factory
-	driver.Registry.Register("", func() driver.Driver {
+	pubsub.Registry.Register("", func() driver.Driver {
 		return NewEventBus()
 	})
 	//log.Println("Register the nats driver")
@@ -34,7 +35,7 @@ func NewEventBus() *Driver {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (d *Driver) Init(metadata driver.Metadata) error {
+func (d *Driver) Init(metadata pubsub.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil
@@ -93,7 +94,7 @@ func (d *Driver) Close() error {
 	return nil
 }
 
-func parseNATSMetadata(_ driver.Metadata) (metadata, error) {
+func parseNATSMetadata(_ pubsub.Metadata) (metadata, error) {
 	m := metadata{}
 	return m, nil
 }

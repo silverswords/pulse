@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/silverswords/pulse/pkg/pubsub"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -10,14 +11,13 @@ import (
 	"time"
 
 	"github.com/silverswords/pulse/drivers/nsq"
-	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 )
 
 func main() {
-	meta := driver.NewMetadata()
+	meta := pubsub.NewMetadata()
 	meta.Properties[nsq.URL] = nsq.DefaultURL
 	meta.Properties["DriverName"] = "nsq"
 

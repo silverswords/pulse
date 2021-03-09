@@ -3,8 +3,8 @@ package subscriber
 import (
 	"context"
 	"github.com/silverswords/pulse/pkg/adapter"
-	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
 type Subscriber struct {

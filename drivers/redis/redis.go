@@ -5,7 +5,8 @@ import (
 	"context"
 	"errors"
 	"github.com/go-redis/redis/v8"
-	"github.com/silverswords/pulse/pkg/driver"
+	"github.com/silverswords/pulse/pkg/pubsub"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
 // todo: https://github.com/dapr/components-contrib/blob/master/pubsub/redis/redis.go
@@ -17,7 +18,7 @@ const (
 
 func init() {
 	// use to register the nats to pubsub driver factory
-	driver.Registry.Register("redis", func() driver.Driver {
+	pubsub.Registry.Register("redis", func() driver.Driver {
 		return NewRedis()
 	})
 	//log.Println("Register the nats driver")
@@ -27,7 +28,7 @@ type metadata struct {
 	options *redis.Options
 }
 
-func parseNATSMetadata(meta driver.Metadata) (m metadata, err error) {
+func parseNATSMetadata(meta pubsub.Metadata) (m metadata, err error) {
 	m = metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if s, ok := val.(string); ok {
@@ -56,7 +57,7 @@ func NewRedis() *Driver {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (d *Driver) Init(metadata driver.Metadata) error {
+func (d *Driver) Init(metadata pubsub.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil

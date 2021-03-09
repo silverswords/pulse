@@ -2,8 +2,8 @@ package publisher
 
 import (
 	"context"
-	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
 type PublishScheduler struct {

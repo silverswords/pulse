@@ -3,11 +3,12 @@ package nats
 import (
 	"errors"
 	"fmt"
+	"github.com/silverswords/pulse/pkg/pubsub"
 	"log"
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/silverswords/pulse/pkg/driver"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
 const (
@@ -20,7 +21,7 @@ const (
 
 func init() {
 	// use to register the nats to pubsub driver factory
-	driver.Registry.Register("nats", func() driver.Driver {
+	pubsub.Registry.Register("nats", func() driver.Driver {
 		return NewNats()
 	})
 	//log.Println("Register the nats driver")
@@ -50,7 +51,7 @@ type metadata struct {
 	queueGroupName string
 }
 
-func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
+func parseNATSMetadata(meta pubsub.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.natsURL, ok = val.(string); !ok {
@@ -83,7 +84,7 @@ func NewNats() *Driver {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (n *Driver) Init(metadata driver.Metadata) error {
+func (n *Driver) Init(metadata pubsub.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil

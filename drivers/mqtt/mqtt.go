@@ -3,10 +3,11 @@ package mqtt
 import (
 	"errors"
 	"fmt"
+	"github.com/silverswords/pulse/pkg/pubsub"
 	"net/url"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/silverswords/pulse/pkg/driver"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
 const (
@@ -20,7 +21,7 @@ const (
 
 func init() {
 	// use to register the mqtt to pubsub driver factory
-	driver.Registry.Register("mqtt", func() driver.Driver {
+	pubsub.Registry.Register("mqtt", func() driver.Driver {
 		return NewMQTT()
 	})
 	//log.Println("Register the mqtt driver")
@@ -42,7 +43,7 @@ func NewMQTT() driver.Driver {
 	return &Driver{}
 }
 
-func parseMQTTMetaData(md driver.Metadata) (metadata, error) {
+func parseMQTTMetaData(md pubsub.Metadata) (metadata, error) {
 	m := metadata{}
 
 	// required configuration settings
@@ -71,7 +72,7 @@ func parseMQTTMetaData(md driver.Metadata) (metadata, error) {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (m *Driver) Init(metadata driver.Metadata) error {
+func (m *Driver) Init(metadata pubsub.Metadata) error {
 	mqttMeta, err := parseMQTTMetaData(metadata)
 	if err != nil {
 		return err

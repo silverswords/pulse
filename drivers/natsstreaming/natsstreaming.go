@@ -4,15 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nats-io/stan.go/pb"
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/pubsub"
 	"log"
 	"math/rand"
 	"time"
 
 	"github.com/nats-io/nats.go"
 	stan "github.com/nats-io/stan.go"
-	"github.com/silverswords/pulse/pkg/driver"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
 const (
@@ -25,7 +27,7 @@ const (
 
 func init() {
 	// use to register the nats to pubsub driver factory
-	driver.Registry.Register("nats", func() driver.Driver {
+	pubsub.Registry.Register("nats", func() driver.Driver {
 		return NewNatsStreamingDriver()
 	})
 	//log.Println("Register the nats driver")
@@ -56,7 +58,7 @@ type metadata struct {
 	queueGroupName         string
 }
 
-func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
+func parseNATSMetadata(meta pubsub.Metadata) (metadata, error) {
 	m := metadata{}
 	//nolint:nestif
 	if val, ok := meta.Properties[URL]; ok && val != "" {
@@ -80,6 +82,7 @@ func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 
 // Driver -
 type Driver struct {
+	name string `json:"name"`
 	metadata
 	Conn stan.Conn
 
@@ -90,20 +93,28 @@ type Driver struct {
 	cancel context.CancelFunc
 }
 
+type Conn struct {
+	conn stan.Conn
+}
+
+func (d *Driver) Name() string {
+	return d.name
+}
+
 // NewNatsStreamingDriver returns a new NATS Streaming pub-sub implementation
 func NewNatsStreamingDriver(logger logger.Logger) driver.Driver {
 	return &Driver{logger: logger}
 }
 
 // Connect initializes the driver and init the connection to the server.
-func (n *Driver) Connect(metadata driver.Metadata) error {
+func (d *Driver) Connect(metadata pubsub.Metadata) (Conn, error) {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil
 	}
 
 	clientID := genRandomString(20)
-	n.metadata = m
+	d.metadata = m
 	m.natsOpts = append(m.natsOpts, nats.Name(clientID))
 	natsConn, err := nats.Connect(m.natsURL, m.natsOpts...)
 	if err != nil {
@@ -113,24 +124,24 @@ func (n *Driver) Connect(metadata driver.Metadata) error {
 	if err != nil {
 		return fmt.Errorf("nats-streaming: error connecting to nats streaming server %s: %s", m.natsStreamingClusterID, err)
 	}
-	n.logger.Debugf("connected to natsstreaming at %s", m.natsURL)
+	d.logger.Debugf("connected to natsstreaming at %s", m.natsURL)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	n.ctx = ctx
-	n.cancel = cancel
+	d.ctx = ctx
+	d.cancel = cancel
 
-	n.Conn = natStreamingConn
+	d.Conn = natStreamingConn
 	return nil
 }
 
 // Publish publishes a message to Nats Server with message destination topic.
-func (n *Driver) Publish(message *message.Message, ctx context.Context, err error) error {
+func (d *Driver) Publish(message *message.Message, ctx context.Context, err error) error {
 	if err != nil {
 		return err
 	}
 	errCh := make(chan error)
 	go func() {
-		err = n.Conn.Publish(message.Topic, message.Data)
+		err = d.Conn.Publish(message.Topic, message.Data)
 		if err != nil {
 			errCh <- fmt.Errorf("nats: error from publish: %s", err)
 		}
@@ -142,8 +153,6 @@ func (n *Driver) Publish(message *message.Message, ctx context.Context, err erro
 	case <-ctx.Done():
 		return errors.New("context cancelled")
 	}
-
-	return nil
 }
 
 // Subscribe handle message from specific topic.
@@ -151,20 +160,27 @@ func (n *Driver) Publish(message *message.Message, ctx context.Context, err erro
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
 // handler use to receive the message and move to top level subscriber.
-func (n *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
+func (d *Driver) Subscribe(topic string, handler func(message *message.Message, ctx context.Context, err error) error) (driver.Closer, error) {
 	var (
 		sub        *nats.Subscription
 		err        error
-		MsgHandler = func(m *nats.Msg) {
-			handler(m.Data)
+		MsgHandler = func(m *stan.Msg) {
+			err = handler(&message.Message{Topic: topic, Data: m.Data}, context.Background(), err)
+			if err != nil {
+			}
+			m.Ack()
 		}
 	)
 
-	if n.metadata.queueGroupName == "" {
-		sub, err = n.Conn.Subscribe(topic, MsgHandler)
+	subOptions, err := d.subscriptionOptions()
+	if err != nil {
+		return nil, fmt.Errorf("nats-streaming: error getting subscription options %s", err)
+	}
 
+	if d.metadata.queueGroupName == "" {
+		sub, err = d.Conn.Subscribe(topic, MsgHandler)
 	} else {
-		sub, err = n.Conn.QueueSubscribe(topic, n.metadata.queueGroupName, MsgHandler)
+		sub, err = d.Conn.QueueSubscribe(topic, d.metadata.queueGroupName, MsgHandler)
 	}
 
 	if err != nil {
@@ -184,6 +200,48 @@ func (s *subscriber) Close() error {
 	return s.sub.Drain()
 }
 
+func (d *Driver) subscriptionOptions() ([]stan.SubscriptionOption, error) {
+	var options []stan.SubscriptionOption
+
+	if d.metadata.durableSubscriptionName != "" {
+		options = append(options, stan.DurableName(d.metadata.durableSubscriptionName))
+	}
+
+	switch {
+	case d.metadata.deliverNew == deliverNewTrue:
+		options = append(options, stan.StartAt(pb.StartPosition_NewOnly))
+	case d.metadata.startAtSequence >= 1: // messages index start from 1, this is a valid check
+		options = append(options, stan.StartAtSequence(d.metadata.startAtSequence))
+	case d.metadata.startWithLastReceived == startWithLastReceivedTrue:
+		options = append(options, stan.StartWithLastReceived())
+	case d.metadata.deliverAll == deliverAllTrue:
+		options = append(options, stan.DeliverAllAvailable())
+	case d.metadata.startAtTimeDelta > (1 * time.Nanosecond): // as long as its a valid time.Duration
+		options = append(options, stan.StartAtTimeDelta(d.metadata.startAtTimeDelta))
+	case d.metadata.startAtTime != "":
+		if d.metadata.startAtTimeFormat != "" {
+			startTime, err := time.Parse(d.metadata.startAtTimeFormat, d.metadata.startAtTime)
+			if err != nil {
+				return nil, err
+			}
+			options = append(options, stan.StartAtTime(startTime))
+		}
+	}
+
+	// default is auto ACK. switching to manual ACK since processing errors need to be handled
+	options = append(options, stan.SetManualAckMode())
+
+	// check if set the ack options.
+	if d.metadata.ackWaitTime > (1 * time.Nanosecond) {
+		options = append(options, stan.AckWait(d.metadata.ackWaitTime))
+	}
+	if d.metadata.maxInFlight >= 1 {
+		options = append(options, stan.MaxInflight(int(d.metadata.maxInFlight)))
+	}
+
+	return options, nil
+}
+
 const inputs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
 // generates a random string of length 20
@@ -200,13 +258,13 @@ func genRandomString(n int) string {
 
 // Todo: natsstreaming realized ack, queue sub but not ordering.
 // Features design from dapr components-contrib.
-func (n *Driver) Features() []string {
+func (d *Driver) Features() []string {
 	return nil
 }
 
 // Close -
-func (n *Driver) Close() error {
-	n.Conn.Close()
+func (d *Driver) Close() error {
+	d.Conn.Close()
 	return nil
 }
 

@@ -3,9 +3,9 @@ package message
 import (
 	"context"
 	"errors"
-	"github.com/silverswords/pulse/pkg/driver"
 	"github.com/silverswords/pulse/pkg/message/protocol/retry"
 	"github.com/silverswords/pulse/pkg/message/protocol/timingwheel"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"log"
 	"time"
 )
