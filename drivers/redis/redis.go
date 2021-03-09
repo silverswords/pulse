@@ -28,7 +28,7 @@ type metadata struct {
 	options *redis.Options
 }
 
-func parseNATSMetadata(meta pubsub.Metadata) (m metadata, err error) {
+func parseNATSMetadata(meta driver.Metadata) (m metadata, err error) {
 	m = metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if s, ok := val.(string); ok {
@@ -57,7 +57,7 @@ func NewRedis() *Driver {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (d *Driver) Init(metadata pubsub.Metadata) error {
+func (d *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil

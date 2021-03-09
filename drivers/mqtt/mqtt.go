@@ -43,7 +43,7 @@ func NewMQTT() driver.Driver {
 	return &Driver{}
 }
 
-func parseMQTTMetaData(md pubsub.Metadata) (metadata, error) {
+func parseMQTTMetaData(md driver.Metadata) (metadata, error) {
 	m := metadata{}
 
 	// required configuration settings
@@ -72,7 +72,7 @@ func parseMQTTMetaData(md pubsub.Metadata) (metadata, error) {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (m *Driver) Init(metadata pubsub.Metadata) error {
+func (m *Driver) Init(metadata driver.Metadata) error {
 	mqttMeta, err := parseMQTTMetaData(metadata)
 	if err != nil {
 		return err

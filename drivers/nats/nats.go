@@ -51,7 +51,7 @@ type metadata struct {
 	queueGroupName string
 }
 
-func parseNATSMetadata(meta pubsub.Metadata) (metadata, error) {
+func parseNATSMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.natsURL, ok = val.(string); !ok {
@@ -84,7 +84,7 @@ func NewNats() *Driver {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (n *Driver) Init(metadata pubsub.Metadata) error {
+func (n *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil

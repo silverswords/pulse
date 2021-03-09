@@ -10,6 +10,7 @@ import (
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/message/protocol/retry"
 	"github.com/silverswords/pulse/pkg/pubsub"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"github.com/silverswords/pulse/pkg/scheduler"
 	"golang.org/x/sync/errgroup"
 
@@ -102,7 +103,7 @@ var DefaultPublishSettings = Settings{
 }
 
 // new a topic and init it with the connection options
-func NewTopic(topicName string, driverMetadata pubsub.Metadata, options ...Option) (*BundleTopic, error) {
+func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Option) (*BundleTopic, error) {
 	d, err := pubsub.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err

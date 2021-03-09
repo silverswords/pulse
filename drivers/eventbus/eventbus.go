@@ -35,7 +35,7 @@ func NewEventBus() *Driver {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (d *Driver) Init(metadata pubsub.Metadata) error {
+func (d *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil
@@ -94,7 +94,7 @@ func (d *Driver) Close() error {
 	return nil
 }
 
-func parseNATSMetadata(_ pubsub.Metadata) (metadata, error) {
+func parseNATSMetadata(_ driver.Metadata) (metadata, error) {
 	m := metadata{}
 	return m, nil
 }

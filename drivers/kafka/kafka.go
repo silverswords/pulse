@@ -39,7 +39,7 @@ type metadata struct {
 	kafkaURL string
 }
 
-func parseKAFKAMetadata(meta pubsub.Metadata) (metadata, error) {
+func parseKAFKAMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.kafkaURL, ok = val.(string); ok {
@@ -50,7 +50,7 @@ func parseKAFKAMetadata(meta pubsub.Metadata) (metadata, error) {
 	return m, errors.New("kafka error: missing kafka URL")
 }
 
-func (n *Driver) Init(metadata pubsub.Metadata) error {
+func (n *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseKAFKAMetadata(metadata)
 	if err != nil {
 		return err

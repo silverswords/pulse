@@ -26,7 +26,7 @@ type metadata struct {
 	nsqURL string
 }
 
-func parseMetadata(meta pubsub.Metadata) (metadata, error) {
+func parseMetadata(meta driver.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.nsqURL, ok = val.(string); ok {
@@ -47,7 +47,7 @@ type Driver struct {
 	channelSerialNumber int
 }
 
-func (n *Driver) Init(metadata pubsub.Metadata) error {
+func (n *Driver) Init(metadata driver.Metadata) error {
 	m, err := parseMetadata(metadata)
 	if err != nil {
 		fmt.Println(err)

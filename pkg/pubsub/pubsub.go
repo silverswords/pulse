@@ -8,82 +8,43 @@ import (
 	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 var log = logger.NewLogger("pulse.driver")
 var nowFunc = time.Now
 var Registry = pubsubRegistry{
-	buses: make(map[string]func() driver.Driver),
+	buses: make(map[string]func(logger logger.Logger) driver.Driver),
 }
 
 type pubsubRegistry struct {
-	buses map[string]func() driver.Driver
+	buses map[string]func(logger logger.Logger) driver.Driver
 }
 
-func (r *pubsubRegistry) Register(name string, factory func() driver.Driver) {
+func (r *pubsubRegistry) Register(name string, factory func(logger logger.Logger) driver.Driver) {
 	r.buses[name] = factory
 }
 
 // Create instantiates a pub/sub based on `name`.
-func (r *pubsubRegistry) Create(name string) (driver.Driver, error) {
+func (r *pubsubRegistry) Create(name string, logger logger.Logger) (driver.Driver, error) {
 	if name == "" {
 		log.Info("Create default in-process driver")
 	} else {
 		log.Infof("Create a driver %s", name)
 	}
 	if method, ok := r.buses[name]; ok {
-		return method(), nil
+		return method(logger), nil
 	}
 	return nil, fmt.Errorf("couldn't find message bus %s", name)
-}
-
-type Metadata struct {
-	Properties map[string]interface{}
-}
-
-func NewMetadata() *Metadata {
-	return &Metadata{Properties: make(map[string]interface{})}
-}
-
-// if driverName is empty, use default local driver. which couldn't cross process
-func (m *Metadata) GetDriverName() string {
-	var noDriver = ""
-	if driverName, ok := m.Properties["DriverName"]; ok {
-		if nameString, ok := driverName.(string); ok {
-			return nameString
-		}
-		return noDriver
-	}
-	return noDriver
-}
-
-func (m *Metadata) SetDriver(driverName string) {
-	m.Properties["DriverName"] = driverName
 }
 
 // todo: PubSub isn't a pool like database/sql db. but just conn collector.
 type PubSub struct {
 	connector driver.Connector
-	// numClosed is an atomic counter which represents a total number of
-	// closed connections. Stmt.openStmt checks it before cleaning closed
-	// connections in Stmt.css.
-	numClosed uint64
 
-	mu           sync.Mutex
-	freeConn     []*driverConn
-	connRequests map[uint64]connRequest
-	nextRequest  uint64
-	numOpen      int
-	// Used to signal the need for new connections
-	// a goroutine running connectionOpener() reads on this chan and
-	// maybeOpenNewConnections sends on the chan (one send per needed connection)
-	// It is closed during db.Close(). The close tells the connectionOpener
-	// goroutine to exit.
-	openerCh          chan struct{}
+	mu sync.Mutex
+
 	closed            bool
-	dep               map[finalCloser]depSet
 	maxIdleCount      int
 	maxOpen           int
 	maxLifetime       time.Duration
@@ -97,31 +58,7 @@ type PubSub struct {
 	stop func() // stop cancels the connection opener.
 }
 
-func (db *PubSub) removeDepLocked(x finalCloser, dep interface{}) func() error {
-
-	xdep, ok := db.dep[x]
-	if !ok {
-		panic(fmt.Sprintf("unpaired removeDep: no deps for %T", x))
-	}
-
-	l0 := len(xdep)
-	delete(xdep, dep)
-
-	switch len(xdep) {
-	case l0:
-		// Nothing removed. Shouldn't happen.
-		panic(fmt.Sprintf("unpaired removeDep: no %T dep on %T", dep, x))
-	case 0:
-		// No more dependencies.
-		delete(db.dep, x)
-		return x.finalClose
-	default:
-		// Dependencies remain.
-		return func() error { return nil }
-	}
-}
-
-type driverConn struct {
+type DriverConn struct {
 	pubSub    *PubSub
 	createdAt time.Time
 
@@ -138,11 +75,11 @@ type driverConn struct {
 	pubsubmuClosed bool      // same as closed, but guarded by pubsub.mu, for removeClosedStmtLocked
 }
 
-func (dc *driverConn) Close() error {
+func (dc *DriverConn) Close() error {
 	dc.Lock()
 	if dc.closed {
 		dc.Unlock()
-		return errors.New("pubsub: duplicate driverConn close")
+		return errors.New("pubsub: duplicate DriverConn close")
 	}
 	dc.closed = true
 	dc.Unlock() // not defer; removeDep finalClose calls may need to lock
@@ -150,12 +87,11 @@ func (dc *driverConn) Close() error {
 	// And now updates that require holding dc.mu.Lock.
 	dc.pubSub.mu.Lock()
 	dc.pubsubmuClosed = true
-	fn := dc.pubSub.removeDepLocked(dc, dc)
 	dc.pubSub.mu.Unlock()
-	return fn()
+	return dc.finalClose()
 }
 
-func (dc *driverConn) finalClose() error {
+func (dc *DriverConn) finalClose() error {
 	var err error
 
 	// Each *driverStmt has a lock to the dc. Copy the list out of the dc
@@ -168,33 +104,26 @@ func (dc *driverConn) finalClose() error {
 		}
 		dc.openSubscription = nil
 	})
+	// close all the Subscriptions
 	for _, ds := range openSubscription {
-		ds.Close()
+		_ = ds.Close()
 	}
 	withLock(dc, func() {
 		dc.finalClosed = true
+		// Close the connection
 		err = dc.ci.Close()
 		dc.ci = nil
 	})
 
-	dc.pubSub.mu.Lock()
-	dc.pubSub.numOpen--
-	//dc.pubSub.maybeOpenNewConnections()
-	dc.pubSub.mu.Unlock()
-
-	atomic.AddUint64(&dc.pubSub.numClosed, 1)
 	return err
 }
 
-func (dc *driverConn) expired(timeout time.Duration) bool {
+func (dc *DriverConn) expired(timeout time.Duration) bool {
 	if timeout <= 0 {
 		return false
 	}
 	return dc.createdAt.Add(timeout).Before(nowFunc())
 }
-
-// depSet is a finalCloser's outstanding dependencies
-type depSet map[interface{}]bool // set of true bools
 
 // The finalCloser interface is used by (*PubSub).addDep and related
 // dependency reference counting.
@@ -205,10 +134,10 @@ type finalCloser interface {
 }
 
 // driverSubscription associates a driver.Subscription with the
-// *driverConn from which it came, so the driverConn's lock can be
+// *DriverConn from which it came, so the DriverConn's lock can be
 // held during calls.
 type driverSubscription struct {
-	sync.Locker // the *driverConn
+	sync.Locker // the *DriverConn
 	si          driver.Subscription
 	closed      bool
 	closeErr    error // return value of previous Close call
@@ -218,7 +147,11 @@ func (ds *driverSubscription) Close() error {
 	return ds.si.Close()
 }
 
-func (pubsub *PubSub) conn(ctx context.Context, metadata Metadata) (*driverConn, error) {
+func (pubsub *PubSub) Conn(ctx context.Context, metadata driver.Metadata) (*DriverConn, error) {
+	return pubsub.conn(ctx, metadata)
+}
+
+func (pubsub *PubSub) conn(ctx context.Context, metadata driver.Metadata) (*DriverConn, error) {
 	pubsub.mu.Lock()
 	if pubsub.closed {
 		pubsub.mu.Unlock()
@@ -234,20 +167,14 @@ func (pubsub *PubSub) conn(ctx context.Context, metadata Metadata) (*driverConn,
 	}
 
 	// todo: Prefer a free connection, if possible.
-	//	todo: Prefer control connection lifetime and max number.
-	pubsub.numOpen++
+	// todo: Prefer control connection lifetime and max number.
 	pubsub.mu.Unlock()
-	ci, err := pubsub.connector.Connect(ctx, metadata)
+	ci, err := pubsub.connector.Connect(ctx)
 	if err != nil {
-		pubsub.mu.Lock()
-		pubsub.numOpen--
-		//	may append connect request to pubsub.connRequests
-
-		pubsub.mu.Unlock()
 		return nil, err
 	}
 	pubsub.mu.Lock()
-	dc := &driverConn{
+	dc := &DriverConn{
 		pubSub:     pubsub,
 		createdAt:  nowFunc(),
 		returnedAt: nowFunc(),
@@ -258,42 +185,34 @@ func (pubsub *PubSub) conn(ctx context.Context, metadata Metadata) (*driverConn,
 }
 
 // SubscribeContext subscribe with context control.
-func (pubsub *PubSub) SubscribeContext(ctx context.Context, md Metadata, fn message.DoFunc) (driver.Subscription, error) {
-	return pubsub.subscribe(ctx, md, fn)
+func (pubsub *PubSub) SubscribeContext(ctx context.Context, r driver.SubscribeRequest, fn message.DoFunc) (driver.Subscription, error) {
+	return pubsub.subscribe(ctx, r, fn)
 }
 
 // Subscribe will open a connection or reuse connection to subscribe
 // Pass Metadata to control subscribe options.
-func (pubsub *PubSub) Subscribe(md Metadata, fn message.DoFunc) (driver.Subscription, error) {
-	return pubsub.subscribe(context.Background(), md, fn)
+func (pubsub *PubSub) Subscribe(r driver.SubscribeRequest, fn message.DoFunc) (driver.Subscription, error) {
+	return pubsub.subscribe(context.Background(), r, fn)
 }
 
-func (pubsub *PubSub) subscribe(ctx context.Context, md Metadata, fn message.DoFunc) (driver.Subscription, error) {
-	dc, err := pubsub.conn(ctx, md)
+func (pubsub *PubSub) subscribe(ctx context.Context, r driver.SubscribeRequest, fn message.DoFunc) (driver.Subscription, error) {
+	dc, err := pubsub.conn(ctx, r.Metadata)
 	if err != nil {
 		return nil, err
 	}
-	return dc.ci.Subscribe(ctx, md, fn)
+	return dc.ci.Subscribe(ctx, r, fn)
 }
 
-func (pubsub *PubSub) PublishContext(ctx context.Context, md Metadata, m *message.Message) error {
-	return pubsub.publish(ctx, md, m)
+func (pubsub *PubSub) PublishContext(ctx context.Context, r driver.PublishRequest, m *message.Message) error {
+	return pubsub.publish(ctx, r, m)
 }
 
-func (pubsub *PubSub) publish(ctx context.Context, md Metadata, m *message.Message) error {
-	dc, err := pubsub.conn(ctx, md)
+func (pubsub *PubSub) publish(ctx context.Context, r driver.PublishRequest, m *message.Message) error {
+	dc, err := pubsub.conn(ctx, r.Metadata)
 	if err != nil {
 		return err
 	}
-	return dc.ci.Publish(m, ctx, err)
-}
-
-// connRequest represents one request for a new connection
-// When there are no idle connections available, PubSub.conn will create
-// a new connRequest and put it on the db.connRequests list.
-type connRequest struct {
-	conn *driverConn
-	err  error
+	return dc.ci.Publish(r, ctx, err)
 }
 
 var errPubSubClosed = errors.New("sql: pubsub is closed")

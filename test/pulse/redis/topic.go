@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/silverswords/pulse/drivers/redis"
 	"github.com/silverswords/pulse/pkg/message"
-	"github.com/silverswords/pulse/pkg/pubsub"
+	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 	"log"
@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	meta := pubsub.NewMetadata()
+	meta := driver.NewMetadata()
 	meta.Properties[redis.URL] = redis.DefaultURL
 	meta.Properties["DriverName"] = "redis"
 
