@@ -41,7 +41,7 @@ func ExampleRetryActor() {
 }
 
 func TestActor(t *testing.T) {
-	var m Message
+	var m = &Message{}
 	// warning: this publisher only pub message to console, so example does not work in real world.
 	var p = &ExampleImplPublisher{}
 
@@ -58,7 +58,7 @@ type ExampleImplPublisher struct{}
 func (e *ExampleImplPublisher) Publish(r interface{}, ctx context.Context, err error) error {
 	req, ok := r.(*driver.PublishRequest)
 	if !ok {
-		return fmt.Errorf("interface assert %s error: %v", reflect.TypeOf(r).String(), err)
+		return fmt.Errorf("interface assert %s want: %v", reflect.TypeOf(r).String(), reflect.TypeOf(&driver.PublishRequest{}))
 	}
 	message := req.Message
 	log.Println(ctx, message, err)

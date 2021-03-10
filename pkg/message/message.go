@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/silverswords/pulse/pkg/message/protocol/retry"
 	"github.com/silverswords/pulse/pkg/message/protocol/timingwheel"
-	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"log"
 	"time"
 )
@@ -24,7 +23,7 @@ type Message struct {
 }
 
 func (m *Message) Do(fn DoFunc) error {
-	err := fn(&driver.PublishRequest{Message: *m}, context.Background(), nil)
+	err := fn(m, context.Background(), nil)
 	return err
 }
 
