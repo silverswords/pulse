@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	nc, err := na.Connect("nats://34.92.175.246:4222")
+	nc, err := na.Connect("nats://localhost:4222")
 	if err != nil {
 		log.Println(err)
 		return

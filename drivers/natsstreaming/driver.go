@@ -13,8 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nats-io/nats.go"
-	stan "github.com/nats-io/stan.go"
+	"github.com/nats-io/stan.go"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
@@ -69,26 +68,8 @@ func NewConnector(metadata driver.Metadata, logger logger.Logger) (driver.Connec
 	if err != nil {
 		return nil, err
 	}
-	c := &connector{metadata: m, log: logger}
+	c := &connector{metadata: m, logger: logger}
 	return c, nil
-}
-
-func setupConnOptions(opts []nats.Option) []nats.Option {
-	totalWait := 10 * time.Minute
-	reconnectDelay := time.Second
-
-	opts = append(opts, nats.ReconnectWait(reconnectDelay))
-	opts = append(opts, nats.MaxReconnects(int(totalWait/reconnectDelay)))
-	opts = append(opts, nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
-		log.Printf("Disconnected due to:%s, will attempt reconnects for %.0fm", err, totalWait.Minutes())
-	}))
-	opts = append(opts, nats.ReconnectHandler(func(nc *nats.Conn) {
-		log.Printf("Reconnected [%s]", nc.ConnectedUrl())
-	}))
-	opts = append(opts, nats.ClosedHandler(func(nc *nats.Conn) {
-		log.Fatalf("Exiting: %v", nc.LastError())
-	}))
-	return opts
 }
 
 type metadata struct {
@@ -109,27 +90,21 @@ type metadata struct {
 }
 
 // NatsStreamingPubSubDriver -
-type NatsStreamingPubSubDriver struct {
-	name string `json:"name"`
-
+type PubSubDriver struct {
 	log logger.Logger
 }
 
-func (d *NatsStreamingPubSubDriver) OpenConnector(m driver.Metadata) (driver.Connector, error) {
+func (d *PubSubDriver) OpenConnector(m driver.Metadata) (driver.Connector, error) {
 	return NewConnector(m, d.log)
-}
-
-func (d *NatsStreamingPubSubDriver) Name() string {
-	return d.name
 }
 
 // NewNatsStreamingDriver returns a new NATS Streaming pub-sub implementation
 func NewNatsStreamingDriver(logger logger.Logger) driver.Driver {
-	return &NatsStreamingPubSubDriver{log: logger}
+	return &PubSubDriver{log: logger}
 }
 
 // Connect initializes the driver and init the connection to the server.
-func (d *NatsStreamingPubSubDriver) Open(metadata driver.Metadata) (driver.Conn, error) {
+func (d *PubSubDriver) Open(metadata driver.Metadata) (driver.Conn, error) {
 	c, err := NewConnector(metadata, d.log)
 	if err != nil {
 		return nil, err
@@ -155,10 +130,10 @@ func (c *natsStreamingConn) Subscribe(ctx context.Context, r driver.SubscribeReq
 		sub        stan.Subscription
 		err        error
 		MsgHandler = func(m *stan.Msg) {
-			err = handler(&message.Message{Topic: r.Topic, Data: m.Data}, context.Background(), err)
+			err = handler(&message.Message{Topic: r.Topic, Data: m.Data}, ctx, err)
 			if err == nil {
 				// todo: use custom message.Message.ack()
-				m.Ack()
+				_ = m.Ack()
 			}
 		}
 	)
@@ -381,11 +356,11 @@ func genRandomString(n int) string {
 
 // Todo: natsstreaming realized ack, queue sub but not ordering.
 // Features design from dapr components-contrib.
-func (d *NatsStreamingPubSubDriver) Features() []string {
+func (d *PubSubDriver) Features() []string {
 	return nil
 }
 
-var _ driver.Driver = (*NatsStreamingPubSubDriver)(nil)
-var _ driver.DriverContext = (*NatsStreamingPubSubDriver)(nil)
+var _ driver.Driver = (*PubSubDriver)(nil)
+var _ driver.DriverContext = (*PubSubDriver)(nil)
 var _ driver.Conn = (*natsStreamingConn)(nil)
 var _ driver.Closer = (*subscription)(nil)

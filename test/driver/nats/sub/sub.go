@@ -2,13 +2,12 @@ package main
 
 import (
 	na "github.com/nats-io/nats.go"
-	"github.com/silverswords/pulse/drivers/nats"
 	"log"
 	"runtime"
 )
 
 func main() {
-	nc, err := na.Connect(nats.DefaultURL)
+	nc, err := na.Connect("nats://localhost:4222")
 	if err != nil {
 		return
 	}
