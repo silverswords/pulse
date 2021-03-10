@@ -132,7 +132,7 @@ func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Optio
 }
 
 func (t *BundleTopic) startAck(_ context.Context) error {
-	// open a subscriber, receive and then ack the message.
+	// open a client, receive and then ack the message.
 	// message should check itself and then depend on topic RetryParams to retry.
 	if !t.EnableAck {
 		return nil

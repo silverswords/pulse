@@ -63,10 +63,10 @@ func (c Closer) Close() error {
 }
 
 // Subscribe handle message from specific topic.
-// use context to cancel the subscriber
+// use context to cancel the client
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
-// handler use to receive the message and move to top level subscriber.
+// handler use to receive the message and move to top level client.
 func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	if d.stopped {
 		return nil, errors.New("draining")
