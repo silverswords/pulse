@@ -30,12 +30,27 @@ func Chain(outer Middleware, others ...Middleware) Middleware {
 	}
 }
 
-type NopActor struct{}
+type NopActor struct {
+	Name string
+}
 
 func (nop *NopActor) Do(fn DoFunc) error {
 	log.Println("nop doing pre")
 	defer log.Println("nop doing post")
 	return fn(nop, context.Background(), nil)
+}
+
+type FailedHandler struct {
+	CallTimes int
+}
+
+func (fh *FailedHandler) FailedDo(interface{}, context.Context, error) error {
+	fh.CallTimes++
+	log.Printf("failed doing %d times", fh.CallTimes)
+	if fh.CallTimes < 3 {
+		return errors.New("please try next time")
+	}
+	return nil
 }
 
 type Message struct {
@@ -53,22 +68,50 @@ func (m *Message) Do(fn DoFunc) error {
 type RetryActor struct {
 	actor Actor
 	*retry.Params
-	//noRetryErr []error
+	noRetryErr []error
+}
+
+func WithRetry(retrytimes ...int) Middleware {
+	return func(actor Actor) Actor {
+		return &RetryActor{actor: actor, Params: &retry.Params{Strategy: retry.BackoffStrategyLinear, MaxTries: 3, Period: 1 * time.Millisecond}}
+	}
 }
 
 func NewRetryMessage(msg Actor) *RetryActor {
-	return &RetryActor{actor: msg}
+	return &RetryActor{actor: msg, Params: &retry.Params{Strategy: retry.BackoffStrategyLinear, MaxTries: 3, Period: 1 * time.Millisecond}}
+}
+
+// IfRetry(err), when err == nil, not retry is true.
+// Then check for m.noRetryErr slice. If you set error no need to retry.
+func (m *RetryActor) NoRetry(err error) bool {
+	if err == nil {
+		return true
+	}
+	for _, v := range m.noRetryErr {
+		if err == v {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *RetryActor) Do(fn DoFunc) error {
 	return m.actor.Do(func(r interface{}, ctx context.Context, err error) error {
 		if err != nil {
-			log.Println("[Cancel Retry]: oh, error before do something")
+			return errors.New("error before start to retry")
+		}
+		err = fn(r, ctx, err)
+		if m.NoRetry(err) {
+			log.Println("[Cancel Retry]: oh, no need to retry", r)
 			return err
 		}
-		times := 0
+
+		times := 1
 		for {
-			if err := m.actor.Do(fn); err == nil {
+			log.Println("enter retry loop")
+			times++
+			if err = fn(r, ctx, err); err == nil {
+				log.Printf("[Successful Retry]: oh, no need to retry after %d times tried", times)
 				return nil
 			}
 			// every internal time
@@ -111,23 +154,20 @@ type AsyncResultActor struct {
 }
 
 func NewAsyncResultActor(msg Actor) *AsyncResultActor {
-	return &AsyncResultActor{msg: msg}
+	return &AsyncResultActor{msg: msg, Result: &Result{ready: make(chan struct{}), err: nil}}
 }
 
 func (m *AsyncResultActor) Do(fn DoFunc) error {
 	return m.msg.Do(func(r interface{}, ctx context.Context, err error) error {
+		log.Println("getting result")
 		if err != nil {
 			log.Println("err")
 		}
 		err = fn(r, ctx, nil)
-		if err != nil {
-			m.Result.set(err)
-			return err
-		}
-		m.Result.set(nil)
-		return nil
+		m.Result.set(err)
+		log.Println("setted result")
+		return err
 	})
-
 }
 
 // Result help to know error because of sending goroutine is another goroutine.

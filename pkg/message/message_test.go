@@ -70,15 +70,37 @@ func ExampleRetryActor() {
 }
 
 func TestActor(t *testing.T) {
-	var m = &Message{}
-	// warning: this publisher only pub message to console, so example does not work in real world.
-	var p = &ExampleImplPublisher{}
+	t.Run("base", func(t *testing.T) {
+		var m = &Message{}
+		// warning: this publisher only pub message to console, so example does not work in real world.
+		var p = &NopPublisher{}
 
-	err := m.Do(p.Publish)
-	log.Println("err is ", err)
-	if err != nil {
-		t.Error(err)
-	}
+		err := m.Do(p.Publish)
+		if err != nil {
+			t.Error(err)
+		}
+	})
+	t.Run("RetryActor", func(t *testing.T) {
+		Actor := NewRetryMessage(&NopActor{Name: "no operation"})
+		var p = &FailedHandler{}
+
+		err := Actor.Do(p.FailedDo)
+		log.Println("err is: ", err)
+
+		if err != nil {
+			t.Error(err)
+		}
+
+	})
+	t.Run("withRetry", func(t *testing.T) {
+		wrapActor := Chain(WithRetry(3), WithRetry())(&NopActor{})
+		publisher := NopPublisher{}
+		err := wrapActor.Do(publisher.Publish)
+		if err != nil {
+			t.Error(err)
+		}
+	})
+
 }
 
 type ExampleImplPublisher struct{}
@@ -98,6 +120,7 @@ type NopPublisher struct{}
 
 // Publish: warning: this publisher only pub message to stdout, so example does not work in real world.
 func (e *NopPublisher) Publish(r interface{}, ctx context.Context, err error) error {
-	log.Println("this log to console: ", ctx, r, err)
+	log.Println("this pre log to console: ", ctx, r, err)
+	defer log.Println("this post log to console: ", ctx, r, err)
 	return nil
 }
