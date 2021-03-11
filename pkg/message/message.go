@@ -15,6 +15,29 @@ type Actor interface {
 	Do(DoFunc) error
 }
 
+// Below middleware code from go-kit endpoint. https://github.com/go-kit/kit/blob/master/endpoint/endpoint.go
+type Middleware func(Actor) Actor
+
+// Chain is a helper function for composing middlewares. Requests will
+// traverse them in the order they're declared. That is, the first middleware
+// is treated as the outermost middleware.
+func Chain(outer Middleware, others ...Middleware) Middleware {
+	return func(next Actor) Actor {
+		for i := len(others) - 1; i >= 0; i-- { // reverse
+			next = others[i](next)
+		}
+		return outer(next)
+	}
+}
+
+type NopActor struct{}
+
+func (nop *NopActor) Do(fn DoFunc) error {
+	log.Println("nop doing pre")
+	defer log.Println("nop doing post")
+	return fn(nop, context.Background(), nil)
+}
+
 type Message struct {
 	Data []byte
 

@@ -10,6 +10,35 @@ import (
 	"testing"
 )
 
+func TestDoFunc(t *testing.T) {
+	var logpub = &NopPublisher{}
+	err := annotations(
+		annotations(&NopActor{}, "first"), "second").Do(logpub.Publish)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+type Annotations struct {
+	Actor
+	string
+}
+
+func annotations(actor Actor, string string) *Annotations {
+	return &Annotations{Actor: actor, string: string}
+}
+
+func (a Annotations) Do(fn DoFunc) error {
+	return a.Actor.Do(func(r interface{}, ctx context.Context, err error) error {
+		log.Printf("doing %s pre ", a.string)
+		defer func() {
+			log.Printf("doing %s post ", a.string)
+		}()
+
+		return fn(r, ctx, err)
+	})
+}
+
 func ExampleActor() {
 	var m Message
 	// warning: this publisher only pub message to console, so example does not work in real world.
@@ -62,5 +91,13 @@ func (e *ExampleImplPublisher) Publish(r interface{}, ctx context.Context, err e
 	}
 	message := req.Message
 	log.Println(ctx, message, err)
+	return nil
+}
+
+type NopPublisher struct{}
+
+// Publish: warning: this publisher only pub message to stdout, so example does not work in real world.
+func (e *NopPublisher) Publish(r interface{}, ctx context.Context, err error) error {
+	log.Println("this log to console: ", ctx, r, err)
 	return nil
 }
