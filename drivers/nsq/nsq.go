@@ -3,6 +3,7 @@ package nsq
 import (
 	"errors"
 	"fmt"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub"
 	"strconv"
 
@@ -26,7 +27,7 @@ type metadata struct {
 	nsqURL string
 }
 
-func parseMetadata(meta driver.Metadata) (metadata, error) {
+func parseMetadata(meta protocol.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.nsqURL, ok = val.(string); ok {
@@ -47,7 +48,7 @@ type Driver struct {
 	channelSerialNumber int
 }
 
-func (n *Driver) Init(metadata driver.Metadata) error {
+func (n *Driver) Init(metadata protocol.Metadata) error {
 	m, err := parseMetadata(metadata)
 	if err != nil {
 		fmt.Println(err)

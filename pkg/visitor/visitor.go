@@ -30,11 +30,11 @@ func Chain(outer Middleware, others ...Middleware) Middleware {
 	}
 }
 
-type NopVisitor struct {
+type NameVisitor struct {
 	Name string
 }
 
-func (nop *NopVisitor) Do(fn DoFunc) error {
+func (nop *NameVisitor) Do(fn DoFunc) error {
 	log.Println("nop doing pre")
 	defer log.Println("nop doing post")
 	return fn(nop, context.Background(), nil)
@@ -42,12 +42,13 @@ func (nop *NopVisitor) Do(fn DoFunc) error {
 
 type FailedHandler struct {
 	CallTimes int
+	MaxTimes  int
 }
 
 func (fh *FailedHandler) FailedDo(interface{}, context.Context, error) error {
 	fh.CallTimes++
 	log.Printf("failed doing %d times", fh.CallTimes)
-	if fh.CallTimes < 3 {
+	if fh.CallTimes <= fh.MaxTimes {
 		return errors.New("please try next time")
 	}
 	return nil
@@ -59,9 +60,9 @@ type RetryActor struct {
 	noRetryErr []error
 }
 
-func WithRetry(retrytimes ...int) Middleware {
+func WithRetry(retryTimes int) Middleware {
 	return func(actor Visitor) Visitor {
-		return &RetryActor{actor: actor, Params: &retry.Params{Strategy: retry.BackoffStrategyLinear, MaxTries: 3, Period: 1 * time.Millisecond}}
+		return &RetryActor{actor: actor, Params: &retry.Params{Strategy: retry.BackoffStrategyLinear, MaxTries: retryTimes, Period: 1 * time.Millisecond}}
 	}
 }
 
@@ -88,25 +89,37 @@ func (m *RetryActor) Do(fn DoFunc) error {
 		if err != nil {
 			return errors.New("error before start to retry")
 		}
-		err = fn(r, ctx, err)
+		cancelCtx, cancelFunc := context.WithCancel(ctx)
+		err = fn(r, cancelCtx, err)
 		if m.NoRetry(err) {
 			log.Println("[Cancel Retry]: oh, no need to retry", r)
+			cancelFunc()
 			return err
 		}
+		cancelFunc()
 
 		times := 1
 		for {
 			log.Println("enter retry loop")
 			times++
-			if err = fn(r, ctx, err); err == nil {
+			cancelCtx, cancelFunc := context.WithCancel(ctx)
+			if err = fn(r, cancelCtx, err); err == nil {
+				cancelFunc()
 				log.Printf("[Successful Retry]: oh, no need to retry after %d times tried", times)
 				return nil
 			}
+			cancelFunc()
 			// every internal time
 			err = m.Backoff(ctx, times)
-			if err != nil && err == retry.ErrCancel {
+			switch err {
+			case nil:
+				continue
+			case retry.ErrCancel:
 				return err
-			} else if err == retry.ErrMaxRetry {
+			case retry.ErrMaxRetry:
+				return err
+			// retry
+			default:
 				continue
 			}
 		}
@@ -136,76 +149,24 @@ func (d DelayActor) Do(doFunc DoFunc) error {
 	})
 }
 
-type AsyncResultActor struct {
-	msg Visitor
-	*Result
-}
-
-func NewAsyncResultActor(msg Visitor) *AsyncResultActor {
-	return &AsyncResultActor{msg: msg, Result: &Result{ready: make(chan struct{}), err: nil}}
-}
-
-func (m *AsyncResultActor) Do(fn DoFunc) error {
-	return m.msg.Do(func(r interface{}, ctx context.Context, err error) error {
-		log.Println("getting result")
-		if err != nil {
-			log.Println("err")
-		}
-		err = fn(r, ctx, nil)
-		m.Result.set(err)
-		log.Println("setted result")
-		return err
-	})
-}
-
-// Result help to know error because of sending goroutine is another goroutine.
-type Result struct {
-	ready chan struct{}
-	err   error
-}
-
-// Ready returns a channel that is closed when the result is ready.
-// When the Ready channel is closed, Get is guaranteed not to block.
-func (r *Result) Ready() <-chan struct{} { return r.ready }
-
-// Get returns the server-generated protocol ID and/or error result of a Publish call.
-// Get blocks until the Publish call completes or the context is done.
-func (r *Result) Get(ctx context.Context) (err error) {
-	// If the result is already ready, return it even if the context is done.
-	select {
-	case <-r.Ready():
-		return r.err
-	default:
-	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-r.Ready():
-		return r.err
-	}
-}
-
-func (r *Result) set(err error) {
-	r.err = err
-	close(r.ready)
-}
-
+// Acker is for QoS.
 type Acker interface {
 	Ack()
 	Nack()
 }
 
-type AckMessage struct {
+type AutoAckMessage struct {
 	msg Visitor
 }
 
-func (a *AckMessage) Do(doFunc DoFunc) error {
+func (a *AutoAckMessage) Do(doFunc DoFunc) error {
+	err := a.msg.Do(doFunc)
 	if ack, ok := a.msg.(Acker); ok {
-		if err := a.msg.Do(doFunc); err != nil {
+		if err != nil {
 			ack.Ack()
 		} else {
 			ack.Nack()
 		}
 	}
-	return a.msg.Do(doFunc)
+	return err
 }

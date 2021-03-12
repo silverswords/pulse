@@ -88,7 +88,7 @@ var DefaultRecieveSettings = ReceiveSettings{
 }
 
 // new a topic and init it with the connection options
-func NewSubscription(topicName string, driverMetadata driver.Metadata, options ...Option) (*Subscription, error) {
+func NewSubscription(topicName string, driverMetadata protocol.Metadata, options ...Option) (*Subscription, error) {
 	d, err := pubsub.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub"
 	"sync"
 
@@ -39,7 +40,7 @@ type metadata struct {
 	kafkaURL string
 }
 
-func parseKAFKAMetadata(meta driver.Metadata) (metadata, error) {
+func parseKAFKAMetadata(meta protocol.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if m.kafkaURL, ok = val.(string); ok {
@@ -50,7 +51,7 @@ func parseKAFKAMetadata(meta driver.Metadata) (metadata, error) {
 	return m, errors.New("kafka error: missing kafka URL")
 }
 
-func (n *Driver) Init(metadata driver.Metadata) error {
+func (n *Driver) Init(metadata protocol.Metadata) error {
 	m, err := parseKAFKAMetadata(metadata)
 	if err != nil {
 		return err

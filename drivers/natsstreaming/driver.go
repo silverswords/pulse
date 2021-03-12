@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/nats-io/stan.go/pb"
 	"github.com/silverswords/pulse/pkg/logger"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub"
 	"github.com/silverswords/pulse/pkg/visitor"
 	"log"
@@ -63,7 +64,7 @@ func init() {
 	log.Println("Register the nats streaming driver")
 }
 
-func NewConnector(metadata driver.Metadata, logger logger.Logger) (driver.Connector, error) {
+func NewConnector(metadata protocol.Metadata, logger logger.Logger) (driver.Connector, error) {
 	m, err := parseNATSStreamingMetadata(metadata)
 	if err != nil {
 		return nil, err
@@ -94,7 +95,7 @@ type PubSubDriver struct {
 	log logger.Logger
 }
 
-func (d *PubSubDriver) OpenConnector(m driver.Metadata) (driver.Connector, error) {
+func (d *PubSubDriver) OpenConnector(m protocol.Metadata) (driver.Connector, error) {
 	return NewConnector(m, d.log)
 }
 
@@ -104,7 +105,7 @@ func NewNatsStreamingDriver(logger logger.Logger) driver.Driver {
 }
 
 // Connect initializes the driver and init the connection to the server.
-func (d *PubSubDriver) Open(metadata driver.Metadata) (driver.Conn, error) {
+func (d *PubSubDriver) Open(metadata protocol.Metadata) (driver.Conn, error) {
 	c, err := NewConnector(metadata, d.log)
 	if err != nil {
 		return nil, err
@@ -125,7 +126,7 @@ type natsStreamingConn struct {
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a protocol and only one of the group would receive the protocol.
 // handler use to receive the protocol and move to top level subscription.
-func (c *natsStreamingConn) Subscribe(ctx context.Context, r *driver.SubscribeRequest, handler func(r interface{}, ctx context.Context, err error) error) (driver.Subscription, error) {
+func (c *natsStreamingConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(r interface{}, ctx context.Context, err error) error) (driver.Subscription, error) {
 	var (
 		sub        stan.Subscription
 		err        error
@@ -169,7 +170,7 @@ func (c *natsStreamingConn) Close() error {
 }
 
 // Publish publishes a protocol to Nats Server with protocol destination topic.
-func (c *natsStreamingConn) Publish(r *driver.PublishRequest, ctx context.Context, err error) error {
+func (c *natsStreamingConn) Publish(r *protocol.PublishRequest, ctx context.Context, err error) error {
 	if err != nil {
 		return err
 	}
@@ -198,7 +199,7 @@ func (s *subscription) Close() error {
 	return s.sub.Close()
 }
 
-func parseNATSStreamingMetadata(meta driver.Metadata) (metadata, error) {
+func parseNATSStreamingMetadata(meta protocol.Metadata) (metadata, error) {
 	m := metadata{}
 	if val, ok := meta.Properties[natsURL]; ok && val != "" {
 		m.natsURL = val

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -18,7 +17,7 @@ import (
 )
 
 func main() {
-	meta := driver.NewMetadata()
+	meta := protocol.NewMetadata()
 	meta.Properties[kafka.URL] = kafka.DefaultURL
 	meta.Properties["DriverName"] = "kafka"
 	t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithCount())

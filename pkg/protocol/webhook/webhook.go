@@ -9,7 +9,7 @@ import (
 // WithRequiredACK would turn on the ack function.
 func WithWebHook() topic.Option {
 	return func(t *topic.BundleTopic) error {
-		t.WebhookURL = ""
+		panic("not implemented yet")
 		return nil
 	}
 }

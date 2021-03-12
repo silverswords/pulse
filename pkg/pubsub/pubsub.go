@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/silverswords/pulse/pkg/logger"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"github.com/silverswords/pulse/pkg/visitor"
 	"sync"
@@ -42,7 +43,10 @@ func (r *pubsubRegistry) Create(name string, logger logger.Logger) (driver.Drive
 type PubSub struct {
 	connector driver.Connector
 
-	mu sync.Mutex
+	mu            sync.Mutex
+	publisherConn *DriverConn
+
+	connections map[*DriverConn]bool
 
 	closed            bool
 	maxIdleCount      int
@@ -73,6 +77,14 @@ type DriverConn struct {
 	returnedAt     time.Time // Time the connection was created or returned.
 	onPut          []func()  // code (with db.mu held) run when conn is next returned
 	pubsubmuClosed bool      // same as closed, but guarded by pubsub.mu, for removeClosedStmtLocked
+}
+
+func (dc *DriverConn) Publish(r *protocol.PublishRequest, ctx context.Context, err error) error {
+	panic("implement me")
+}
+
+func (dc *DriverConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(r interface{}, ctx context.Context, err error) error) (driver.Subscription, error) {
+	panic("implement me")
 }
 
 func (dc *DriverConn) Close() error {
@@ -147,11 +159,11 @@ func (ds *driverSubscription) Close() error {
 	return ds.si.Close()
 }
 
-func (pubsub *PubSub) Conn(ctx context.Context, metadata driver.Metadata) (*DriverConn, error) {
+func (pubsub *PubSub) Conn(ctx context.Context, metadata protocol.Metadata) (*DriverConn, error) {
 	return pubsub.conn(ctx, metadata)
 }
 
-func (pubsub *PubSub) conn(ctx context.Context, metadata driver.Metadata) (*DriverConn, error) {
+func (pubsub *PubSub) conn(ctx context.Context, metadata protocol.Metadata) (*DriverConn, error) {
 	pubsub.mu.Lock()
 	if pubsub.closed {
 		pubsub.mu.Unlock()
@@ -185,17 +197,17 @@ func (pubsub *PubSub) conn(ctx context.Context, metadata driver.Metadata) (*Driv
 }
 
 // SubscribeContext subscribe with context control.
-func (pubsub *PubSub) SubscribeContext(ctx context.Context, r *driver.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
+func (pubsub *PubSub) SubscribeContext(ctx context.Context, r *protocol.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
 	return pubsub.subscribe(ctx, r, fn)
 }
 
 // Subscribe will open a connection or reuse connection to subscribe
 // Pass Metadata to control subscribe options.
-func (pubsub *PubSub) Subscribe(r *driver.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
+func (pubsub *PubSub) Subscribe(r *protocol.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
 	return pubsub.subscribe(context.Background(), r, fn)
 }
 
-func (pubsub *PubSub) subscribe(ctx context.Context, r *driver.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
+func (pubsub *PubSub) subscribe(ctx context.Context, r *protocol.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
 	dc, err := pubsub.conn(ctx, r.Metadata)
 	if err != nil {
 		return nil, err
@@ -203,12 +215,19 @@ func (pubsub *PubSub) subscribe(ctx context.Context, r *driver.SubscribeRequest,
 	return dc.ci.Subscribe(ctx, r, fn)
 }
 
-func (pubsub *PubSub) PublishContext(ctx context.Context, r *driver.PublishRequest) error {
+func (pubsub *PubSub) PublishContext(ctx context.Context, r *protocol.PublishRequest) error {
 	return pubsub.publish(ctx, r)
 }
 
-func (pubsub *PubSub) publish(ctx context.Context, r *driver.PublishRequest) error {
-	dc, err := pubsub.conn(ctx, r.Metadata)
+func (pubsub *PubSub) publish(ctx context.Context, r *protocol.PublishRequest) error {
+	if pubsub.publisherConn == nil {
+		dc, err := pubsub.conn(ctx, r.Metadata)
+		if err != nil {
+			return err
+		}
+		pubsub.publisherConn = dc
+	}
+	pubsub.publisherConn.Publish()
 	if err != nil {
 		return err
 	}

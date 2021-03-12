@@ -3,6 +3,7 @@ package eventbus
 // from https://github.com/asaskevich/EventBus/blob/master/README.md
 import (
 	"errors"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub"
 
 	evb "github.com/asaskevich/EventBus"
@@ -35,7 +36,7 @@ func NewEventBus() *Driver {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (d *Driver) Init(metadata driver.Metadata) error {
+func (d *Driver) Init(metadata protocol.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil
@@ -94,7 +95,7 @@ func (d *Driver) Close() error {
 	return nil
 }
 
-func parseNATSMetadata(_ driver.Metadata) (metadata, error) {
+func parseNATSMetadata(_ protocol.Metadata) (metadata, error) {
 	m := metadata{}
 	return m, nil
 }

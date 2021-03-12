@@ -4,32 +4,31 @@ import (
 	"context"
 	"fmt"
 	. "github.com/silverswords/pulse/pkg/protocol"
-	"github.com/silverswords/pulse/pkg/pubsub/driver"
-	"github.com/silverswords/pulse/pkg/visitor"
+	. "github.com/silverswords/pulse/pkg/visitor"
 	"log"
 	"reflect"
 	"testing"
 )
 
 func TestDoFunc(t *testing.T) {
-	var logpub = &NopPublisher{}
+	var logPublisher = &NopPublisher{}
 	err := annotations(
-		annotations(&visitor.NopVisitor{}, "first"), "second").Do(logpub.Publish)
+		annotations(&NameVisitor{}, "first"), "second").Do(logPublisher.Publish)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 type Annotations struct {
-	visitor.Visitor
+	Visitor
 	string
 }
 
-func annotations(actor visitor.Visitor, string string) *Annotations {
+func annotations(actor Visitor, string string) *Annotations {
 	return &Annotations{Visitor: actor, string: string}
 }
 
-func (a Annotations) Do(fn visitor.DoFunc) error {
+func (a Annotations) Do(fn DoFunc) error {
 	return a.Visitor.Do(func(r interface{}, ctx context.Context, err error) error {
 		log.Printf("doing %s pre ", a.string)
 		defer func() {
@@ -50,7 +49,7 @@ func ExampleVisitor() {
 }
 
 func ExampleRetryActor() {
-	Actor := visitor.NewRetryMessage(&Message{})
+	Actor := NewRetryMessage(&Message{})
 	// Publish: warning: this publisher only pub protocol to stdout, so example does not work in real world.
 	publish := func(r interface{}, ctx context.Context, err error) error {
 		log.Println("this pre log to console: ", ctx, r, err)
@@ -74,8 +73,8 @@ func TestActor(t *testing.T) {
 		}
 	})
 	t.Run("RetryActor", func(t *testing.T) {
-		Actor := visitor.NewRetryMessage(&visitor.NopVisitor{Name: "no operation"})
-		var p = &visitor.FailedHandler{}
+		Actor := WithRetry(3)(&NameVisitor{Name: "no content"})
+		var p = &FailedHandler{MaxTimes: 3}
 
 		err := Actor.Do(p.FailedDo)
 		log.Println("err is: ", err)
@@ -86,8 +85,8 @@ func TestActor(t *testing.T) {
 
 	})
 	t.Run("withRetry", func(t *testing.T) {
-		wrapActor := visitor.Chain(visitor.WithRetry(3), visitor.WithRetry(3))(&visitor.NopVisitor{})
-		var p = &visitor.FailedHandler{}
+		wrapActor := Chain(WithRetry(3), WithRetry(3))(&NameVisitor{})
+		var p = &FailedHandler{MaxTimes: 5}
 		err := wrapActor.Do(p.FailedDo)
 		if err != nil {
 			t.Error(err)
@@ -99,9 +98,9 @@ type ExampleImplPublisher struct{}
 
 // Publish: warning: this publisher only pub protocol to stdout, so example does not work in real world.
 func (e *ExampleImplPublisher) Publish(r interface{}, ctx context.Context, err error) error {
-	req, ok := r.(*driver.PublishRequest)
+	req, ok := r.(*PublishRequest)
 	if !ok {
-		return fmt.Errorf("interface assert %s want: %v", reflect.TypeOf(r).String(), reflect.TypeOf(&driver.PublishRequest{}))
+		return fmt.Errorf("interface assert %s want: %v", reflect.TypeOf(r).String(), reflect.TypeOf(&PublishRequest{}))
 	}
 	message := req.Message
 	log.Println(ctx, message, err)

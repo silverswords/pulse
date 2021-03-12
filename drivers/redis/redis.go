@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"github.com/go-redis/redis/v8"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
@@ -28,7 +29,7 @@ type metadata struct {
 	options *redis.Options
 }
 
-func parseNATSMetadata(meta driver.Metadata) (m metadata, err error) {
+func parseNATSMetadata(meta protocol.Metadata) (m metadata, err error) {
 	m = metadata{}
 	if val, ok := meta.Properties[URL]; ok && val != "" {
 		if s, ok := val.(string); ok {
@@ -57,7 +58,7 @@ func NewRedis() *Driver {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (d *Driver) Init(metadata driver.Metadata) error {
+func (d *Driver) Init(metadata protocol.Metadata) error {
 	m, err := parseNATSMetadata(metadata)
 	if err != nil {
 		return nil

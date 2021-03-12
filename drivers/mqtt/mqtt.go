@@ -3,6 +3,7 @@ package mqtt
 import (
 	"errors"
 	"fmt"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub"
 	"net/url"
 
@@ -43,7 +44,7 @@ func NewMQTT() driver.Driver {
 	return &Driver{}
 }
 
-func parseMQTTMetaData(md driver.Metadata) (metadata, error) {
+func parseMQTTMetaData(md protocol.Metadata) (metadata, error) {
 	m := metadata{}
 
 	// required configuration settings
@@ -72,7 +73,7 @@ func parseMQTTMetaData(md driver.Metadata) (metadata, error) {
 }
 
 // Init initializes the driver and init the connection to the server.
-func (m *Driver) Init(metadata driver.Metadata) error {
+func (m *Driver) Init(metadata protocol.Metadata) error {
 	mqttMeta, err := parseMQTTMetaData(metadata)
 	if err != nil {
 		return err

@@ -3,7 +3,7 @@ package gob
 import (
 	"bytes"
 	"encoding/gob"
-	"github.com/silverswords/pulse/pkg/adapter"
+	"github.com/silverswords/pulse/pkg/protocol/adapter"
 )
 
 // Name is the name registered for the proto compressor.

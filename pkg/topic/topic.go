@@ -8,6 +8,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/protocol"
+	"github.com/silverswords/pulse/pkg/protocol/aresult"
 	"github.com/silverswords/pulse/pkg/protocol/retry"
 	"github.com/silverswords/pulse/pkg/pubsub"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
@@ -48,6 +49,9 @@ var (
 
 type BundleTopic struct {
 	mu sync.RWMutex
+
+	pubsub.PubSub
+	conns map[uint64]driver.Conn
 
 	stopped bool
 	// Settings for publishing messages. All changes must be made before the
@@ -104,7 +108,7 @@ var DefaultPublishSettings = Settings{
 }
 
 // new a topic and init it with the connection options
-func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Option) (*BundleTopic, error) {
+func NewTopic(topicName string, driverMetadata protocol.Metadata, options ...Option) (*BundleTopic, error) {
 	d, err := pubsub.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
@@ -163,12 +167,12 @@ func (t *BundleTopic) startAck(_ context.Context) error {
 // Publish publishes msg to the topic asynchronously. Messages are batched and
 // sent according to the topic's Settings. Publish never blocks.
 //
-// Publish returns a non-nil PublishResult which will be ready when the
+// Publish returns a non-nil aresult.Result which will be ready when the
 // protocol has been sent (or has failed to be sent) to the server.
 //
 // Publish creates goroutines for batching and sending messages. These goroutines
 // need to be stopped by calling t.Stop(). Once stopped, future calls to Publish
-// will immediately return a PublishResult with an error.
+// will immediately return a aresult.Result with an error.
 // advice: don't resume so quickly like less than 10* millisecond of Bundler ticker flush setting.
 // that's ensure all the protocol in bundle with the key return error when scheduler paused.
 //
@@ -176,21 +180,11 @@ func (t *BundleTopic) startAck(_ context.Context) error {
 // add in the scheduler, protocol would be equal nil to gc.
 //
 // Warning: when use ordering feature, recommend to limit the QPS to 100, or use synchronous
-func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.CloudEventsEnvelope) *PublishResult {
-	r := &PublishResult{ready: make(chan struct{})}
+func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.CloudEventsEnvelope) *aresult.Result {
+	r := aresult.NewResult()
 	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
-		r.set("", errTopicOrderingDisabled)
+		r.Set(errTopicOrderingDisabled)
 		return r
-	}
-
-	// -------------Set the send logic parameters------------
-	// With Chain handlers to handle.
-	for _, handler := range t.endpoints {
-		err := handler(ctx, msg)
-		if err != nil {
-			r.set("", err)
-			return r
-		}
 	}
 
 	t.start()
@@ -198,7 +192,7 @@ func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.CloudEventsEnve
 	defer t.mu.RUnlock()
 	// TODO(aboulhosn) [from bcmills] consider changing the semantics of bundler to perform this logic so we don't have to do it here
 	if t.stopped {
-		r.set("", errTopicStopped)
+		r.Set(errTopicStopped)
 		return r
 	}
 
@@ -207,7 +201,7 @@ func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.CloudEventsEnve
 	err := t.scheduler.Add(msg.OrderingKey, &bundledMessage{msg, r}, msg.Size)
 	if err != nil {
 		t.scheduler.Pause(msg.OrderingKey)
-		r.set("", err)
+		r.Set(err)
 	}
 	return r
 }
@@ -301,7 +295,7 @@ func (t *BundleTopic) start() {
 }
 
 // publishMessageBundle just handle the send logic
-func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*visitor.AsyncResultActor) {
+func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*publisher.AsyncResultActor) {
 	ctx, err := tag.New(ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keyTopic, t.name))
 	if err != nil {
 		log.Errorf("pubsub: cannot create context with tag in publishMessageBundle: %v", err)
@@ -333,16 +327,16 @@ func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*visitor.A
 }
 
 type OrderingKeyActor struct {
-	msg *visitor.Message
+	msg *protocol.Message
 }
 
 func (a *OrderingKeyActor) Do(fn visitor.DoFunc) error {
 
 }
 
-// publishMessage block until ack or an error occurs and pass the error by PublishResult
-func (t *BundleTopic) publishMessage(ctx context.Context, bm *visitor.AsyncResultActor) error {
-	bm.Do(func(msg *visitor.Message, err error) error {
+// publishMessage block until ack or an error occurs and pass the error by aresult.Result
+func (t *BundleTopic) publishMessage(ctx context.Context, bm *publisher.AsyncResultActor) error {
+	bm.Do(func(msg *protocol.Message, err error) error {
 		log.Debug("sending: the bundle key is ", msg.OrderingKey, " with id")
 
 		return nil
