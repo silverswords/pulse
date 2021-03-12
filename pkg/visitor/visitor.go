@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type DoFunc func(interface{}, context.Context, error) error
+type DoFunc func(ctx context.Context, request interface{}) (err error)
 
 type Visitor interface {
 	Do(DoFunc) error
@@ -37,7 +37,7 @@ type NameVisitor struct {
 func (nop *NameVisitor) Do(fn DoFunc) error {
 	log.Println("nop doing pre")
 	defer log.Println("nop doing post")
-	return fn(nop, context.Background(), nil)
+	return fn(context.Background(), nop)
 }
 
 type FailedHandler struct {
@@ -85,12 +85,12 @@ func (m *RetryActor) NoRetry(err error) bool {
 }
 
 func (m *RetryActor) Do(fn DoFunc) error {
-	return m.actor.Do(func(r interface{}, ctx context.Context, err error) error {
+	return m.actor.Do(func(ctx context.Context, r interface{}) error {
 		if err != nil {
 			return errors.New("error before start to retry")
 		}
 		cancelCtx, cancelFunc := context.WithCancel(ctx)
-		err = fn(r, cancelCtx, err)
+		err = fn(cancelCtx, r)
 		if m.NoRetry(err) {
 			log.Println("[Cancel Retry]: oh, no need to retry", r)
 			cancelFunc()
@@ -138,7 +138,7 @@ func NewDelayActor(msg Visitor, timingWheel *timingwheel.TimingWheel) *DelayActo
 }
 
 func (d DelayActor) Do(doFunc DoFunc) error {
-	return d.msg.Do(func(r interface{}, ctx context.Context, err error) error {
+	return d.msg.Do(func(ctx context.Context, r interface{}) error {
 		ch := d.After(d.Duration)
 		select {
 		case <-ctx.Done():
