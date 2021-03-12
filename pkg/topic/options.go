@@ -2,7 +2,7 @@ package topic
 
 import (
 	"context"
-	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"sync/atomic"
 )
 
@@ -25,7 +25,7 @@ func WithRequiredACK() Option {
 func WithCount() Option {
 	return func(t *BundleTopic) error {
 		var count uint64
-		t.endpoints = append(t.endpoints, func(ctx context.Context, m *message.CloudEventsEnvelope) error {
+		t.endpoints = append(t.endpoints, func(ctx context.Context, m *protocol.CloudEventsEnvelope) error {
 			atomic.AddUint64(&count, 1)
 			log.Info("count: ", count)
 			return nil

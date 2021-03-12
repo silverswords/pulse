@@ -7,11 +7,12 @@ import (
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/silverswords/pulse/pkg/logger"
-	"github.com/silverswords/pulse/pkg/message"
-	"github.com/silverswords/pulse/pkg/message/protocol/retry"
+	"github.com/silverswords/pulse/pkg/protocol"
+	"github.com/silverswords/pulse/pkg/protocol/retry"
 	"github.com/silverswords/pulse/pkg/pubsub"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"github.com/silverswords/pulse/pkg/scheduler"
+	"github.com/silverswords/pulse/pkg/visitor"
 	"golang.org/x/sync/errgroup"
 
 	//"go.opencensus.io/stats"
@@ -95,7 +96,7 @@ var DefaultPublishSettings = Settings{
 	ByteThreshold:  1e6,
 	NumGoroutines:  100 * runtime.GOMAXPROCS(0),
 	Timeout:        60 * time.Second,
-	// By default, limit the bundler to 10 times the max message size. The number 10 is
+	// By default, limit the bundler to 10 times the max protocol size. The number 10 is
 	// chosen as a reasonable amount of messages in the worst case whilst still
 	// capping the number to a low enough value to not OOM users.
 	BufferedByteLimit: 10 * MaxPublishRequestBytes,
@@ -132,18 +133,18 @@ func NewTopic(topicName string, driverMetadata driver.Metadata, options ...Optio
 }
 
 func (t *BundleTopic) startAck(_ context.Context) error {
-	// open a client, receive and then ack the message.
-	// message should check itself and then depend on topic RetryParams to retry.
+	// open a client, receive and then ack the protocol.
+	// protocol should check itself and then depend on topic RetryParams to retry.
 	if !t.EnableAck {
 		return nil
 	}
 
 	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
-		e := &message.CloudEventsEnvelope{}
+		e := &protocol.CloudEventsEnvelope{}
 		err := jsoniter.ConfigFastest.Unmarshal(out, e)
 		if err != nil {
-			log.Error("topic", t.name, "error in ack message decode: ", err)
-			//	 not our pulse message, just ignore it
+			log.Error("topic", t.name, "error in ack protocol decode: ", err)
+			//	 not our pulse protocol, just ignore it
 			return
 		}
 		log.Debug("ACK: topic ", t.name, " received ackId ", e.ID)
@@ -163,19 +164,19 @@ func (t *BundleTopic) startAck(_ context.Context) error {
 // sent according to the topic's Settings. Publish never blocks.
 //
 // Publish returns a non-nil PublishResult which will be ready when the
-// message has been sent (or has failed to be sent) to the server.
+// protocol has been sent (or has failed to be sent) to the server.
 //
 // Publish creates goroutines for batching and sending messages. These goroutines
 // need to be stopped by calling t.Stop(). Once stopped, future calls to Publish
 // will immediately return a PublishResult with an error.
 // advice: don't resume so quickly like less than 10* millisecond of Bundler ticker flush setting.
-// that's ensure all the message in bundle with the key return error when scheduler paused.
+// that's ensure all the protocol in bundle with the key return error when scheduler paused.
 //
-// Warning: do not use incoming message pointer again that if message had been successfully
-// add in the scheduler, message would be equal nil to gc.
+// Warning: do not use incoming protocol pointer again that if protocol had been successfully
+// add in the scheduler, protocol would be equal nil to gc.
 //
 // Warning: when use ordering feature, recommend to limit the QPS to 100, or use synchronous
-func (t *BundleTopic) Publish(ctx context.Context, msg *message.CloudEventsEnvelope) *PublishResult {
+func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.CloudEventsEnvelope) *PublishResult {
 	r := &PublishResult{ready: make(chan struct{})}
 	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
 		r.set("", errTopicOrderingDisabled)
@@ -300,7 +301,7 @@ func (t *BundleTopic) start() {
 }
 
 // publishMessageBundle just handle the send logic
-func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*message.AsyncResultActor) {
+func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*visitor.AsyncResultActor) {
 	ctx, err := tag.New(ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keyTopic, t.name))
 	if err != nil {
 		log.Errorf("pubsub: cannot create context with tag in publishMessageBundle: %v", err)
@@ -332,16 +333,16 @@ func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*message.A
 }
 
 type OrderingKeyActor struct {
-	msg *message.Message
+	msg *visitor.Message
 }
 
-func (a *OrderingKeyActor) Do(fn message.DoFunc) error {
+func (a *OrderingKeyActor) Do(fn visitor.DoFunc) error {
 
 }
 
 // publishMessage block until ack or an error occurs and pass the error by PublishResult
-func (t *BundleTopic) publishMessage(ctx context.Context, bm *message.AsyncResultActor) error {
-	bm.Do(func(msg *message.Message, err error) error {
+func (t *BundleTopic) publishMessage(ctx context.Context, bm *visitor.AsyncResultActor) error {
+	bm.Do(func(msg *visitor.Message, err error) error {
 		log.Debug("sending: the bundle key is ", msg.OrderingKey, " with id")
 
 		return nil
@@ -388,7 +389,7 @@ func (t *BundleTopic) publishMessage(ctx context.Context, bm *message.AsyncResul
 			}
 		}
 		err = t.d.Publish(t.name, b)
-		log.Error("Resend message: ", bm.msg.ID)
+		log.Error("Resend protocol: ", bm.msg.ID)
 		if err != nil {
 			goto CheckError
 		}
@@ -407,7 +408,7 @@ CheckError:
 	}
 	// error handle
 	if err != nil {
-		log.Error("error in publish message:", err)
+		log.Error("error in publish protocol:", err)
 		bm.res.set("", err)
 	} else {
 		bm.msg = nil

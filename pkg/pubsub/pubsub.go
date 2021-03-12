@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/silverswords/pulse/pkg/logger"
-	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
+	"github.com/silverswords/pulse/pkg/visitor"
 	"sync"
 	"time"
 )
@@ -35,7 +35,7 @@ func (r *pubsubRegistry) Create(name string, logger logger.Logger) (driver.Drive
 	if method, ok := r.buses[name]; ok {
 		return method(logger), nil
 	}
-	return nil, fmt.Errorf("couldn't find message bus %s", name)
+	return nil, fmt.Errorf("couldn't find protocol bus %s", name)
 }
 
 // todo: PubSub isn't a pool like database/sql db. but just conn collector.
@@ -185,17 +185,17 @@ func (pubsub *PubSub) conn(ctx context.Context, metadata driver.Metadata) (*Driv
 }
 
 // SubscribeContext subscribe with context control.
-func (pubsub *PubSub) SubscribeContext(ctx context.Context, r driver.SubscribeRequest, fn message.DoFunc) (driver.Subscription, error) {
+func (pubsub *PubSub) SubscribeContext(ctx context.Context, r *driver.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
 	return pubsub.subscribe(ctx, r, fn)
 }
 
 // Subscribe will open a connection or reuse connection to subscribe
 // Pass Metadata to control subscribe options.
-func (pubsub *PubSub) Subscribe(r driver.SubscribeRequest, fn message.DoFunc) (driver.Subscription, error) {
+func (pubsub *PubSub) Subscribe(r *driver.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
 	return pubsub.subscribe(context.Background(), r, fn)
 }
 
-func (pubsub *PubSub) subscribe(ctx context.Context, r driver.SubscribeRequest, fn message.DoFunc) (driver.Subscription, error) {
+func (pubsub *PubSub) subscribe(ctx context.Context, r *driver.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
 	dc, err := pubsub.conn(ctx, r.Metadata)
 	if err != nil {
 		return nil, err
@@ -203,11 +203,11 @@ func (pubsub *PubSub) subscribe(ctx context.Context, r driver.SubscribeRequest, 
 	return dc.ci.Subscribe(ctx, r, fn)
 }
 
-func (pubsub *PubSub) PublishContext(ctx context.Context, r driver.PublishRequest, m *message.Message) error {
-	return pubsub.publish(ctx, r, m)
+func (pubsub *PubSub) PublishContext(ctx context.Context, r *driver.PublishRequest) error {
+	return pubsub.publish(ctx, r)
 }
 
-func (pubsub *PubSub) publish(ctx context.Context, r driver.PublishRequest, m *message.Message) error {
+func (pubsub *PubSub) publish(ctx context.Context, r *driver.PublishRequest) error {
 	dc, err := pubsub.conn(ctx, r.Metadata)
 	if err != nil {
 		return err

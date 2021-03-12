@@ -122,7 +122,7 @@ func (s *BundleScheduler) Add(key string, item interface{}, size int) error {
 	if !ok {
 		s.outstanding[key] = 1
 		b = bundler.NewBundler(item, func(bundle interface{}) {
-			//log.Println("add the message in the publish queue and ready to pub with handle: ",bundle)
+			//log.Println("add the protocol in the publish queue and ready to pub with handle: ",bundle)
 			s.workers <- struct{}{}
 			s.handle(bundle)
 			<-s.workers
@@ -191,7 +191,7 @@ func (s *BundleScheduler) Pause(orderingKey string) {
 	}
 }
 
-// Resume resumes accepting message with the provided ordering key.
+// Resume resumes accepting protocol with the provided ordering key.
 func (s *BundleScheduler) Resume(orderingKey string) {
 	s.keysMu.Lock()
 	defer s.keysMu.Unlock()

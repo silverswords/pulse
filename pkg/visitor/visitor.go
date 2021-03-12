@@ -1,28 +1,28 @@
-package message
+package visitor
 
 import (
 	"context"
 	"errors"
-	"github.com/silverswords/pulse/pkg/message/protocol/retry"
-	"github.com/silverswords/pulse/pkg/message/protocol/timingwheel"
+	"github.com/silverswords/pulse/pkg/protocol/retry"
+	"github.com/silverswords/pulse/pkg/protocol/timingwheel"
 	"log"
 	"time"
 )
 
 type DoFunc func(interface{}, context.Context, error) error
 
-type Actor interface {
+type Visitor interface {
 	Do(DoFunc) error
 }
 
-// Below middleware code from go-kit endpoint. https://github.com/go-kit/kit/blob/master/endpoint/endpoint.go
-type Middleware func(Actor) Actor
+// Below middleware code from go-kit visitor. https://github.com/go-kit/kit/blob/master/endpoint/endpoint.go
+type Middleware func(Visitor) Visitor
 
 // Chain is a helper function for composing middlewares. Requests will
 // traverse them in the order they're declared. That is, the first middleware
 // is treated as the outermost middleware.
 func Chain(outer Middleware, others ...Middleware) Middleware {
-	return func(next Actor) Actor {
+	return func(next Visitor) Visitor {
 		for i := len(others) - 1; i >= 0; i-- { // reverse
 			next = others[i](next)
 		}
@@ -30,11 +30,11 @@ func Chain(outer Middleware, others ...Middleware) Middleware {
 	}
 }
 
-type NopActor struct {
+type NopVisitor struct {
 	Name string
 }
 
-func (nop *NopActor) Do(fn DoFunc) error {
+func (nop *NopVisitor) Do(fn DoFunc) error {
 	log.Println("nop doing pre")
 	defer log.Println("nop doing post")
 	return fn(nop, context.Background(), nil)
@@ -53,31 +53,19 @@ func (fh *FailedHandler) FailedDo(interface{}, context.Context, error) error {
 	return nil
 }
 
-type Message struct {
-	Data []byte
-
-	Topic       string
-	OrderingKey string
-}
-
-func (m *Message) Do(fn DoFunc) error {
-	err := fn(m, context.Background(), nil)
-	return err
-}
-
 type RetryActor struct {
-	actor Actor
+	actor Visitor
 	*retry.Params
 	noRetryErr []error
 }
 
 func WithRetry(retrytimes ...int) Middleware {
-	return func(actor Actor) Actor {
+	return func(actor Visitor) Visitor {
 		return &RetryActor{actor: actor, Params: &retry.Params{Strategy: retry.BackoffStrategyLinear, MaxTries: 3, Period: 1 * time.Millisecond}}
 	}
 }
 
-func NewRetryMessage(msg Actor) *RetryActor {
+func NewRetryMessage(msg Visitor) *RetryActor {
 	return &RetryActor{actor: msg, Params: &retry.Params{Strategy: retry.BackoffStrategyLinear, MaxTries: 3, Period: 1 * time.Millisecond}}
 }
 
@@ -127,12 +115,12 @@ func (m *RetryActor) Do(fn DoFunc) error {
 
 //DelayActor take an timingwheel and use it for its own delay setting.
 type DelayActor struct {
-	msg Actor
+	msg Visitor
 	*timingwheel.TimingWheel
 	time.Duration
 }
 
-func NewDelayActor(msg Actor, timingWheel *timingwheel.TimingWheel) *DelayActor {
+func NewDelayActor(msg Visitor, timingWheel *timingwheel.TimingWheel) *DelayActor {
 	return &DelayActor{msg: msg, TimingWheel: timingWheel}
 }
 
@@ -149,11 +137,11 @@ func (d DelayActor) Do(doFunc DoFunc) error {
 }
 
 type AsyncResultActor struct {
-	msg Actor
+	msg Visitor
 	*Result
 }
 
-func NewAsyncResultActor(msg Actor) *AsyncResultActor {
+func NewAsyncResultActor(msg Visitor) *AsyncResultActor {
 	return &AsyncResultActor{msg: msg, Result: &Result{ready: make(chan struct{}), err: nil}}
 }
 
@@ -180,7 +168,7 @@ type Result struct {
 // When the Ready channel is closed, Get is guaranteed not to block.
 func (r *Result) Ready() <-chan struct{} { return r.ready }
 
-// Get returns the server-generated message ID and/or error result of a Publish call.
+// Get returns the server-generated protocol ID and/or error result of a Publish call.
 // Get blocks until the Publish call completes or the context is done.
 func (r *Result) Get(ctx context.Context) (err error) {
 	// If the result is already ready, return it even if the context is done.
@@ -208,7 +196,7 @@ type Acker interface {
 }
 
 type AckMessage struct {
-	msg Actor
+	msg Visitor
 }
 
 func (a *AckMessage) Do(doFunc DoFunc) error {

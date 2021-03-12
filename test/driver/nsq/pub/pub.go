@@ -10,7 +10,7 @@ import (
 
 func main() {
 	config := ns.NewConfig()
-	//create a new producer to publish message
+	//create a new producer to publish protocol
 	w, err := ns.NewProducer(nsq.DefaultURL, config)
 	if err != nil {
 		log.Panic(err)
@@ -18,7 +18,7 @@ func main() {
 
 	count := 0
 	for {
-		//count the number of message that be published
+		//count the number of protocol that be published
 		count++
 		log.Println(count)
 		//publish messages

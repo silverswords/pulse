@@ -13,7 +13,7 @@ func init() {
 	adapter.RegisterCodec(codec{})
 }
 
-// gob is a Codec implementation with gob. It is the default codec for message.
+// gob is a Codec implementation with gob. It is the default codec for protocol.
 type codec struct{}
 
 func (c codec) Marshal(data interface{}) ([]byte, error) {

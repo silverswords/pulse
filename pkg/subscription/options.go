@@ -3,13 +3,13 @@ package subscription
 import (
 	"context"
 	"crypto/tls"
-	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/valyala/fasthttp"
 	"sync/atomic"
 )
 
 // WithWebHook would turn on the ack function.
-func WithWebHook(webhookHandler func(context.Context, *message.CloudEventsEnvelope), ssl bool) Option {
+func WithWebHook(webhookHandler func(context.Context, *protocol.CloudEventsEnvelope), ssl bool) Option {
 	return func(s *Subscription) error {
 		// todo: consider remove it from the subscription and just use closure instead.
 		s.webhookClient = &fasthttp.Client{
@@ -21,7 +21,7 @@ func WithWebHook(webhookHandler func(context.Context, *message.CloudEventsEnvelo
 			s.webhookClient.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 		}
 
-		s.handlers = append(s.handlers, func(ctx context.Context, msg *message.CloudEventsEnvelope) {
+		s.handlers = append(s.handlers, func(ctx context.Context, msg *protocol.CloudEventsEnvelope) {
 			if msg.WebhookURL == "" {
 				return
 			}
@@ -47,7 +47,7 @@ func WithWebHook(webhookHandler func(context.Context, *message.CloudEventsEnvelo
 	}
 }
 
-func WithMiddlewares(handlers ...func(context.Context, *message.CloudEventsEnvelope)) Option {
+func WithMiddlewares(handlers ...func(context.Context, *protocol.CloudEventsEnvelope)) Option {
 	return func(s *Subscription) error {
 		s.handlers = append(s.handlers, handlers...)
 		return nil
@@ -57,7 +57,7 @@ func WithMiddlewares(handlers ...func(context.Context, *message.CloudEventsEnvel
 func WithCount() Option {
 	return func(s *Subscription) error {
 		var count uint64
-		s.handlers = append(s.handlers, func(ctx context.Context, m *message.CloudEventsEnvelope) {
+		s.handlers = append(s.handlers, func(ctx context.Context, m *protocol.CloudEventsEnvelope) {
 			atomic.AddUint64(&count, 1)
 			log.Info("count: ", count)
 		})

@@ -33,7 +33,7 @@ const (
 type LogLevel string
 
 const (
-	// DebugLevel has verbose message
+	// DebugLevel has verbose protocol
 	DebugLevel LogLevel = "debug"
 	// InfoLevel is default log level
 	InfoLevel LogLevel = "info"
@@ -41,7 +41,7 @@ const (
 	WarnLevel LogLevel = "warn"
 	// ErrorLevel is for logging errors
 	ErrorLevel LogLevel = "error"
-	// FatalLevel is for logging fatal messages. The system shuts down after logging the message.
+	// FatalLevel is for logging fatal messages. The system shuts down after logging the protocol.
 	FatalLevel LogLevel = "fatal"
 
 	// UndefinedLevel is for undefined log level
@@ -66,25 +66,25 @@ type Logger interface {
 	// WithLogType specify the log_type field in log. Default value is LogTypeLog
 	WithLogType(logType string) Logger
 
-	// Info logs a message at level Info.
+	// Info logs a protocol at level Info.
 	Info(args ...interface{})
-	// Infof logs a message at level Info.
+	// Infof logs a protocol at level Info.
 	Infof(format string, args ...interface{})
-	// Debug logs a message at level Debug.
+	// Debug logs a protocol at level Debug.
 	Debug(args ...interface{})
-	// Debugf logs a message at level Debug.
+	// Debugf logs a protocol at level Debug.
 	Debugf(format string, args ...interface{})
-	// Warn logs a message at level Warn.
+	// Warn logs a protocol at level Warn.
 	Warn(args ...interface{})
-	// Warnf logs a message at level Warn.
+	// Warnf logs a protocol at level Warn.
 	Warnf(format string, args ...interface{})
-	// Error logs a message at level Error.
+	// Error logs a protocol at level Error.
 	Error(args ...interface{})
-	// Errorf logs a message at level Error.
+	// Errorf logs a protocol at level Error.
 	Errorf(format string, args ...interface{})
-	// Fatal logs a message at level Fatal then the process will exit with status set to 1.
+	// Fatal logs a protocol at level Fatal then the process will exit with status set to 1.
 	Fatal(args ...interface{})
-	// Fatalf logs a message at level Fatal then the process will exit with status set to 1.
+	// Fatalf logs a protocol at level Fatal then the process will exit with status set to 1.
 	Fatalf(format string, args ...interface{})
 }
 

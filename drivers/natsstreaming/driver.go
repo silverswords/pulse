@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/nats-io/stan.go/pb"
 	"github.com/silverswords/pulse/pkg/logger"
-	"github.com/silverswords/pulse/pkg/message"
 	"github.com/silverswords/pulse/pkg/pubsub"
+	"github.com/silverswords/pulse/pkg/visitor"
 	"log"
 	"math/rand"
 	"strconv"
@@ -120,19 +120,19 @@ type natsStreamingConn struct {
 	timeout time.Duration
 }
 
-// Subscribe handle message from specific topic.
+// Subscribe handle protocol from specific topic.
 // use context to cancel the subscription
 // in metadata:
-// - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
-// handler use to receive the message and move to top level subscription.
-func (c *natsStreamingConn) Subscribe(ctx context.Context, r *driver.SubscribeRequest, handler func(message *message.Message, ctx context.Context, err error) error) (driver.Subscription, error) {
+// - queueGroupName if not "", will have a queueGroup to receive a protocol and only one of the group would receive the protocol.
+// handler use to receive the protocol and move to top level subscription.
+func (c *natsStreamingConn) Subscribe(ctx context.Context, r *driver.SubscribeRequest, handler func(r interface{}, ctx context.Context, err error) error) (driver.Subscription, error) {
 	var (
 		sub        stan.Subscription
 		err        error
 		MsgHandler = func(m *stan.Msg) {
-			err = handler(&message.Message{Topic: r.Topic, Data: m.Data}, ctx, err)
+			err = handler(&visitor.Message{Topic: r.Topic, Data: m.Data}, ctx, err)
 			if err == nil {
-				// todo: use custom message.Message.ack()
+				// todo: use custom protocol.Message.ack()
 				_ = m.Ack()
 			}
 		}
@@ -168,7 +168,7 @@ func (c *natsStreamingConn) Close() error {
 	return c.stanConn.Close()
 }
 
-// Publish publishes a message to Nats Server with message destination topic.
+// Publish publishes a protocol to Nats Server with protocol destination topic.
 func (c *natsStreamingConn) Publish(r *driver.PublishRequest, ctx context.Context, err error) error {
 	if err != nil {
 		return err

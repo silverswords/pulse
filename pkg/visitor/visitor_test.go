@@ -1,10 +1,11 @@
-package message_test
+package visitor_test
 
 import (
 	"context"
 	"fmt"
-	. "github.com/silverswords/pulse/pkg/message"
+	. "github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
+	"github.com/silverswords/pulse/pkg/visitor"
 	"log"
 	"reflect"
 	"testing"
@@ -13,23 +14,23 @@ import (
 func TestDoFunc(t *testing.T) {
 	var logpub = &NopPublisher{}
 	err := annotations(
-		annotations(&NopActor{}, "first"), "second").Do(logpub.Publish)
+		annotations(&visitor.NopVisitor{}, "first"), "second").Do(logpub.Publish)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 type Annotations struct {
-	Actor
+	visitor.Visitor
 	string
 }
 
-func annotations(actor Actor, string string) *Annotations {
-	return &Annotations{Actor: actor, string: string}
+func annotations(actor visitor.Visitor, string string) *Annotations {
+	return &Annotations{Visitor: actor, string: string}
 }
 
-func (a Annotations) Do(fn DoFunc) error {
-	return a.Actor.Do(func(r interface{}, ctx context.Context, err error) error {
+func (a Annotations) Do(fn visitor.DoFunc) error {
+	return a.Visitor.Do(func(r interface{}, ctx context.Context, err error) error {
 		log.Printf("doing %s pre ", a.string)
 		defer func() {
 			log.Printf("doing %s post ", a.string)
@@ -39,9 +40,9 @@ func (a Annotations) Do(fn DoFunc) error {
 	})
 }
 
-func ExampleActor() {
+func ExampleVisitor() {
 	var m Message
-	// warning: this publisher only pub message to console, so example does not work in real world.
+	// warning: this publisher only pub protocol to console, so example does not work in real world.
 	var p = &ExampleImplPublisher{}
 
 	err := m.Do(p.Publish)
@@ -49,30 +50,22 @@ func ExampleActor() {
 }
 
 func ExampleRetryActor() {
-	Actor := NewAsyncResultActor(NewRetryMessage(&Message{}))
-
-	load := func(r interface{}, ctx context.Context, err error) error {
-		if err != nil {
-			log.Println("not expected error: ", err)
-			return err
-		}
-		req, ok := r.(*driver.PublishRequest)
-		if !ok {
-			return fmt.Errorf("interface assert %s error: %v", reflect.TypeOf(r).String(), err)
-		}
-		req.Message.OrderingKey = "hello,actor"
+	Actor := visitor.NewRetryMessage(&Message{})
+	// Publish: warning: this publisher only pub protocol to stdout, so example does not work in real world.
+	publish := func(r interface{}, ctx context.Context, err error) error {
+		log.Println("this pre log to console: ", ctx, r, err)
+		defer log.Println("this post log to console: ", ctx, r, err)
 		return nil
 	}
 
-	asyncResult := Actor.Get(context.Background())
-	err := Actor.Do(load)
-	log.Println(err, asyncResult)
+	err := Actor.Do(publish)
+	log.Println(err)
 }
 
 func TestActor(t *testing.T) {
 	t.Run("base", func(t *testing.T) {
 		var m = &Message{}
-		// warning: this publisher only pub message to console, so example does not work in real world.
+		// warning: this publisher only pub protocol to console, so example does not work in real world.
 		var p = &NopPublisher{}
 
 		err := m.Do(p.Publish)
@@ -81,8 +74,8 @@ func TestActor(t *testing.T) {
 		}
 	})
 	t.Run("RetryActor", func(t *testing.T) {
-		Actor := NewRetryMessage(&NopActor{Name: "no operation"})
-		var p = &FailedHandler{}
+		Actor := visitor.NewRetryMessage(&visitor.NopVisitor{Name: "no operation"})
+		var p = &visitor.FailedHandler{}
 
 		err := Actor.Do(p.FailedDo)
 		log.Println("err is: ", err)
@@ -93,19 +86,18 @@ func TestActor(t *testing.T) {
 
 	})
 	t.Run("withRetry", func(t *testing.T) {
-		wrapActor := Chain(WithRetry(3), WithRetry())(&NopActor{})
-		publisher := NopPublisher{}
-		err := wrapActor.Do(publisher.Publish)
+		wrapActor := visitor.Chain(visitor.WithRetry(3), visitor.WithRetry(3))(&visitor.NopVisitor{})
+		var p = &visitor.FailedHandler{}
+		err := wrapActor.Do(p.FailedDo)
 		if err != nil {
 			t.Error(err)
 		}
 	})
-
 }
 
 type ExampleImplPublisher struct{}
 
-// Publish: warning: this publisher only pub message to stdout, so example does not work in real world.
+// Publish: warning: this publisher only pub protocol to stdout, so example does not work in real world.
 func (e *ExampleImplPublisher) Publish(r interface{}, ctx context.Context, err error) error {
 	req, ok := r.(*driver.PublishRequest)
 	if !ok {
@@ -118,7 +110,7 @@ func (e *ExampleImplPublisher) Publish(r interface{}, ctx context.Context, err e
 
 type NopPublisher struct{}
 
-// Publish: warning: this publisher only pub message to stdout, so example does not work in real world.
+// Publish: warning: this publisher only pub protocol to stdout, so example does not work in real world.
 func (e *NopPublisher) Publish(r interface{}, ctx context.Context, err error) error {
 	log.Println("this pre log to console: ", ctx, r, err)
 	defer log.Println("this post log to console: ", ctx, r, err)

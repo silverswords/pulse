@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"github.com/silverswords/pulse/drivers/redis"
-	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
@@ -31,13 +31,13 @@ func main() {
 		var count int
 		for {
 			count++
-			_ = t.Publish(context.Background(), message.NewSimpleByteMessage([]byte(strconv.Itoa(count))))
+			_ = t.Publish(context.Background(), protocol.NewSimpleByteMessage([]byte(strconv.Itoa(count))))
 			//go func() {
 			//	if _, err := res.Get(context.Background()); err != nil {
 			//		log.Println(err)
 			//	}
 			//}()
-			//log.Println("send a message", count)
+			//log.Println("send a protocol", count)
 			time.Sleep(10 * time.Millisecond)
 			if count > 1e7 {
 				return
@@ -58,7 +58,7 @@ func main() {
 	}()
 
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
-	err = s.Receive(context.Background(), func(ctx context.Context, m *message.CloudEventsEnvelope) {
+	err = s.Receive(context.Background(), func(ctx context.Context, m *protocol.CloudEventsEnvelope) {
 
 	})
 

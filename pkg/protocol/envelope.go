@@ -5,7 +5,7 @@
 
 // from https://github.com/dapr/components-contrib/blob/master/pubsub/envelope_test.go
 
-package message
+package protocol
 
 import (
 	"fmt"
@@ -43,11 +43,11 @@ type CloudEventsEnvelope struct {
 	WebhookURL      string `json:"webhookUrl"`
 	OrderingKey     string `json:"orderingKey"` // for test, order id, would be ordered consume by the consumer.
 
-	// Where the message from and to. what gob is the message have. when and why have this message.
+	// Where the protocol from and to. what gob is the protocol have. when and why have this protocol.
 
-	// Logic is represents the fields that don't need initialize by the message producer.
+	// Logic is represents the fields that don't need initialize by the protocol producer.
 	Size int
-	// DeliveryAttempt is the number of times a message has been delivered.
+	// DeliveryAttempt is the number of times a protocol has been delivered.
 	// This is part of the dead lettering feature that forwards messages that
 	// fail to be processed (from nack/ack deadline timeout) to a dead letter topic.
 	// If dead lettering is enabled, this will be set on all attempts, starting
@@ -95,8 +95,8 @@ func NewCloudEventsEnvelope(id, source, datacontentType, eventType, topic, webho
 		OrderingKey:     orderingKey,
 	}
 	// Use a PublishRequest with only the Messages field to calculate the size
-	// of an individual message. This accurately calculates the size of the
-	// encoded proto message by accounting for the length of an individual
+	// of an individual protocol. This accurately calculates the size of the
+	// encoded proto protocol by accounting for the length of an individual
 	// PubSubMessage and Data/Attributes field.
 	// TODO(hongalex): if this turns out to take significant time, try to approximate it.
 	b, err := jsoniter.ConfigFastest.Marshal(e)
@@ -107,14 +107,14 @@ func NewCloudEventsEnvelope(id, source, datacontentType, eventType, topic, webho
 	return e, nil
 }
 
-// hint: now message string just print the event
+// hint: now protocol string just print the event
 func (m *CloudEventsEnvelope) String() string {
 	return fmt.Sprintf("Id: %s Data: %s OrderingKey: %s DeliveryAttempt: %d calledDone: %v DoneFunc: %T size: %d", m.ID, m.Data, m.OrderingKey, m.DeliveryAttempt, m.calledDone, m.DoneFunc, m.Size)
 }
 
 // Ack indicates successful processing of a Message passed to the Subscriber.Receive callback.
 // It should not be called on any other Message value.
-// If message acknowledgement fails, the Message will be redelivered.
+// If protocol acknowledgement fails, the Message will be redelivered.
 // Client code must call Ack or Nack when finished for each received Message.
 // Calls to Ack or Nack have no effect after the first call.
 func (m *CloudEventsEnvelope) Ack() {

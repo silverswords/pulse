@@ -54,7 +54,7 @@ if err != nil {
 }
 
 err = s.Receive(context.Background(), func(ctx context.Context, m *message.CloudEventsEnvelope) {
-    log.Println("receive the message:", m.Id)
+    log.Println("receive the protocol:", m.Id)
 })
 ```
 

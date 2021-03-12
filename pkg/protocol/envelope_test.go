@@ -4,7 +4,7 @@
 // ------------------------------------------------------------
 
 // from https://github.com/dapr/components-contrib/blob/master/pubsub/envelope_test.go
-package message
+package protocol
 
 import (
 	"encoding/json"

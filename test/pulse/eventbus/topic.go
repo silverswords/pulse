@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	_ "github.com/silverswords/pulse/drivers/eventbus"
-	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
@@ -28,13 +28,13 @@ func main() {
 		var count int
 		for {
 			count++
-			res := t.Publish(context.Background(), message.NewSimpleByteMessage([]byte(strconv.Itoa(count))))
+			res := t.Publish(context.Background(), protocol.NewSimpleByteMessage([]byte(strconv.Itoa(count))))
 			go func() {
 				if _, err := res.Get(context.Background()); err != nil {
 					log.Println(err)
 				}
 			}()
-			//log.Println("send a message", count)
+			//log.Println("send a protocol", count)
 			time.Sleep(time.Second)
 			if count > 1e5 {
 				return
@@ -54,9 +54,9 @@ func main() {
 
 	var receiveCount int
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
-	err = s.Receive(context.Background(), func(ctx context.Context, m *message.CloudEventsEnvelope) {
+	err = s.Receive(context.Background(), func(ctx context.Context, m *protocol.CloudEventsEnvelope) {
 		receiveCount++
-		log.Println("receive the message:", string(m.Data), receiveCount)
+		log.Println("receive the protocol:", string(m.Data), receiveCount)
 	})
 
 	if err != nil {

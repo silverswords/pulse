@@ -2,7 +2,7 @@ package driver
 
 import (
 	"context"
-	"github.com/silverswords/pulse/pkg/message"
+	"github.com/silverswords/pulse/pkg/protocol"
 )
 
 // If a Driver implements DriverContext, then sql.DB will call
@@ -64,9 +64,9 @@ type Publisher interface {
 
 // Subscriber is a blocking method
 // should be cancel() with ctx or call Driver.Close() to close all the subscribers.
-// note that handle just push the received message to subscription
+// note that handle just push the received protocol to subscription
 type Subscriber interface {
-	Subscribe(ctx context.Context, r *SubscribeRequest, handler func(message *message.Message, ctx context.Context, err error) error) (Subscription, error)
+	Subscribe(ctx context.Context, r *SubscribeRequest, handler func(r interface{}, ctx context.Context, err error) error) (Subscription, error)
 }
 
 type Subscription interface {
@@ -84,12 +84,12 @@ type ConnAsync interface {
 	SubscribeSync()
 }
 
-// PublishRequest is the request to publish a message
+// PublishRequest is the request to publish a protocol
 type PublishRequest struct {
-	Message    message.Message `json:"data"`
-	PubsubName string          `json:"pubsubname"`
-	Topic      string          `json:"topic"`
-	Metadata   Metadata        `json:"metadata"`
+	Message    protocol.Message `json:"data"`
+	PubsubName string           `json:"pubsubname"`
+	Topic      string           `json:"topic"`
+	Metadata   Metadata         `json:"metadata"`
 }
 
 // SubscribeRequest is the request to subscribe to a topic

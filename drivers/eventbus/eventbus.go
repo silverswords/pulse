@@ -44,7 +44,7 @@ func (d *Driver) Init(metadata driver.Metadata) error {
 	return nil
 }
 
-// Publish publishes a message to EventBus with message destination topic.
+// Publish publishes a protocol to EventBus with protocol destination topic.
 // note that there is no error to return.
 func (d *Driver) Publish(topic string, in []byte) error {
 	if d.stopped {
@@ -62,11 +62,11 @@ func (c Closer) Close() error {
 	return c()
 }
 
-// Subscribe handle message from specific topic.
+// Subscribe handle protocol from specific topic.
 // use context to cancel the client
 // in metadata:
-// - queueGroupName if not "", will have a queueGroup to receive a message and only one of the group would receive the message.
-// handler use to receive the message and move to top level client.
+// - queueGroupName if not "", will have a queueGroup to receive a protocol and only one of the group would receive the protocol.
+// handler use to receive the protocol and move to top level client.
 func (d *Driver) Subscribe(topic string, handler func(msg []byte)) (driver.Closer, error) {
 	if d.stopped {
 		return nil, errors.New("draining")

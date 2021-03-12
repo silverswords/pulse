@@ -10,14 +10,14 @@ import (
 
 func main() {
 	config := ns.NewConfig()
-	//create a consumer to subscripe message
+	//create a consumer to subscripe protocol
 	r, _ := ns.NewConsumer("hello", "ch", config)
 
 	var count int
-	//add handler to handle message
+	//add handler to handle protocol
 	r.AddHandler(ns.HandlerFunc(func(message *ns.Message) error {
 		count++
-		log.Printf("Got a message: %s %d", message.Body, count)
+		log.Printf("Got a protocol: %s %d", message.Body, count)
 		return nil
 	}))
 
