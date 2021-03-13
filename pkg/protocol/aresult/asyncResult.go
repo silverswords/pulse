@@ -16,12 +16,12 @@ func NewAsyncResultActor(msg visitor.Visitor) *AsyncResultActor {
 }
 
 func (m *AsyncResultActor) Do(fn visitor.DoFunc) error {
-	return m.msg.Do(func(r interface{}, ctx context.Context, err error) error {
+	return m.msg.Do(func(ctx context.Context, r interface{}) error {
 		log.Println("getting result")
 		if err != nil {
 			log.Println("err")
 		}
-		err = fn(r, ctx, nil)
+		err = fn(ctx, r)
 		m.Result.Set(err)
 		log.Println("setted result")
 		return err

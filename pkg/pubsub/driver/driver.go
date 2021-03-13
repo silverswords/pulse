@@ -59,14 +59,14 @@ type Connector interface {
 // Publisher should realize the retry by themselves..
 // like nats, it retry when conn is reconnecting, it would be in the pending queue.
 type Publisher interface {
-	Publish(r *protocol.PublishRequest, ctx context.Context, err error) error
+	Publish(ctx context.Context, r *protocol.PublishRequest) error
 }
 
 // Subscriber is a blocking method
 // should be cancel() with ctx or call Driver.Close() to close all the subscribers.
 // note that handle just push the received protocol to subscription
 type Subscriber interface {
-	Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(r interface{}, ctx context.Context, err error) error) (Subscription, error)
+	Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r interface{}) error) (Subscription, error)
 }
 
 type Subscription interface {

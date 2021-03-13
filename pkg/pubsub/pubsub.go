@@ -79,12 +79,11 @@ type DriverConn struct {
 	pubsubmuClosed bool      // same as closed, but guarded by pubsub.mu, for removeClosedStmtLocked
 }
 
-func (dc *DriverConn) Publish(r *protocol.PublishRequest, ctx context.Context, err error) error {
-	panic("implement me")
+func (dc *DriverConn) Publish(ctx context.Context, r *protocol.PublishRequest) error {
+
 }
 
-func (dc *DriverConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(r interface{}, ctx context.Context, err error) error) (driver.Subscription, error) {
-	panic("implement me")
+func (dc *DriverConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r interface{}) error) (driver.Subscription, error) {
 }
 
 func (dc *DriverConn) Close() error {
@@ -227,11 +226,11 @@ func (pubsub *PubSub) publish(ctx context.Context, r *protocol.PublishRequest) e
 		}
 		pubsub.publisherConn = dc
 	}
-	pubsub.publisherConn.Publish()
+	err := pubsub.publisherConn.Publish(ctx, r)
 	if err != nil {
 		return err
 	}
-	return dc.ci.Publish(r, ctx, err)
+	return err
 }
 
 var errPubSubClosed = errors.New("sql: pubsub is closed")

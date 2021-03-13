@@ -126,7 +126,7 @@ type natsStreamingConn struct {
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a protocol and only one of the group would receive the protocol.
 // handler use to receive the protocol and move to top level subscription.
-func (c *natsStreamingConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(r interface{}, ctx context.Context, err error) error) (driver.Subscription, error) {
+func (c *natsStreamingConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r interface{}) error) (driver.Subscription, error) {
 	var (
 		sub        stan.Subscription
 		err        error
@@ -170,7 +170,7 @@ func (c *natsStreamingConn) Close() error {
 }
 
 // Publish publishes a protocol to Nats Server with protocol destination topic.
-func (c *natsStreamingConn) Publish(r *protocol.PublishRequest, ctx context.Context, err error) error {
+func (c *natsStreamingConn) Publish(ctx context.Context, r *protocol.PublishRequest) error {
 	if err != nil {
 		return err
 	}
