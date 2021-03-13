@@ -29,13 +29,13 @@ func annotations(actor Visitor, string string) *Annotations {
 }
 
 func (a Annotations) Do(fn DoFunc) error {
-	return a.Visitor.Do(func(r interface{}, ctx context.Context, err error) error {
+	return a.Visitor.Do(func(ctx context.Context, r interface{}) error {
 		log.Printf("doing %s pre ", a.string)
 		defer func() {
 			log.Printf("doing %s post ", a.string)
 		}()
 
-		return fn(r, ctx, err)
+		return fn(ctx, r)
 	})
 }
 
@@ -51,9 +51,9 @@ func ExampleVisitor() {
 func ExampleRetryActor() {
 	Actor := NewRetryMessage(&Message{})
 	// Publish: warning: this publisher only pub protocol to stdout, so example does not work in real world.
-	publish := func(r interface{}, ctx context.Context, err error) error {
-		log.Println("this pre log to console: ", ctx, r, err)
-		defer log.Println("this post log to console: ", ctx, r, err)
+	publish := func(ctx context.Context, r interface{}) error {
+		log.Println("this pre log to console: ", ctx, r)
+		defer log.Println("this post log to console: ", ctx, r)
 		return nil
 	}
 
@@ -97,21 +97,21 @@ func TestActor(t *testing.T) {
 type ExampleImplPublisher struct{}
 
 // Publish: warning: this publisher only pub protocol to stdout, so example does not work in real world.
-func (e *ExampleImplPublisher) Publish(r interface{}, ctx context.Context, err error) error {
+func (e *ExampleImplPublisher) Publish(ctx context.Context, r interface{}) error {
 	req, ok := r.(*PublishRequest)
 	if !ok {
 		return fmt.Errorf("interface assert %s want: %v", reflect.TypeOf(r).String(), reflect.TypeOf(&PublishRequest{}))
 	}
 	message := req.Message
-	log.Println(ctx, message, err)
+	log.Println(ctx, message)
 	return nil
 }
 
 type NopPublisher struct{}
 
 // Publish: warning: this publisher only pub protocol to stdout, so example does not work in real world.
-func (e *NopPublisher) Publish(r interface{}, ctx context.Context, err error) error {
-	log.Println("this pre log to console: ", ctx, r, err)
-	defer log.Println("this post log to console: ", ctx, r, err)
+func (e *NopPublisher) Publish(ctx context.Context, r interface{}) error {
+	log.Println("this pre log to console: ", ctx, r)
+	defer log.Println("this post log to console: ", ctx, r)
 	return nil
 }

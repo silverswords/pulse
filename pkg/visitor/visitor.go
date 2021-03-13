@@ -45,7 +45,7 @@ type FailedHandler struct {
 	MaxTimes  int
 }
 
-func (fh *FailedHandler) FailedDo(interface{}, context.Context, error) error {
+func (fh *FailedHandler) FailedDo(context.Context, interface{}) error {
 	fh.CallTimes++
 	log.Printf("failed doing %d times", fh.CallTimes)
 	if fh.CallTimes <= fh.MaxTimes {
@@ -86,11 +86,8 @@ func (m *RetryActor) NoRetry(err error) bool {
 
 func (m *RetryActor) Do(fn DoFunc) error {
 	return m.actor.Do(func(ctx context.Context, r interface{}) error {
-		if err != nil {
-			return errors.New("error before start to retry")
-		}
 		cancelCtx, cancelFunc := context.WithCancel(ctx)
-		err = fn(cancelCtx, r)
+		err := fn(cancelCtx, r)
 		if m.NoRetry(err) {
 			log.Println("[Cancel Retry]: oh, no need to retry", r)
 			cancelFunc()
@@ -103,7 +100,7 @@ func (m *RetryActor) Do(fn DoFunc) error {
 			log.Println("enter retry loop")
 			times++
 			cancelCtx, cancelFunc := context.WithCancel(ctx)
-			if err = fn(r, cancelCtx, err); err == nil {
+			if err = fn(cancelCtx, r); err == nil {
 				cancelFunc()
 				log.Printf("[Successful Retry]: oh, no need to retry after %d times tried", times)
 				return nil
@@ -144,7 +141,7 @@ func (d DelayActor) Do(doFunc DoFunc) error {
 		case <-ctx.Done():
 			return errors.New("no enough")
 		case <-ch:
-			return doFunc(r, ctx, err)
+			return doFunc(ctx, r)
 		}
 	})
 }

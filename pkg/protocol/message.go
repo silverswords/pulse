@@ -14,7 +14,7 @@ type Message struct {
 
 func (m *Message) Do(fn visitor.DoFunc) error {
 	return func() error {
-		err := fn(m, context.Background(), nil)
+		err := fn(context.Background(), m)
 		return err
 	}()
 }
