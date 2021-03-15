@@ -8,7 +8,6 @@ import (
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub"
-	"github.com/silverswords/pulse/pkg/visitor"
 	"log"
 	"math/rand"
 	"strconv"
@@ -18,9 +17,8 @@ import (
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
 )
 
-const (
-	DefaultURL = "nats://nats_client:W64f8c6vG6@192.168.0.253:31476"
-)
+// Nats url format with user credentials:
+// DefaultURL = "nats://nats_client:W64f8c6vG6@192.168.0.253:31476"
 
 // compulsory options
 const (
@@ -95,7 +93,30 @@ type PubSubDriver struct {
 	log logger.Logger
 }
 
+// Todo: natsstreaming realized ack, queue sub but not ordering.
+// Features design from dapr components-contrib.
+func (d *PubSubDriver) Features() map[string]bool {
+	return map[string]bool{}
+}
+
+func (d *PubSubDriver) SatisfyFeatures(m protocol.Metadata) ([]string, bool) {
+	featuresMap := d.Features()
+	notSupported := make([]string, 0)
+	for i := range m.Properties {
+		if !featuresMap[i] {
+			notSupported = append(notSupported, i)
+		}
+	}
+	if len(notSupported) != 0 {
+		return notSupported, false
+	}
+	return notSupported, true
+}
+
 func (d *PubSubDriver) OpenConnector(m protocol.Metadata) (driver.Connector, error) {
+	if features, ok := d.SatisfyFeatures(m); !ok {
+		return nil, errors.New(fmt.Sprint("no support for these features: ", features))
+	}
 	return NewConnector(m, d.log)
 }
 
@@ -131,7 +152,7 @@ func (c *natsStreamingConn) Subscribe(ctx context.Context, r *protocol.Subscribe
 		sub        stan.Subscription
 		err        error
 		MsgHandler = func(m *stan.Msg) {
-			err = handler(&visitor.Message{Topic: r.Topic, Data: m.Data}, ctx, err)
+			err = handler(ctx, &protocol.Message{Topic: r.Topic, Data: m.Data})
 			if err == nil {
 				// todo: use custom protocol.Message.ack()
 				_ = m.Ack()
@@ -171,19 +192,21 @@ func (c *natsStreamingConn) Close() error {
 
 // Publish publishes a protocol to Nats Server with protocol destination topic.
 func (c *natsStreamingConn) Publish(ctx context.Context, r *protocol.PublishRequest) error {
-	if err != nil {
-		return err
+	select {
+	case <-ctx.Done():
+		return errors.New("context cancelled")
+	default:
 	}
 	errCh := make(chan error)
 	go func() {
-		err = c.stanConn.Publish(r.Topic, r.Message.Data)
+		err := c.stanConn.Publish(r.Topic, r.Message.Data)
 		if err != nil {
 			errCh <- fmt.Errorf("nats: error from publish: %s", err)
 		}
 		errCh <- nil
 	}()
 	select {
-	case err = <-errCh:
+	case err := <-errCh:
 		return err
 	case <-ctx.Done():
 		return errors.New("context cancelled")
@@ -353,12 +376,6 @@ func genRandomString(n int) string {
 	clientID := string(b)
 
 	return clientID
-}
-
-// Todo: natsstreaming realized ack, queue sub but not ordering.
-// Features design from dapr components-contrib.
-func (d *PubSubDriver) Features() []string {
-	return nil
 }
 
 var _ driver.Driver = (*PubSubDriver)(nil)

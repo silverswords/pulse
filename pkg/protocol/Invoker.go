@@ -4,6 +4,15 @@ import (
 	"context"
 )
 
+// invoker is old implementation for pubsub. It wait message after publishing event. Although use PubSub pattern for decoupled waiting,
+// still block to receive the response. What nothing changed but the surface of the request/response pattern.
+// In fact:
+// 1. network is not trustable.
+// 2. No one should expected the response of self request.
+// 3. Programmer make publisher and subscribers couple combined to struct. So they think requester and responser is same one.
+// So we need PubSub Which the real pattern match to the real world.
+// Puber is no way like Suber, although they could be one struct. request/response just like subscribe topic and then publish event to the topic.
+
 // deprecated
 type Client interface {
 	Sender

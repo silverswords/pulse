@@ -41,7 +41,7 @@ func (c *connector) Connect(ctx context.Context) (driver.Conn, error) {
 }
 
 func (c *connector) Driver() driver.Driver {
-	return &PubSubDriver{}
+	return &PubSubDriver{log: c.logger}
 }
 
 var _ driver.Connector = (*connector)(nil)

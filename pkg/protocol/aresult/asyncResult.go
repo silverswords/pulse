@@ -6,28 +6,6 @@ import (
 	"log"
 )
 
-type AsyncResultActor struct {
-	msg visitor.Visitor
-	*Result
-}
-
-func NewAsyncResultActor(msg visitor.Visitor) *AsyncResultActor {
-	return &AsyncResultActor{msg: msg, Result: &Result{ready: make(chan struct{}), err: nil}}
-}
-
-func (m *AsyncResultActor) Do(fn visitor.DoFunc) error {
-	return m.msg.Do(func(ctx context.Context, r interface{}) error {
-		log.Println("getting result")
-		if err != nil {
-			log.Println("err")
-		}
-		err = fn(ctx, r)
-		m.Result.Set(err)
-		log.Println("setted result")
-		return err
-	})
-}
-
 // Result help to know error because of sending goroutine is another goroutine.
 type Result struct {
 	ready chan struct{}
@@ -63,4 +41,23 @@ func (r *Result) Get(ctx context.Context) (err error) {
 func (r *Result) Set(err error) {
 	r.err = err
 	close(r.ready)
+}
+
+type AsyncResultActor struct {
+	msg visitor.Visitor
+	*Result
+}
+
+func NewAsyncResultActor(msg visitor.Visitor) *AsyncResultActor {
+	return &AsyncResultActor{msg: msg, Result: &Result{ready: make(chan struct{}), err: nil}}
+}
+
+func (m *AsyncResultActor) Do(fn visitor.DoFunc) error {
+	return m.msg.Do(func(ctx context.Context, r interface{}) error {
+		log.Println("getting result")
+		err := fn(ctx, r)
+		m.Result.Set(err)
+		log.Println("setted result")
+		return err
+	})
 }

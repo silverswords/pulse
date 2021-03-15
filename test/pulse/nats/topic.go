@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/silverswords/pulse/drivers/nats"
 	"github.com/silverswords/pulse/pkg/protocol"
+	"github.com/silverswords/pulse/pkg/pubsub/driver/drivers/nats"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 )

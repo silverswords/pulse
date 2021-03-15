@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	_ "github.com/silverswords/pulse/drivers/eventbus"
 	"github.com/silverswords/pulse/pkg/protocol"
+	_ "github.com/silverswords/pulse/pkg/pubsub/driver/drivers/eventbus"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 	"log"

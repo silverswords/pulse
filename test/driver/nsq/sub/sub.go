@@ -5,7 +5,7 @@ import (
 	"runtime"
 
 	ns "github.com/nsqio/go-nsq"
-	"github.com/silverswords/pulse/drivers/nsq"
+	"github.com/silverswords/pulse/pkg/pubsub/driver/drivers/nsq"
 )
 
 func main() {

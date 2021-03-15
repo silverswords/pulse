@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/silverswords/pulse/drivers/mqtt"
 	"github.com/silverswords/pulse/pkg/protocol"
+	"github.com/silverswords/pulse/pkg/pubsub/driver/drivers/mqtt"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 )

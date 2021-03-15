@@ -107,14 +107,13 @@ var DefaultPublishSettings = Settings{
 	// default linear increase retry interval and 10 times.
 }
 
-// new a topic and init it with the connection options
-func NewTopic(topicName string, driverMetadata protocol.Metadata, options ...Option) (*BundleTopic, error) {
+// NewTopic new a topic and init it with the connection options
+func NewTopic(driverMetadata protocol.Metadata, options ...Option) (*BundleTopic, error) {
 	d, err := pubsub.Registry.Create(driverMetadata.GetDriverName())
 	if err != nil {
 		return nil, err
 	}
 	t := &BundleTopic{
-		name:         PulsePrefix + topicName,
 		topicOptions: options,
 		d:            d,
 		Settings:     DefaultPublishSettings,

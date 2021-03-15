@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/silverswords/pulse/drivers/nsq"
 	"github.com/silverswords/pulse/pkg/protocol"
+	"github.com/silverswords/pulse/pkg/pubsub/driver/drivers/nsq"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 )

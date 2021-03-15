@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"github.com/silverswords/pulse/drivers/redis"
 	"github.com/silverswords/pulse/pkg/protocol"
+	"github.com/silverswords/pulse/pkg/pubsub/driver/drivers/redis"
 	"github.com/silverswords/pulse/pkg/subscription"
 	"github.com/silverswords/pulse/pkg/topic"
 	"log"

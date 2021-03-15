@@ -14,6 +14,7 @@ import (
 
 var log = logger.NewLogger("pulse.driver")
 var nowFunc = time.Now
+var driversMu = sync.RWMutex{}
 var Registry = pubsubRegistry{
 	buses: make(map[string]func(logger logger.Logger) driver.Driver),
 }
@@ -27,16 +28,91 @@ func (r *pubsubRegistry) Register(name string, factory func(logger logger.Logger
 }
 
 // Create instantiates a pub/sub based on `name`.
-func (r *pubsubRegistry) Create(name string, logger logger.Logger) (driver.Driver, error) {
+func (r *pubsubRegistry) Create(name string) (driver.Driver, error) {
 	if name == "" {
 		log.Info("Create default in-process driver")
 	} else {
 		log.Infof("Create a driver %s", name)
 	}
 	if method, ok := r.buses[name]; ok {
-		return method(logger), nil
+		return method(log), nil
 	}
 	return nil, fmt.Errorf("couldn't find protocol bus %s", name)
+}
+
+type dsnConnector struct {
+	dsn    protocol.Metadata
+	driver driver.Driver
+}
+
+func (t dsnConnector) Connect(_ context.Context) (driver.Conn, error) {
+	return t.driver.Open(t.dsn)
+}
+
+func (t dsnConnector) Driver() driver.Driver {
+	return t.driver
+}
+
+// OpenPubSub opens a database using a Connector, allowing drivers to
+// bypass a string based data source name.
+//
+// Most users will open a database via a driver-specific connection
+// helper function that returns a *DB. No database drivers are included
+// in the Go standard library. See https://golang.org/s/sqldrivers for
+// a list of third-party drivers.
+//
+// OpenPubSub may just validate its arguments without creating a connection
+// to the database. To verify that the data source name is valid, call
+// Ping.
+//
+// The returned DB is safe for concurrent use by multiple goroutines
+// and maintains its own pool of idle connections. Thus, the OpenPubSub
+// function should be called just once. It is rarely necessary to
+// close a DB.
+func OpenPubSub(c driver.Connector) *PubSub {
+	_, cancel := context.WithCancel(context.Background())
+	db := &PubSub{
+		connector: c,
+		stop:      cancel,
+	}
+
+	return db
+}
+
+// Open opens a database specified by its database driver name and a
+// driver-specific data source name, usually consisting of at least a
+// database name and connection information.
+//
+// Most users will open a database via a driver-specific connection
+// helper function that returns a *DB. No database drivers are included
+// in the Go standard library. See https://golang.org/s/sqldrivers for
+// a list of third-party drivers.
+//
+// Open may just validate its arguments without creating a connection
+// to the database. To verify that the data source name is valid, call
+// Ping.
+//
+// The returned DB is safe for concurrent use by multiple goroutines
+// and maintains its own pool of idle connections. Thus, the Open
+// function should be called just once. It is rarely necessary to
+// close a DB.
+func Open(driverName string, metadata protocol.Metadata) (*PubSub, error) {
+	driversMu.RLock()
+	driveri, err := Registry.Create(driverName)
+	driversMu.RUnlock()
+	if err != nil {
+		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
+	}
+
+	if driverCtx, ok := driveri.(driver.DriverContext); ok {
+		connector, err := driverCtx.OpenConnector(metadata)
+		if err != nil {
+			return nil, err
+		}
+		return OpenPubSub(connector), nil
+	}
+
+	return OpenPubSub(dsnConnector{dsn: metadata, driver: driveri}), nil
 }
 
 // todo: PubSub isn't a pool like database/sql db. but just conn collector.
@@ -80,10 +156,11 @@ type DriverConn struct {
 }
 
 func (dc *DriverConn) Publish(ctx context.Context, r *protocol.PublishRequest) error {
-
+	return dc.ci.Publish(ctx, r)
 }
 
 func (dc *DriverConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r interface{}) error) (driver.Subscription, error) {
+	return dc.ci.Subscribe(ctx, r, handler)
 }
 
 func (dc *DriverConn) Close() error {
@@ -148,6 +225,7 @@ type finalCloser interface {
 // *DriverConn from which it came, so the DriverConn's lock can be
 // held during calls.
 type driverSubscription struct {
+	driverConn  *DriverConn
 	sync.Locker // the *DriverConn
 	si          driver.Subscription
 	closed      bool
@@ -158,11 +236,11 @@ func (ds *driverSubscription) Close() error {
 	return ds.si.Close()
 }
 
-func (pubsub *PubSub) Conn(ctx context.Context, metadata protocol.Metadata) (*DriverConn, error) {
-	return pubsub.conn(ctx, metadata)
+func (pubsub *PubSub) Conn(ctx context.Context) (*DriverConn, error) {
+	return pubsub.conn(ctx)
 }
 
-func (pubsub *PubSub) conn(ctx context.Context, metadata protocol.Metadata) (*DriverConn, error) {
+func (pubsub *PubSub) conn(ctx context.Context) (*DriverConn, error) {
 	pubsub.mu.Lock()
 	if pubsub.closed {
 		pubsub.mu.Unlock()
@@ -192,7 +270,14 @@ func (pubsub *PubSub) conn(ctx context.Context, metadata protocol.Metadata) (*Dr
 		ci:         ci,
 		inUse:      true,
 	}
+	pubsub.appendDriver(dc)
+	pubsub.mu.Unlock()
 	return dc, nil
+}
+
+func (pubsub *PubSub) appendDriver(dc *DriverConn) {
+	pubsub.connections[dc] = true
+	return
 }
 
 // SubscribeContext subscribe with context control.
@@ -207,7 +292,7 @@ func (pubsub *PubSub) Subscribe(r *protocol.SubscribeRequest, fn visitor.DoFunc)
 }
 
 func (pubsub *PubSub) subscribe(ctx context.Context, r *protocol.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
-	dc, err := pubsub.conn(ctx, r.Metadata)
+	dc, err := pubsub.conn(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +305,7 @@ func (pubsub *PubSub) PublishContext(ctx context.Context, r *protocol.PublishReq
 
 func (pubsub *PubSub) publish(ctx context.Context, r *protocol.PublishRequest) error {
 	if pubsub.publisherConn == nil {
-		dc, err := pubsub.conn(ctx, r.Metadata)
+		dc, err := pubsub.conn(ctx)
 		if err != nil {
 			return err
 		}
