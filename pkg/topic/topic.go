@@ -50,7 +50,7 @@ var (
 type BundleTopic struct {
 	mu sync.RWMutex
 
-	pubsub.PubSub
+	*pubsub.PubSub
 	conns map[uint64]driver.Conn
 
 	stopped bool
@@ -109,59 +109,54 @@ var DefaultPublishSettings = Settings{
 
 // NewTopic new a topic and init it with the connection options
 func NewTopic(driverMetadata protocol.Metadata, options ...Option) (*BundleTopic, error) {
-	d, err := pubsub.Registry.Create(driverMetadata.GetDriverName())
+	pubsub, err := pubsub.Open(driverMetadata.GetDriverName(), driverMetadata)
 	if err != nil {
 		return nil, err
 	}
 	t := &BundleTopic{
-		topicOptions: options,
-		d:            d,
-		Settings:     DefaultPublishSettings,
-		pendingAcks:  make(map[string]bool),
-		deadQueue:    nil,
+		PubSub:   pubsub,
+		Settings: DefaultPublishSettings,
 	}
 
 	if err := t.applyOptions(options...); err != nil {
 		return nil, err
 	}
 
-	if err := t.d.Init(driverMetadata); err != nil {
-		return nil, err
-	}
-	if err := t.startAck(context.Background()); err != nil {
-		_ = t.d.Close()
-		return nil, err
-	}
+	//if err := t.startAck(context.Background()); err != nil {
+	//	_ = t.PubSub.Close()
+	//	return nil, err
+	//}
 	return t, nil
 }
 
-func (t *BundleTopic) startAck(_ context.Context) error {
-	// open a client, receive and then ack the protocol.
-	// protocol should check itself and then depend on topic RetryParams to retry.
-	if !t.EnableAck {
-		return nil
-	}
-
-	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
-		e := &protocol.CloudEventsEnvelope{}
-		err := jsoniter.ConfigFastest.Unmarshal(out, e)
-		if err != nil {
-			log.Error("topic", t.name, "error in ack protocol decode: ", err)
-			//	 not our pulse protocol, just ignore it
-			return
-		}
-		log.Debug("ACK: topic ", t.name, " received ackId ", e.ID)
-		t.done(e.ID, true, time.Now())
-	})
-	log.Debug("try to subscribe the ack topic")
-	if err != nil {
-		if subCloser != nil {
-			_ = subCloser.Close()
-		}
-		return err
-	}
-	return nil
-}
+// comment previous startACK goroutine
+//func (t *BundleTopic) startAck(_ context.Context) error {
+//	// open a client, receive and then ack the protocol.
+//	// protocol should check itself and then depend on topic RetryParams to retry.
+//	if !t.EnableAck {
+//		return nil
+//	}
+//
+//	subCloser, err := t.d.Subscribe(AckTopicPrefix+t.name, func(out []byte) {
+//		e := &protocol.CloudEventsEnvelope{}
+//		err := jsoniter.ConfigFastest.Unmarshal(out, e)
+//		if err != nil {
+//			log.Error("topic", t.name, "error in ack protocol decode: ", err)
+//			//	 not our pulse protocol, just ignore it
+//			return
+//		}
+//		log.Debug("ACK: topic ", t.name, " received ackId ", e.ID)
+//		t.done(e.ID, true, time.Now())
+//	})
+//	log.Debug("try to subscribe the ack topic")
+//	if err != nil {
+//		if subCloser != nil {
+//			_ = subCloser.Close()
+//		}
+//		return err
+//	}
+//	return nil
+//}
 
 // Publish publishes msg to the topic asynchronously. Messages are batched and
 // sent according to the topic's Settings. Publish never blocks.
@@ -179,9 +174,9 @@ func (t *BundleTopic) startAck(_ context.Context) error {
 // add in the scheduler, protocol would be equal nil to gc.
 //
 // Warning: when use ordering feature, recommend to limit the QPS to 100, or use synchronous
-func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.CloudEventsEnvelope) *aresult.Result {
+func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.PublishRequest) *aresult.Result {
 	r := aresult.NewResult()
-	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
+	if !t.EnableMessageOrdering && msg.Message.OrderingKey != "" {
 		r.Set(errTopicOrderingDisabled)
 		return r
 	}
@@ -197,7 +192,7 @@ func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.CloudEventsEnve
 
 	// TODO(jba) [from bcmills] consider using a shared channel per bundle
 	// (requires Bundler API changes; would reduce allocations)
-	err := t.scheduler.Add(msg.OrderingKey, &bundledMessage{msg, r}, msg.Size)
+	err := t.scheduler.Add(msg.Message.OrderingKey, &bundledMessage{&msg.Message, r}, msg.Size)
 	if err != nil {
 		t.scheduler.Pause(msg.OrderingKey)
 		r.Set(err)
@@ -323,6 +318,11 @@ func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*publisher
 		_ = t.publishMessage(ctx, bm)
 	}
 	_ = group.Wait()
+}
+
+type bundledMessage struct {
+	msg visitor.Visitor
+	res *aresult.Result
 }
 
 type OrderingKeyActor struct {
