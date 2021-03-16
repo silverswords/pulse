@@ -35,26 +35,30 @@ Check the example/pulse and find an example for supported MQ.
 Note: You need run your MQ first and get its address.
 
 ### Use MQ as broker
-example for nats.
+example for natsstreaming.
 ```go
-meta := mq.NewMetadata()
-meta.Properties[nats.URL] = nats.DefaultURL
-meta.Properties["DriverName"] = "nats"
+meta := protocol.NewMetadata()
+meta.SetDriver(nats.DriverName)
+meta.Properties[nats.NatsURL] = "nats://localhost:4222"
+meta.Properties[nats.NatsStreamingClusterID] = "test-cluster"
+meta.Properties[nats.SubscriptionType] = "topic"
+meta.Properties[nats.ConsumerID] = "app-test-a"
+
 ```
 
 ### Publisher
 Publisher is asynchronously and could get result about the success or failure to send the event.
 ```go
-t, err := topic.NewTopic("hello", *meta, topic.WithRequiredACK(), topic.WithOrdered())
+t, err := topic.NewTopic(meta, topic.WithMiddlewares(visitor.WithRetry(3)))
 if err != nil {
-    log.Println(err)
-    return
+log.Error(err)
+return
 }
 
-res := t.Publish(context.Background(), message.NewMessage([]byte("hello")))
+res := t.Publish(context.Background(), protocol.NewMessage("test", "", []byte("hello")))
 go func() {
-    if err := res.Get(context.Background()); err != nil {
-        log.Println("----------------------", err)
+    if _, err := res.Get(context.Background()); err != nil {
+    	log.Error(err)
     }
 }()
 ```
@@ -62,14 +66,14 @@ go func() {
 ### Subscribe
 Receive is a synchronous function and blocks until have an err set by like ctx.Done() or other error.
 ```go
-s, err := subscription.NewSubscription("hello", *meta, subscription.WithCount(), subscription.WithAutoACK())
-if err != nil {
-    log.Println(err)
+s, err := subscription.NewSubscription("hello", meta, subscription.WithCount())
+    if err != nil {
+        log.Error(err)
     return
 }
 
-err = s.Receive(context.Background(), func(ctx context.Context, m *message.CloudEventsEnvelope) {
-    log.Println("receive the protocol:", m.Id)
+err = s.Receive(context.Background(), protocol.NewSubscribeRequest("test", meta), func(ctx context.Context, m *protocol.Message) {
+    log.Debug("receive message ", m)
 })
 ```
 
