@@ -234,13 +234,13 @@ func TestPublishScheduler_FlushAndStop(t *testing.T) {
 			select {
 			case <-recvd:
 			case <-time.After(time.Second):
-				t.Fatal("timed out waiting for first message to arrive")
+				t.Fatal("timed out waiting for first protocol to arrive")
 			}
 
 			select {
 			case <-recvd:
 			case <-time.After(time.Second):
-				t.Fatal("timed out waiting for second message to arrive")
+				t.Fatal("timed out waiting for second protocol to arrive")
 			}
 
 			select {
@@ -387,13 +387,13 @@ func TestReceiveScheduler_FlushAndStop(t *testing.T) {
 			select {
 			case <-recvd:
 			case <-time.After(time.Second):
-				t.Fatal("timed out waiting for first message to arrive")
+				t.Fatal("timed out waiting for first protocol to arrive")
 			}
 
 			select {
 			case <-recvd:
 			case <-time.After(time.Second):
-				t.Fatal("timed out waiting for second message to arrive")
+				t.Fatal("timed out waiting for second protocol to arrive")
 			}
 		})
 	}

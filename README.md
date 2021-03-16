@@ -10,11 +10,25 @@
 
 an eventbus made on portable MQ.
 
+## Small Roadmap
+For Version 3.0. Let's refer https://cloud.google.com/pubsub/docs/choosing-pubsub-or-cloud-tasks
+
+- [x] Refactor the interface, make it clear and more easier to realize.
+- [ ] protobuf support for event
+- [ ] Metrics support for Prometheus by zap logger
+- [ ] Integration for cadence workflow
+
 There are three things stable in computer industry. Storage, Network and OperateSystem.
 Sidecar, Or Microservice Orchestration is about the protocl layer. Sidecar would transfer and transport, in order to solve multi complex network problem in real world.
 Let's explore new world but not promise communication model, eventbus base on cloud message queue. In QoS 1, it like UDP protocol. With ack, like TCP. With webhook, like service invocation. So eazily scalable on engineering language--Go, and adapted with Hybrid Cloud is my goal.
 
 The most important component is **scheduler**, then the driver.
+
+### smallermap
+- [ ] Local EventBus (More EventBus)
+- [ ] WebHook Support
+- [ ] ACK support
+- [ ] 
 
 ## Usage
 Check the example/pulse and find an example for supported MQ. 
@@ -55,7 +69,7 @@ if err != nil {
 }
 
 err = s.Receive(context.Background(), func(ctx context.Context, m *message.CloudEventsEnvelope) {
-    log.Println("receive the message:", m.Id)
+    log.Println("receive the protocol:", m.Id)
 })
 ```
 

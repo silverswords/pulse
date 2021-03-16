@@ -93,52 +93,52 @@ func (l *pulseLogger) WithLogType(logType string) Logger {
 	}
 }
 
-// Info logs a message at level Info.
+// Info logs a protocol at level Info.
 func (l *pulseLogger) Info(args ...interface{}) {
 	l.logger.Log(logrus.InfoLevel, args...)
 }
 
-// Infof logs a message at level Info.
+// Infof logs a protocol at level Info.
 func (l *pulseLogger) Infof(format string, args ...interface{}) {
 	l.logger.Logf(logrus.InfoLevel, format, args...)
 }
 
-// Debug logs a message at level Debug.
+// Debug logs a protocol at level Debug.
 func (l *pulseLogger) Debug(args ...interface{}) {
 	l.logger.Log(logrus.DebugLevel, args...)
 }
 
-// Debugf logs a message at level Debug.
+// Debugf logs a protocol at level Debug.
 func (l *pulseLogger) Debugf(format string, args ...interface{}) {
 	l.logger.Logf(logrus.DebugLevel, format, args...)
 }
 
-// Warn logs a message at level Warn.
+// Warn logs a protocol at level Warn.
 func (l *pulseLogger) Warn(args ...interface{}) {
 	l.logger.Log(logrus.WarnLevel, args...)
 }
 
-// Warnf logs a message at level Warn.
+// Warnf logs a protocol at level Warn.
 func (l *pulseLogger) Warnf(format string, args ...interface{}) {
 	l.logger.Logf(logrus.WarnLevel, format, args...)
 }
 
-// Error logs a message at level Error.
+// Error logs a protocol at level Error.
 func (l *pulseLogger) Error(args ...interface{}) {
 	l.logger.Log(logrus.ErrorLevel, args...)
 }
 
-// Errorf logs a message at level Error.
+// Errorf logs a protocol at level Error.
 func (l *pulseLogger) Errorf(format string, args ...interface{}) {
 	l.logger.Logf(logrus.ErrorLevel, format, args...)
 }
 
-// Fatal logs a message at level Fatal then the process will exit with status set to 1.
+// Fatal logs a protocol at level Fatal then the process will exit with status set to 1.
 func (l *pulseLogger) Fatal(args ...interface{}) {
 	l.logger.Fatal(args...)
 }
 
-// Fatalf logs a message at level Fatal then the process will exit with status set to 1.
+// Fatalf logs a protocol at level Fatal then the process will exit with status set to 1.
 func (l *pulseLogger) Fatalf(format string, args ...interface{}) {
 	l.logger.Fatalf(format, args...)
 }
