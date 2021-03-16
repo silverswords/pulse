@@ -1,7 +1,13 @@
 # pulse
 [![Go Report Card](https://goreportcard.com/badge/github.com/silverswords/pulse)](https://goreportcard.com/report/github.com/silverswords/pulse)
 [![visitor badges](https://visitor-badge.laobi.icu/badge?page_id=silverswords.pulse)](https://github.com/abserari)
-[![Discord Chat](https://img.shields.io/discord/771388143148073040.svg)](https://discord.gg/rRwryXfj3u)  
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TODOs](https://badgen.net/https/api.tickgit.com/badgen/github.com/silverswords/pulse)](https://www.tickgit.com/browse?repo=github.com/silverswords/pulse)
+
+<!-- [![Docker Pulls](https://img.shields.io/docker/pulls/yhyddr/pulse)](https://hub.docker.com/r/yhydddr) -->
+[![Follow on Twitter](https://img.shields.io/twitter/follow/abserari.svg?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=abserari)
+[![Discord Banner](https://discord.com/api/guilds/771388143148073040/widget.png?style=banner2)](https://discord.gg/rRwryXfj3u)
+
 an eventbus made on portable MQ.
 
 ## Small Roadmap
@@ -15,6 +21,9 @@ For Version 3.0. Let's refer https://cloud.google.com/pubsub/docs/choosing-pubsu
 There are three things stable in computer industry. Storage, Network and OperateSystem.
 Sidecar, Or Microservice Orchestration is about the protocl layer. Sidecar would transfer and transport, in order to solve multi complex network problem in real world.
 Let's explore new world but not promise communication model, eventbus base on cloud message queue. In QoS 1, it like UDP protocol. With ack, like TCP. With webhook, like service invocation. So eazily scalable on engineering language--Go, and adapted with Hybrid Cloud is my goal.
+
+The most important component is **scheduler**, then the driver.
+
 ### smallermap
 - [ ] Local EventBus (More EventBus)
 - [ ] WebHook Support
@@ -74,6 +83,19 @@ err = s.Receive(context.Background(), func(ctx context.Context, m *message.Cloud
 - Concurrent processing: Both topic and Subscription use concurrent processing. Pay attention to whether the middleware has critical resources
 
 - Reliability: ack is implemented independently to ensure that the message is delivered at least once.
+    In future: support QoS 0,1,2 three level.
+ 
+- Asynchronous: Message send asynchronously and could be **buffered** and **delay** send. 
+
+- Batch Handle: Scheduler could buffer message and batch handle them if underlying MQ supports.
+
+### **To-DO**
+You could find real-time taskboard on https://github.com/silverswords/pulse/projects
+- [ ] Refactor the interface, make it clear and more easier to realize.
+- [ ] pub/sub system but not a sdk
+- [ ] protobuf support for event
+- [ ] Metrics support for Prometheus by zap logger?
+- [ ] Integration for cadence workflow
 
 # Architecture
   - ![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fcomputer%2FWOjfpzAWwh.png?alt=media&token=376cb2ea-ab64-4887-9366-c1e23891cdcd)
