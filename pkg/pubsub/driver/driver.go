@@ -66,7 +66,7 @@ type Publisher interface {
 // should be cancel() with ctx or call Driver.Close() to close all the subscribers.
 // note that handle just push the received protocol to subscription
 type Subscriber interface {
-	Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r interface{}) error) (Subscription, error)
+	Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r *protocol.Message) error) (Subscription, error)
 }
 
 type Subscription interface {

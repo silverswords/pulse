@@ -1,38 +1,32 @@
 package topic
 
-import (
-	"context"
-	"github.com/silverswords/pulse/pkg/protocol"
-	"sync/atomic"
-)
-
-// WithWebHook would turn on the ack function.
-func WithWebHook(webhook string) Option {
-	return func(t *BundleTopic) error {
-		t.WebhookURL = webhook
-		return nil
-	}
-}
-
-// WithRequiredACK would turn on the ack function.
-func WithRequiredACK() Option {
-	return func(t *BundleTopic) error {
-		t.EnableAck = true
-		return nil
-	}
-}
-
-func WithCount() Option {
-	return func(t *BundleTopic) error {
-		var count uint64
-		t.endpoints = append(t.endpoints, func(ctx context.Context, m *protocol.CloudEventsEnvelope) error {
-			atomic.AddUint64(&count, 1)
-			log.Info("count: ", count)
-			return nil
-		})
-		return nil
-	}
-}
+//// WithWebHook would turn on the ack function.
+//func WithWebHook(webhook string) Option {
+//	return func(t *BundleTopic) error {
+//		t.WebhookURL = webhook
+//		return nil
+//	}
+//}
+//
+//// WithRequiredACK would turn on the ack function.
+//func WithRequiredACK() Option {
+//	return func(t *BundleTopic) error {
+//		t.EnableAck = true
+//		return nil
+//	}
+//}
+//
+//func WithCount() Option {
+//	return func(t *BundleTopic) error {
+//		var count uint64
+//		t.endpoints = append(t.endpoints, func(ctx context.Context, m *protocol.CloudEventsEnvelope) error {
+//			atomic.AddUint64(&count, 1)
+//			log.Info("count: ", count)
+//			return nil
+//		})
+//		return nil
+//	}
+//}
 
 // WithRequiredACK would turn on the ack function.
 func WithOrdered() Option {

@@ -102,7 +102,7 @@ func (e *ExampleImplPublisher) Publish(ctx context.Context, r interface{}) error
 	if !ok {
 		return fmt.Errorf("interface assert %s want: %v", reflect.TypeOf(r).String(), reflect.TypeOf(&PublishRequest{}))
 	}
-	message := req.Message
+	message := req.Data
 	log.Println(ctx, message)
 	return nil
 }

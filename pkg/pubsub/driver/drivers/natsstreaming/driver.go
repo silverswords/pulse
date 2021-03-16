@@ -147,14 +147,14 @@ type natsStreamingConn struct {
 // in metadata:
 // - queueGroupName if not "", will have a queueGroup to receive a protocol and only one of the group would receive the protocol.
 // handler use to receive the protocol and move to top level subscription.
-func (c *natsStreamingConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r interface{}) error) (driver.Subscription, error) {
+func (c *natsStreamingConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r *protocol.Message) error) (driver.Subscription, error) {
 	var (
 		sub        stan.Subscription
 		err        error
 		MsgHandler = func(m *stan.Msg) {
 			err = handler(ctx, &protocol.Message{Topic: r.Topic, Data: m.Data})
 			if err == nil {
-				// todo: use custom protocol.Message.ack()
+				// todo: try to use custom protocol.Message.ack() like SubscribeRequest.Features find ack. no ack here. or find ack false. ack here.
 				_ = m.Ack()
 			}
 		}
@@ -199,7 +199,7 @@ func (c *natsStreamingConn) Publish(ctx context.Context, r *protocol.PublishRequ
 	}
 	errCh := make(chan error)
 	go func() {
-		err := c.stanConn.Publish(r.Topic, r.Message.Data)
+		err := c.stanConn.Publish(r.Topic, r.Data)
 		if err != nil {
 			errCh <- fmt.Errorf("nats: error from publish: %s", err)
 		}

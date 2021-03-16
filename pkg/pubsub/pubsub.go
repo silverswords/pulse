@@ -7,7 +7,6 @@ import (
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/pubsub/driver"
-	"github.com/silverswords/pulse/pkg/visitor"
 	"sync"
 	"time"
 )
@@ -159,7 +158,7 @@ func (dc *DriverConn) Publish(ctx context.Context, r *protocol.PublishRequest) e
 	return dc.ci.Publish(ctx, r)
 }
 
-func (dc *DriverConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r interface{}) error) (driver.Subscription, error) {
+func (dc *DriverConn) Subscribe(ctx context.Context, r *protocol.SubscribeRequest, handler func(ctx context.Context, r *protocol.Message) error) (driver.Subscription, error) {
 	return dc.ci.Subscribe(ctx, r, handler)
 }
 
@@ -281,17 +280,17 @@ func (pubsub *PubSub) appendDriver(dc *DriverConn) {
 }
 
 // SubscribeContext subscribe with context control.
-func (pubsub *PubSub) SubscribeContext(ctx context.Context, r *protocol.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
+func (pubsub *PubSub) SubscribeContext(ctx context.Context, r *protocol.SubscribeRequest, fn func(ctx context.Context, r *protocol.Message) error) (driver.Subscription, error) {
 	return pubsub.subscribe(ctx, r, fn)
 }
 
 // Subscribe will open a connection or reuse connection to subscribe
 // Pass Metadata to control subscribe options.
-func (pubsub *PubSub) Subscribe(r *protocol.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
+func (pubsub *PubSub) Subscribe(r *protocol.SubscribeRequest, fn func(ctx context.Context, r *protocol.Message) error) (driver.Subscription, error) {
 	return pubsub.subscribe(context.Background(), r, fn)
 }
 
-func (pubsub *PubSub) subscribe(ctx context.Context, r *protocol.SubscribeRequest, fn visitor.DoFunc) (driver.Subscription, error) {
+func (pubsub *PubSub) subscribe(ctx context.Context, r *protocol.SubscribeRequest, fn func(ctx context.Context, r *protocol.Message) error) (driver.Subscription, error) {
 	dc, err := pubsub.conn(ctx)
 	if err != nil {
 		return nil, err

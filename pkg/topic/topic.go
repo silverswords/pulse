@@ -9,9 +9,7 @@ import (
 	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/protocol/aresult"
-	"github.com/silverswords/pulse/pkg/protocol/retry"
 	"github.com/silverswords/pulse/pkg/pubsub"
-	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"github.com/silverswords/pulse/pkg/scheduler"
 	"github.com/silverswords/pulse/pkg/visitor"
 	"golang.org/x/sync/errgroup"
@@ -22,8 +20,6 @@ import (
 	"runtime"
 	"sync"
 	"time"
-
-	"go.opencensus.io/tag"
 )
 
 const (
@@ -51,7 +47,7 @@ type BundleTopic struct {
 	mu sync.RWMutex
 
 	*pubsub.PubSub
-	conns map[uint64]driver.Conn
+	visitor.Middleware
 
 	stopped bool
 	// Settings for publishing messages. All changes must be made before the
@@ -109,12 +105,12 @@ var DefaultPublishSettings = Settings{
 
 // NewTopic new a topic and init it with the connection options
 func NewTopic(driverMetadata protocol.Metadata, options ...Option) (*BundleTopic, error) {
-	pubsub, err := pubsub.Open(driverMetadata.GetDriverName(), driverMetadata)
+	pb, err := pubsub.Open(driverMetadata.GetDriverName(), driverMetadata)
 	if err != nil {
 		return nil, err
 	}
 	t := &BundleTopic{
-		PubSub:   pubsub,
+		PubSub:   pb,
 		Settings: DefaultPublishSettings,
 	}
 
@@ -174,36 +170,36 @@ func NewTopic(driverMetadata protocol.Metadata, options ...Option) (*BundleTopic
 // add in the scheduler, protocol would be equal nil to gc.
 //
 // Warning: when use ordering feature, recommend to limit the QPS to 100, or use synchronous
-func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.PublishRequest) *aresult.Result {
+func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.Message) *aresult.Result {
 	r := aresult.NewResult()
-	if !t.EnableMessageOrdering && msg.Message.OrderingKey != "" {
-		r.Set(errTopicOrderingDisabled)
+	if !t.EnableMessageOrdering && msg.OrderingKey != "" {
+		r.Set(msg.UUID, errTopicOrderingDisabled)
 		return r
 	}
-
 	// Use a PublishRequest with only the Messages field to calculate the size
 	// of an individual message. This accurately calculates the size of the
 	// encoded proto message by accounting for the length of an individual
 	// PubSubMessage and Data/Attributes field.
 	// TODO(hongalex): if this turns out to take significant time, try to approximate it.
 	// TODO: consider wrap with a newLogicFromMessage()
-	msg.Size = len(message.ToByte(msg))
+	mb, _ := jsoniter.Marshal(msg)
+	size := len(mb)
 
 	t.start()
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	// TODO(aboulhosn) [from bcmills] consider changing the semantics of bundler to perform this logic so we don't have to do it here
 	if t.stopped {
-		r.Set(errTopicStopped)
+		r.Set(msg.UUID, errTopicStopped)
 		return r
 	}
 
 	// TODO(jba) [from bcmills] consider using a shared channel per bundle
 	// (requires Bundler API changes; would reduce allocations)
-	err := t.scheduler.Add(msg.Message.OrderingKey, &bundledMessage{&msg.Message, r}, msg.Size)
+	err := t.scheduler.Add(msg.OrderingKey, &bundledMessage{msg, r}, size)
 	if err != nil {
-		t.scheduler.Pause(msg.Message.OrderingKey)
-		r.Set(err)
+		t.scheduler.Pause(msg.OrderingKey)
+		r.Set(msg.UUID, err)
 	}
 	return r
 }
@@ -234,14 +230,6 @@ func (t *BundleTopic) Stop() {
 		return
 	}
 	t.scheduler.FlushAndStop()
-}
-
-func (t *BundleTopic) done(ackId string, ack bool, _ time.Time) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if ack {
-		t.pendingAcks[ackId] = true
-	}
 }
 
 // use to start the topic sender and acker
@@ -297,17 +285,14 @@ func (t *BundleTopic) start() {
 }
 
 // publishMessageBundle just handle the send logic
-func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*publisher.AsyncResultActor) {
-	ctx, err := tag.New(ctx, tag.Insert(keyStatus, "OK"), tag.Upsert(keyTopic, t.name))
-	if err != nil {
-		log.Errorf("pubsub: cannot create context with tag in publishMessageBundle: %v", err)
-	}
+func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*bundledMessage) {
 	group, gCtx := errgroup.WithContext(ctx)
 
 	for _, bm := range bms {
 		if bm.msg.OrderingKey != "" && t.scheduler.IsPaused(bm.msg.OrderingKey) {
-			err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", bm.msg.OrderingKey)
-			bm.res.set("", err)
+			err := fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", bm.msg.OrderingKey)
+			bm.res.Set(bm.msg.UUID, err)
+
 			continue
 		}
 
@@ -329,74 +314,61 @@ func (t *BundleTopic) publishMessageBundle(ctx context.Context, bms []*publisher
 }
 
 type bundledMessage struct {
-	msg visitor.Visitor
+	msg *protocol.Message
 	res *aresult.Result
 }
 
-type OrderingKeyActor struct {
-	msg *protocol.Message
-}
-
-func (a *OrderingKeyActor) Do(fn visitor.DoFunc) error {
-
-}
-
 // publishMessage block until ack or an error occurs and pass the error by aresult.Result
-func (t *BundleTopic) publishMessage(ctx context.Context, bm *publisher.AsyncResultActor) error {
-	bm.Do(func(msg *protocol.Message, err error) error {
-		log.Debug("sending: the bundle key is ", msg.OrderingKey, " with id")
+func (t *BundleTopic) publishMessage(ctx context.Context, bm *bundledMessage) error {
 
-		return nil
-	})
-
-	id := bm.msg.ID
-
-	b, err := jsoniter.ConfigFastest.Marshal(bm.msg)
-	if err != nil {
-		log.Error("In publishMessage:", err)
-		goto CheckError
-	}
-
+	log.Debug("sending: the bundle key is ", bm.msg.OrderingKey, " with id")
+	id := bm.msg.UUID
 	// if pub error, would return it in result and terminate the scheduler if ordering.
 
-	err = t.d.Publish(t.name, b)
+	err := t.Middleware(bm.msg).Do(func(ctx context.Context, r interface{}) error {
+		msg := r.(*protocol.Message)
+		mb, _ := jsoniter.Marshal(msg)
+		pr := &protocol.PublishRequest{Data: mb, PubsubName: "natsStreamingConn", Topic: msg.Topic, OrderingKey: msg.OrderingKey}
+
+		return t.PubSub.PublishContext(ctx, pr)
+	})
 	if err != nil {
 		goto CheckError
 	}
 
-	// if no ack logic, just return
-	if !t.EnableAck {
-		goto CheckError
-	}
-
-	// handle the wait ack and retry logic. note that topic set ack true in startAck() function.
-	// until the t.Timeout(default: 60s) cancel the ctx.
-	for i := 0; i < t.MaxRetryTimes; i++ {
-		checkTimes := 0
-		// check loop
-		for {
-			checkTimes++
-			// check on every loop until retry max times.
-			if t.checkAck(bm.msg) {
-				goto CheckError
-			}
-
-			// every internal time
-			err = t.RetryParams.Backoff(ctx, checkTimes)
-			if err != nil && err == retry.ErrCancel {
-				goto CheckError
-			} else if err == retry.ErrMaxRetry {
-				break
-			}
-		}
-		err = t.d.Publish(t.name, b)
-		log.Error("Resend protocol: ", bm.msg.ID)
-		if err != nil {
-			goto CheckError
-		}
-	}
-	// if reach here, run out of the retry times.
-	err = errors.New(fmt.Sprint("over the retry times limit: ", t.MaxRetryTimes))
+	//// if no ack logic, just return
+	//if !t.EnableAck {
+	//	goto CheckError
+	//}
+	//
+	//// handle the wait ack and retry logic. note that topic set ack true in startAck() function.
+	//// until the t.Timeout(default: 60s) cancel the ctx.
+	//for i := 0; i < t.MaxRetryTimes; i++ {
+	//	checkTimes := 0
+	//	// check loop
+	//	for {
+	//		checkTimes++
+	//		// check on every loop until retry max times.
+	//		if t.checkAck(bm.msg) {
+	//			goto CheckError
+	//		}
+	//
+	//		// every internal time
+	//		err = t.RetryParams.Backoff(ctx, checkTimes)
+	//		if err != nil && err == retry.ErrCancel {
+	//			goto CheckError
+	//		} else if err == retry.ErrMaxRetry {
+	//			break
+	//		}
+	//	}
+	//	err = t.d.Publish(t.name, b)
+	//	log.Error("Resend protocol: ", bm.msg.ID)
+	//	if err != nil {
+	//		goto CheckError
+	//	}
+	//}
+	//// if reach here, run out of the retry times.
+	//err = errors.New(fmt.Sprint("over the retry times limit: ", t.MaxRetryTimes))
 
 	//	no error check until here
 CheckError:
@@ -404,16 +376,14 @@ CheckError:
 		t.scheduler.Pause(bm.msg.OrderingKey)
 		// Update context with error tag for OpenCensus,
 		// using same stats.Record() call as success case.
-		_, _ = tag.New(ctx, tag.Upsert(keyStatus, "ERROR"),
-			tag.Upsert(keyError, err.Error()))
 	}
 	// error handle
 	if err != nil {
 		log.Error("error in publish protocol:", err)
-		bm.res.set("", err)
+		bm.res.Set("", err)
 	} else {
 		bm.msg = nil
-		bm.res.set(id, nil)
+		bm.res.Set(id, nil)
 	}
 	// this error return to cancel the group of sending goroutines if not nil.
 	return err

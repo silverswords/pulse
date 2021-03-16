@@ -6,25 +6,34 @@ import (
 )
 
 type Message struct {
+	UUID string
 	Data []byte
 
 	Topic       string
 	OrderingKey string
 }
 
-func (m *Message) Do(fn visitor.DoFunc) error {
-	return func() error {
-		err := fn(context.Background(), m)
-		return err
-	}()
+func NewMessage(topic, orderingKey string, data []byte) *Message {
+	return &Message{
+		UUID:        uidGen.Next(),
+		Data:        data,
+		Topic:       topic,
+		OrderingKey: orderingKey,
+	}
 }
 
-// PublishRequest is the request to publish a protocol
+func (m *Message) Do(fn visitor.DoFunc) error {
+	return fn(context.Background(), m)
+}
+
+// PublishRequest is the request to publish a message
 type PublishRequest struct {
-	Message    Message  `json:"data"`
-	PubsubName string   `json:"pubsubname"`
-	Topic      string   `json:"topic"`
-	Metadata   Metadata `json:"metadata"`
+	Data       []byte            `json:"data"`
+	PubsubName string            `json:"pubsubname"`
+	Topic      string            `json:"topic"`
+	Metadata   map[string]string `json:"metadata"`
+
+	OrderingKey string `json:"orderingkey"`
 }
 
 // SubscribeRequest is the request to subscribe to a topic

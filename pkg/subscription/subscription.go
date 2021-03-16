@@ -9,7 +9,6 @@ import (
 	"github.com/silverswords/pulse/pkg/protocol"
 	"github.com/silverswords/pulse/pkg/protocol/retry"
 	"github.com/silverswords/pulse/pkg/pubsub"
-	"github.com/silverswords/pulse/pkg/pubsub/driver"
 	"github.com/silverswords/pulse/pkg/scheduler"
 	"github.com/silverswords/pulse/pkg/topic"
 	"github.com/valyala/fasthttp"
@@ -30,7 +29,8 @@ var (
 type Subscription struct {
 	subOptions []Option
 
-	d     driver.Driver
+	*pubsub.PubSub
+
 	topic string
 	// the messages which received by the driver.
 	scheduler *scheduler.Scheduler
@@ -89,14 +89,15 @@ var DefaultRecieveSettings = ReceiveSettings{
 
 // new a topic and init it with the connection options
 func NewSubscription(topicName string, driverMetadata protocol.Metadata, options ...Option) (*Subscription, error) {
-	d, err := pubsub.Registry.Create(driverMetadata.GetDriverName())
+	pb, err := pubsub.Open(driverMetadata.GetDriverName(), driverMetadata)
+
 	if err != nil {
 		return nil, err
 	}
 	s := &Subscription{
 		topic:      topic.PulsePrefix + topicName,
 		subOptions: options,
-		d:          d,
+		PubSub:     pb,
 		//handlers:        make([]func(context.Context,*Message)),
 		receivedEvent:   make(map[string]bool),
 		ReceiveSettings: DefaultRecieveSettings,
@@ -106,62 +107,58 @@ func NewSubscription(topicName string, driverMetadata protocol.Metadata, options
 		return nil, err
 	}
 
-	if err := s.d.Init(driverMetadata); err != nil {
-		return nil, err
-	}
-
 	return s, nil
 }
 
-// done make the protocol.Ack could request to send a ack event to the topic with AckTopicPrefix.
-// receiveTime is not useful now because there is no required to promise to topic that suber had handled themessage.
-func (s *Subscription) done(ackId string, ack bool) {
-	// No ack logic
-	if !ack {
-		//s.pendingAcks[ackId] = ack
-		return
-	}
-	//	send the ack event to topic and keep retry if error if connection error.
-	go func() {
-		var tryTimes int
-		// nolint
-		m, err := protocol.NewCloudEventsEnvelope(ackId, "subscription", "none", "ack", s.topic, "", "", []byte{})
-		b, err := jsoniter.ConfigFastest.Marshal(m)
-		if err != nil {
-			log.Error("suber ack error", err)
-		}
-		err = s.d.Publish(topic.AckTopicPrefix+s.topic, b)
-		//log.Println("suber ----------------------------- suber ack the",m.Id )
-		for err != nil {
-			// wait for sometime
-			err1 := s.RetryParams.Backoff(context.TODO(), tryTimes)
-			tryTimes++
-			if err1 != nil {
-				log.Info("error retrying send ack protocol id:", ackId)
-			}
-			err = s.d.Publish(topic.AckTopicPrefix+s.topic, b)
-		}
-		//s.pendingAcks[ackId] = true
-		//	if reached here, the protocol have been send ack.
-	}()
-}
+//// done make the protocol.Ack could request to send a ack event to the topic with AckTopicPrefix.
+//// receiveTime is not useful now because there is no required to promise to topic that suber had handled themessage.
+//func (s *Subscription) done(ackId string, ack bool) {
+//	// No ack logic
+//	if !ack {
+//		//s.pendingAcks[ackId] = ack
+//		return
+//	}
+//	//	send the ack event to topic and keep retry if error if connection error.
+//	go func() {
+//		var tryTimes int
+//		// nolint
+//		m, err := protocol.NewCloudEventsEnvelope(ackId, "subscription", "none", "ack", s.topic, "", "", []byte{})
+//		b, err := jsoniter.ConfigFastest.Marshal(m)
+//		if err != nil {
+//			log.Error("suber ack error", err)
+//		}
+//		err = s.d.Publish(topic.AckTopicPrefix+s.topic, b)
+//		//log.Println("suber ----------------------------- suber ack the",m.Id )
+//		for err != nil {
+//			// wait for sometime
+//			err1 := s.RetryParams.Backoff(context.TODO(), tryTimes)
+//			tryTimes++
+//			if err1 != nil {
+//				log.Info("error retrying send ack protocol id:", ackId)
+//			}
+//			err = s.d.Publish(topic.AckTopicPrefix+s.topic, b)
+//		}
+//		//s.pendingAcks[ackId] = true
+//		//	if reached here, the protocol have been send ack.
+//	}()
+//}
 
-// checkIfReceived checkd and set true if not true previous. It returns true when subscription had received the protocol.
-func (s *Subscription) checkIfReceived(msg *protocol.CloudEventsEnvelope) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !s.receivedEvent[msg.ID] {
-		s.receivedEvent[msg.ID] = true
-		return false
-	} else {
-		return true
-	}
-}
+//// checkIfReceived checkd and set true if not true previous. It returns true when subscription had received the protocol.
+//func (s *Subscription) checkIfReceived(msg *protocol.CloudEventsEnvelope) bool {
+//	s.mu.Lock()
+//	defer s.mu.Unlock()
+//	if !s.receivedEvent[msg.ID] {
+//		s.receivedEvent[msg.ID] = true
+//		return false
+//	} else {
+//		return true
+//	}
+//}
 
 // todo: add batching iterator to batch every suber's protocol. that's need to store the messages in subscribers.
 // Receive is a blocking function and return error until receive the protocol and occurs error when handle protocol.
 // if error, may should call DrainAck()?
-func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Context, message *protocol.CloudEventsEnvelope)) error {
+func (s *Subscription) Receive(ctx context.Context, r *protocol.SubscribeRequest, callback func(ctx context.Context, message *protocol.Message)) error {
 	log.Debug("Subscription Start Receive from ", s.topic)
 	s.mu.Lock()
 	if s.receiveActive {
@@ -180,54 +177,34 @@ func (s *Subscription) Receive(ctx context.Context, callback func(ctx context.Co
 	ctx2, cancel2 := context.WithCancel(ctx)
 	defer cancel2()
 
-	closer, err := s.d.Subscribe(s.topic, func(msg []byte) {
-		e := &protocol.CloudEventsEnvelope{}
-		err := jsoniter.Unmarshal(msg, e)
+	closer, err := s.PubSub.Subscribe(r, func(ctx context.Context, msg *protocol.Message) error {
+		e := &protocol.Message{}
+		err := jsoniter.Unmarshal(msg.Data, e)
 		if err != nil {
 			log.Error("Error while transforming the byte to protocol: ", err)
 			// not our pulse protocol. just drop it.
-			return
+			return err
 		}
-		m := &protocol.CloudEventsEnvelope{
-			ID: e.ID,
-		}
-		// don't repeat the handle logic.
-		if s.checkIfReceived(m) {
-			log.Error("Subscriber with topic: ", s.topic, " already received this protocol id:", m.ID)
-			return
-		}
-		log.Debug("Subscriber with topic: ", s.topic, " received protocol id: ", m.ID)
 
-		// done is async function
-		m.DoneFunc = s.done
-		// if not EnableAck, Please use m.Ack() manually to ack the protocol.
-		// promise to ack when received a right protocol.
-		if s.EnableAck {
-			// m.Ack() is async function.
-			m.Ack()
-		}
+		log.Debug("Subscriber with topic: ", s.topic, " received protocol id: ", msg.UUID)
 
 		// if no ordering, it would be concurrency handle the protocol.
-		err = s.scheduler.Add(m.OrderingKey, m, func(msg interface{}) {
+		err = s.scheduler.Add(e.OrderingKey, e, func(msg interface{}) {
 			// group to receive the first error and terminate all the subscribers.
 			// just hint the protocol is not ordering handle.
-			if s.EnableMessageOrdering && m.OrderingKey != "" {
-				err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", m.OrderingKey)
+			if s.EnableMessageOrdering && e.OrderingKey != "" {
+				err = fmt.Errorf("pubsub: Publishing for ordering key, %s, paused due to previous error. Call topic.ResumePublish(orderingKey) before resuming publishing", e.OrderingKey)
 			}
 			// handle the protocol until the ackTimeout is reached
 			// if cannot handle out the protocol
 
-			// second endpoints
-			for _, v := range s.handlers {
-				v(ctx2, m)
-			}
-
-			callback(ctx2, m)
+			callback(ctx2, e)
 		})
 
 		if err != nil {
 			cancel2()
 		}
+		return err
 	})
 	if closer != nil {
 		defer closer.Close()

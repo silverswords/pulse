@@ -9,6 +9,7 @@ import (
 // Result help to know error because of sending goroutine is another goroutine.
 type Result struct {
 	ready chan struct{}
+	id    string
 	err   error
 }
 
@@ -23,23 +24,23 @@ func (r *Result) Ready() <-chan struct{} { return r.ready }
 
 // Get returns the server-generated protocol ID and/or error result of a Publish call.
 // Get blocks until the Publish call completes or the context is done.
-func (r *Result) Get(ctx context.Context) (err error) {
+func (r *Result) Get(ctx context.Context) (id string, err error) {
 	// If the result is already ready, return it even if the context is done.
 	select {
 	case <-r.Ready():
-		return r.err
+		return r.id, r.err
 	default:
 	}
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return r.id, ctx.Err()
 	case <-r.Ready():
-		return r.err
+		return r.id, r.err
 	}
 }
 
-func (r *Result) Set(err error) {
-	r.err = err
+func (r *Result) Set(id string, err error) {
+	r.id, r.err = id, err
 	close(r.ready)
 }
 
@@ -56,7 +57,7 @@ func (m *AsyncResultActor) Do(fn visitor.DoFunc) error {
 	return m.msg.Do(func(ctx context.Context, r interface{}) error {
 		log.Println("getting result")
 		err := fn(ctx, r)
-		m.Result.Set(err)
+		m.Result.Set("", err)
 		log.Println("setted result")
 		return err
 	})

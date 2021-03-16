@@ -14,6 +14,13 @@ func init() {
 
 var registeredCodecs = make(map[string]Codec)
 
+func CreateCodec(name string) (Codec, error) {
+	if registeredCodecs[name] != nil {
+		return registeredCodecs[name], nil
+	}
+	return nil, errors.New("no target codec registered")
+}
+
 type EncodeVisitor struct {
 	visitor visitor.Visitor
 	Codec
@@ -21,12 +28,14 @@ type EncodeVisitor struct {
 
 // r should be PublishRequest
 func (enc *EncodeVisitor) Do(fn visitor.DoFunc) error {
-	return enc.visitor.Do(func(ctx context.Context, r interface{}) (err error) {
-		pr := r.(*protocol.PublishRequest)
-		pr.Message.Data, err = enc.Codec.Marshal(pr.Message)
+	return enc.visitor.Do(func(ctx context.Context, r interface{}) error {
+		msg := r.(*protocol.Message)
+		rawData, err := enc.Codec.Marshal(msg)
 		if err != nil {
 			return err
 		}
+		msg.SetRawData(rawData)
+
 		return fn(ctx, r)
 	})
 }
