@@ -1,5 +1,7 @@
 package topic
 
+import "github.com/silverswords/pulse/pkg/visitor"
+
 //// WithWebHook would turn on the ack function.
 //func WithWebHook(webhook string) Option {
 //	return func(t *BundleTopic) error {
@@ -32,6 +34,13 @@ package topic
 func WithOrdered() Option {
 	return func(t *BundleTopic) error {
 		t.EnableMessageOrdering = true
+		return nil
+	}
+}
+
+func WithMiddlewares(middlewares visitor.Middleware) Option {
+	return func(t *BundleTopic) error {
+		t.Middleware = middlewares
 		return nil
 	}
 }

@@ -3,11 +3,18 @@ package visitor
 import (
 	"context"
 	"errors"
+	"github.com/silverswords/pulse/pkg/logger"
 	"github.com/silverswords/pulse/pkg/protocol/retry"
 	"github.com/silverswords/pulse/pkg/protocol/timingwheel"
-	"log"
+
 	"time"
 )
+
+var log = logger.NewLogger("pulse.enhancer")
+
+func init() {
+	log.SetOutputLevel(logger.InfoLevel)
+}
 
 type DoFunc func(ctx context.Context, request interface{}) (err error)
 
@@ -35,8 +42,8 @@ type NameVisitor struct {
 }
 
 func (nop *NameVisitor) Do(fn DoFunc) error {
-	log.Println("nop doing pre")
-	defer log.Println("nop doing post")
+	log.Debug("nop doing pre")
+	defer log.Debug("nop doing post")
 	return fn(context.Background(), nop)
 }
 
@@ -47,7 +54,7 @@ type FailedHandler struct {
 
 func (fh *FailedHandler) FailedDo(context.Context, interface{}) error {
 	fh.CallTimes++
-	log.Printf("failed doing %d times", fh.CallTimes)
+	log.Debugf("failed doing %d times", fh.CallTimes)
 	if fh.CallTimes <= fh.MaxTimes {
 		return errors.New("please try next time")
 	}
@@ -89,7 +96,7 @@ func (m *RetryActor) Do(fn DoFunc) error {
 		cancelCtx, cancelFunc := context.WithCancel(ctx)
 		err := fn(cancelCtx, r)
 		if m.NoRetry(err) {
-			log.Println("[Cancel Retry]: oh, no need to retry", r)
+			log.Debug("[Cancel Retry]: oh, no need to retry", r)
 			cancelFunc()
 			return err
 		}
@@ -97,12 +104,12 @@ func (m *RetryActor) Do(fn DoFunc) error {
 
 		times := 1
 		for {
-			log.Println("enter retry loop")
+			log.Debug("enter retry loop")
 			times++
 			cancelCtx, cancelFunc := context.WithCancel(ctx)
 			if err = fn(cancelCtx, r); err == nil {
 				cancelFunc()
-				log.Printf("[Successful Retry]: oh, no need to retry after %d times tried", times)
+				log.Infof("[Successful Retry]: after %d times tried", times)
 				return nil
 			}
 			cancelFunc()
@@ -112,8 +119,10 @@ func (m *RetryActor) Do(fn DoFunc) error {
 			case nil:
 				continue
 			case retry.ErrCancel:
+				log.Errorf("[Failed Retry]: after %d times tried", times)
 				return err
 			case retry.ErrMaxRetry:
+				log.Errorf("[Failed Retry]: after %d times tried", times)
 				return err
 			// retry
 			default:

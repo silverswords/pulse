@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"github.com/silverswords/pulse/pkg/logger"
+	"github.com/silverswords/pulse/pkg/visitor"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
@@ -14,7 +15,10 @@ import (
 	"github.com/silverswords/pulse/pkg/topic"
 )
 
+var log = logger.NewLogger("pulse.natsstreaming.test")
+
 func main() {
+	log.SetOutputLevel(logger.InfoLevel)
 	meta := protocol.NewMetadata()
 	meta.SetDriver(nats.DriverName)
 	meta.Properties[nats.NatsURL] = "nats://localhost:4222"
@@ -22,9 +26,9 @@ func main() {
 	meta.Properties[nats.SubscriptionType] = "topic"
 	meta.Properties[nats.ConsumerID] = "app-test-a"
 
-	t, err := topic.NewTopic(meta)
+	t, err := topic.NewTopic(meta, topic.WithMiddlewares(visitor.WithRetry(3)))
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 	go func() {
@@ -34,12 +38,15 @@ func main() {
 			res := t.Publish(context.Background(), protocol.NewMessage("test", "", []byte("hello")))
 			go func() {
 				if _, err := res.Get(context.Background()); err != nil {
-					log.Println(err)
+					log.Error(err)
 				}
 			}()
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond)
+			if count%1e2 == 0 {
+				log.Infof("Yeah, %d messages send", count)
+			}
 			//log.Println("send a protocol", count)
-			if count > 1e5 {
+			if count > 1e4 {
 				return
 			}
 		}
@@ -47,7 +54,7 @@ func main() {
 
 	s, err := subscription.NewSubscription("hello", meta, subscription.WithCount())
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 
@@ -55,13 +62,18 @@ func main() {
 		panic(http.ListenAndServe(":8080", nil))
 	}()
 
+	var count int
 	//ctx, _ := context.WithTimeout(context.Background(),time.Second * 10)
-	err = s.Receive(context.Background(), protocol.NewSubscribeRequest("test", protocol.NewMetadata()), func(ctx context.Context, m *protocol.Message) {
-		log.Println("receive message", m)
+	err = s.Receive(context.Background(), protocol.NewSubscribeRequest("test", meta), func(ctx context.Context, m *protocol.Message) {
+		log.Debug("receive message ", m)
+		count++
+		if count%1e4 == 0 {
+			log.Infof("Yeah, %d messages received", count)
+		}
 	})
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 	runtime.Goexit()

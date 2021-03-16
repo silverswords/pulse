@@ -12,7 +12,9 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-redis/redis/v8 v8.0.0-beta.7
+	github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5 // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
+	github.com/ianlancetaylor/demangle v0.0.0-20210309225245-94ab485c4a6d // indirect
 	github.com/json-iterator/go v1.1.10
 	github.com/nats-io/nats-streaming-server v0.21.0 // indirect
 	github.com/nats-io/nats.go v1.10.0
@@ -25,6 +27,7 @@ require (
 	go.opencensus.io v0.22.3
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
+	golang.org/x/sys v0.0.0-20210316092937-0b90fd5c4c48 // indirect
 	google.golang.org/api v0.29.0
 	gopkg.in/fatih/pool.v2 v2.0.0 // indirect
 	gopkg.in/gorethink/gorethink.v3 v3.0.5 // indirect

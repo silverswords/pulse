@@ -230,6 +230,7 @@ func (s *subscription) Close() error {
 
 func parseNATSStreamingMetadata(meta protocol.Metadata) (metadata, error) {
 	m := metadata{}
+
 	if val, ok := meta.Properties[NatsURL]; ok && val != "" {
 		m.natsURL = val
 	} else {

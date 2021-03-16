@@ -71,8 +71,9 @@ func (t dsnConnector) Driver() driver.Driver {
 func OpenPubSub(c driver.Connector) *PubSub {
 	_, cancel := context.WithCancel(context.Background())
 	db := &PubSub{
-		connector: c,
-		stop:      cancel,
+		connector:   c,
+		stop:        cancel,
+		connections: make(map[*DriverConn]bool),
 	}
 
 	return db

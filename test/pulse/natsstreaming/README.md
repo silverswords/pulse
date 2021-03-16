@@ -1,5 +1,18 @@
 Refer from Dapr setup components docs.
 
+## usage
+```bash
+go run topic.go
+```
+If don't have pprof
+```bash
+go get -u github.com/google/pprof
+```
+```bash
+pprof -http=:8081 cpu.prof
+```
+
+
 ## Component format
 
 ```yaml
