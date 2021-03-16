@@ -42,12 +42,17 @@ type SubscribeRequest struct {
 	Metadata Metadata `json:"metadata"`
 }
 
-type Metadata struct {
-	Properties map[string]string
+func NewSubscribeRequest(topic string, metadata Metadata) *SubscribeRequest {
+	return &SubscribeRequest{Topic: topic, Metadata: metadata}
 }
 
-func NewMetadata() *Metadata {
-	return &Metadata{Properties: make(map[string]string)}
+type Metadata struct {
+	Properties map[string]string
+	Features   []string
+}
+
+func NewMetadata() Metadata {
+	return Metadata{Properties: make(map[string]string)}
 }
 
 func (m *Metadata) Clone() *Metadata {

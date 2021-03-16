@@ -19,11 +19,14 @@ import (
 
 // Nats url format with user credentials:
 // DefaultURL = "nats://nats_client:W64f8c6vG6@192.168.0.253:31476"
+const (
+	DriverName = "natsstreaming"
+)
 
 // compulsory options
 const (
-	natsURL                = "natsURL"
-	natsStreamingClusterID = "natsStreamingClusterID"
+	NatsURL                = "natsURL"
+	NatsStreamingClusterID = "natsStreamingClusterID"
 )
 
 // subscription options (optional)
@@ -50,13 +53,13 @@ const (
 )
 
 const (
-	consumerID       = "consumerID" // passed in by Dapr runtime
-	subscriptionType = "subscriptionType"
+	ConsumerID       = "consumerID" // passed in by Dapr runtime
+	SubscriptionType = "subscriptionType"
 )
 
 func init() {
 	// use to register the nats to pubsub driver factory
-	pubsub.Registry.Register("nats", func(logger logger.Logger) driver.Driver {
+	pubsub.Registry.Register(DriverName, func(logger logger.Logger) driver.Driver {
 		return NewNatsStreamingDriver(logger)
 	})
 	log.Println("Register the nats streaming driver")
@@ -102,9 +105,12 @@ func (d *PubSubDriver) Features() map[string]bool {
 func (d *PubSubDriver) SatisfyFeatures(m protocol.Metadata) ([]string, bool) {
 	featuresMap := d.Features()
 	notSupported := make([]string, 0)
-	for i := range m.Properties {
-		if !featuresMap[i] {
-			notSupported = append(notSupported, i)
+	if m.Features == nil {
+		return notSupported, true
+	}
+	for _, v := range m.Features {
+		if !featuresMap[v] {
+			notSupported = append(notSupported, v)
 		}
 	}
 	if len(notSupported) != 0 {
@@ -224,26 +230,26 @@ func (s *subscription) Close() error {
 
 func parseNATSStreamingMetadata(meta protocol.Metadata) (metadata, error) {
 	m := metadata{}
-	if val, ok := meta.Properties[natsURL]; ok && val != "" {
+	if val, ok := meta.Properties[NatsURL]; ok && val != "" {
 		m.natsURL = val
 	} else {
 		return m, errors.New("nats-streaming error: missing nats URL")
 	}
-	if val, ok := meta.Properties[natsStreamingClusterID]; ok && val != "" {
+	if val, ok := meta.Properties[NatsStreamingClusterID]; ok && val != "" {
 		m.natsStreamingClusterID = val
 	} else {
 		return m, errors.New("nats-streaming error: missing nats streaming cluster ID")
 	}
 
-	if val, ok := meta.Properties[subscriptionType]; ok {
+	if val, ok := meta.Properties[SubscriptionType]; ok {
 		if val == subscriptionTypeTopic || val == subscriptionTypeQueueGroup {
 			m.subscriptionType = val
 		} else {
-			return m, errors.New("nats-streaming error: valid value for subscriptionType is topic or queue")
+			return m, errors.New("nats-streaming error: valid value for SubscriptionType is topic or queue")
 		}
 	}
 
-	if val, ok := meta.Properties[consumerID]; ok && val != "" {
+	if val, ok := meta.Properties[ConsumerID]; ok && val != "" {
 		m.natsQueueGroupName = val
 	} else {
 		return m, errors.New("nats-streaming error: missing queue group name")
