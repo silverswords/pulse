@@ -1,7 +1,10 @@
 package adapter
 
 import (
+	"context"
 	"errors"
+	"github.com/silverswords/pulse/pkg/protocol"
+	"github.com/silverswords/pulse/pkg/visitor"
 	"strings"
 )
 
@@ -10,6 +13,40 @@ func init() {
 }
 
 var registeredCodecs = make(map[string]Codec)
+
+type EncodeVisitor struct {
+	visitor visitor.Visitor
+	Codec
+}
+
+// r should be PublishRequest
+func (enc *EncodeVisitor) Do(fn visitor.DoFunc) error {
+	return enc.visitor.Do(func(ctx context.Context, r interface{}) (err error) {
+		pr := r.(*protocol.PublishRequest)
+		pr.Message.Data, err = enc.Codec.Marshal(pr.Message)
+		if err != nil {
+			return err
+		}
+		return fn(ctx, r)
+	})
+}
+
+type DecodeVisitor struct {
+	visitor visitor.Visitor
+	Codec
+}
+
+func (dec *DecodeVisitor) Do(fn visitor.DoFunc) error {
+	return dec.visitor.Do(func(ctx context.Context, r interface{}) (err error) {
+		b := r.([]byte)
+		msg := &protocol.Message{}
+		err = dec.Codec.Unmarshal(b, msg)
+		if err != nil {
+			return err
+		}
+		return fn(ctx, msg)
+	})
+}
 
 // RegisterCodec registers the provided Codec for use with all gRPC clients and
 // servers.

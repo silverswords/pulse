@@ -181,6 +181,14 @@ func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.PublishRequest)
 		return r
 	}
 
+	// Use a PublishRequest with only the Messages field to calculate the size
+	// of an individual message. This accurately calculates the size of the
+	// encoded proto message by accounting for the length of an individual
+	// PubSubMessage and Data/Attributes field.
+	// TODO(hongalex): if this turns out to take significant time, try to approximate it.
+	// TODO: consider wrap with a newLogicFromMessage()
+	msg.Size = len(message.ToByte(msg))
+
 	t.start()
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -194,7 +202,7 @@ func (t *BundleTopic) Publish(ctx context.Context, msg *protocol.PublishRequest)
 	// (requires Bundler API changes; would reduce allocations)
 	err := t.scheduler.Add(msg.Message.OrderingKey, &bundledMessage{&msg.Message, r}, msg.Size)
 	if err != nil {
-		t.scheduler.Pause(msg.OrderingKey)
+		t.scheduler.Pause(msg.Message.OrderingKey)
 		r.Set(err)
 	}
 	return r
