@@ -51,8 +51,8 @@ Publisher is asynchronously and could get result about the success or failure to
 ```go
 t, err := topic.NewTopic(meta, topic.WithMiddlewares(visitor.WithRetry(3)))
 if err != nil {
-log.Error(err)
-return
+    log.Error(err)
+    return
 }
 
 res := t.Publish(context.Background(), protocol.NewMessage("test", "", []byte("hello")))
