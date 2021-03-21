@@ -67,8 +67,8 @@ go func() {
 Receive is a synchronous function and blocks until have an err set by like ctx.Done() or other error.
 ```go
 s, err := subscription.NewSubscription("hello", meta, subscription.WithCount())
-    if err != nil {
-        log.Error(err)
+if err != nil {
+    log.Error(err)
     return
 }
 
