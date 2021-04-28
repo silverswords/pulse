@@ -62,6 +62,10 @@ type Publisher interface {
 	Publish(ctx context.Context, r *protocol.PublishRequest) error
 }
 
+type BatchPublisher interface {
+	BatchPublish(ctx context.Context, r []*protocol.PublishRequest) error
+}
+
 // Subscriber is a blocking method
 // should be cancel() with ctx or call Driver.Close() to close all the subscribers.
 // note that handle just push the received protocol to subscription
