@@ -79,7 +79,7 @@ func main() {
 		startOpt = stan.StartAtTimeDelta(ago)
 	}
 
-	subj, i := "subject", 0
+	subj, i := "subj", 0
 	mcb := func(msg *stan.Msg) {
 		i++
 		printMsg(msg, i)
