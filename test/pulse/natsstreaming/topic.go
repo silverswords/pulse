@@ -67,7 +67,7 @@ func main() {
 	err = s.Receive(context.Background(), protocol.NewSubscribeRequest("test", meta), func(ctx context.Context, m *protocol.Message) {
 		log.Debug("receive message ", m)
 		count++
-		if count%1e4 == 0 {
+		if count%1e2 == 0 {
 			log.Infof("Yeah, %d messages received", count)
 		}
 	})
